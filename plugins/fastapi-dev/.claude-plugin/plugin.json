@@ -1,0 +1,21 @@
+{
+  "name": "fastapi-dev",
+  "version": "1.0.0",
+  "description": "FastAPI 开发全流程支持：项目初始化、功能开发、代码审查、测试编写、代码重构。遵循 Python/FastAPI 最佳实践。",
+  "author": {
+    "name": "nightx"
+  },
+  "license": "MIT",
+  "keywords": [
+    "fastapi",
+    "python",
+    "api",
+    "backend",
+    "async",
+    "sqlalchemy",
+    "pydantic",
+    "ruff",
+    "pytest",
+    "postgresql"
+  ]
+}
