@@ -296,14 +296,27 @@ if not settings.debug:
 
 ## 请求限流
 
+可在 `core/middleware.py` 的 `setup_middleware` 中配置：
+
 ```python
+# core/middleware.py
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 
 limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
-app.add_middleware(SlowAPIMiddleware)
+
+
+def setup_middleware(app: FastAPI) -> None:
+    # 限流配置（slowapi 要求挂载到 app.state）
+    app.state.limiter = limiter
+    app.add_middleware(SlowAPIMiddleware)
+    # 其他中间件...
+```
+
+```python
+# 在路由中使用
+from app.core.middleware import limiter
 
 
 @app.get("/limited")

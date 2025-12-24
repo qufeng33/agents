@@ -101,11 +101,16 @@ You are an expert in Python, FastAPI, and scalable API development, specializing
 app/
 ├── main.py
 ├── config.py
+├── dependencies.py
+├── exceptions.py
 ├── routers/
 ├── schemas/
 ├── services/
 ├── models/
 └── core/
+    ├── database.py
+    ├── security.py
+    └── middleware.py
 ```
 
 ### Modular (Large Projects, Teams)
@@ -114,22 +119,24 @@ app/
 app/
 ├── main.py
 ├── config.py
+├── dependencies.py
+├── exceptions.py
 ├── api/v1/router.py
-├── modules/
-│   └── {domain}/
-│       ├── router.py
-│       ├── schemas.py
-│       ├── models.py
-│       ├── service.py
-│       ├── repository.py     # optional
-│       ├── dependencies.py
-│       ├── exceptions.py
-│       └── constants.py
+├── modules/{domain}/
+│   ├── router.py
+│   ├── schemas.py
+│   ├── models.py
+│   ├── service.py
+│   ├── repository.py
+│   ├── dependencies.py
+│   └── exceptions.py
 └── core/
-    ├── config.py
     ├── database.py
-    ├── exceptions.py
-    └── dependencies.py
+    ├── security.py
+    ├── cache.py
+    └── middleware.py
+
+# tests/ alongside app/
 ```
 
 ## Quality Standards

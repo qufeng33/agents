@@ -47,7 +47,8 @@ app/
 └── core/                # 核心基础设施
     ├── __init__.py
     ├── database.py
-    └── security.py
+    ├── security.py
+    └── middleware.py
 ```
 
 ### 优点
@@ -126,16 +127,14 @@ app/
 │   └── order/
 │       └── ...
 │
-├── core/                   # 核心基础设施
-│   ├── __init__.py
-│   ├── database.py
-│   ├── security.py
-│   └── cache.py
-│
-└── tests/
-    ├── conftest.py
-    ├── test_user.py
-    └── test_item.py
+└── core/                   # 核心基础设施
+    ├── __init__.py
+    ├── database.py
+    ├── security.py
+    ├── cache.py
+    └── middleware.py
+
+# tests/ 目录与 app/ 同级
 ```
 
 ### 优点
@@ -255,31 +254,6 @@ HTTP处理  业务逻辑    数据访问
 | `service.py` | 业务逻辑 | 核心业务规则 |
 | `dependencies.py` | 依赖注入 | 模块专用依赖 |
 | `exceptions.py` | 错误处理 | 模块专用异常 |
-
----
-
-## 从简单结构迁移到模块化
-
-当项目增长到需要模块化时：
-
-1. 创建 `modules/` 目录
-2. 为每个资源创建模块目录
-3. 将相关文件移动到模块中
-4. 更新导入路径
-5. 创建 `api/v1/router.py` 聚合路由
-
-```bash
-# 迁移脚本示例
-mkdir -p app/modules/user
-mv app/routers/users.py app/modules/user/router.py
-mv app/schemas/user.py app/modules/user/schemas.py
-mv app/services/user_service.py app/modules/user/service.py
-mv app/models/user.py app/modules/user/models.py
-touch app/modules/user/repository.py
-touch app/modules/user/dependencies.py
-touch app/modules/user/exceptions.py
-# 然后更新导入路径
-```
 
 ---
 

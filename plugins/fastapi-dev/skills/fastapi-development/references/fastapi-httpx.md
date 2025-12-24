@@ -14,57 +14,60 @@ uv add "httpx[http2]"
 
 ## 基本用法
 
-### Lifespan 初始化（推荐）
+### 生命周期管理 + 依赖注入（推荐）
 
-在 lifespan 中创建共享客户端，复用连接池，避免在每个请求中创建新连接。
+在 `core/http.py` 中统一管理 HTTP 客户端：
 
 ```python
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+# core/http.py
+from typing import Annotated
 
 import httpx
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    # 启动时创建
+async def init_http_client(app: FastAPI) -> None:
+    """初始化 HTTP 客户端"""
     limits = httpx.Limits(max_connections=100, max_keepalive_connections=20)
     timeout = httpx.Timeout(10.0, connect=5.0)
-
     app.state.http_client = httpx.AsyncClient(
         limits=limits,
         timeout=timeout,
-        http2=True,  # 启用 HTTP/2
+        http2=True,
     )
-    yield
-    # 关闭时清理
+
+
+async def close_http_client(app: FastAPI) -> None:
+    """关闭 HTTP 客户端"""
     await app.state.http_client.aclose()
 
 
-app = FastAPI(lifespan=lifespan)
-
-
-@app.get("/external")
-async def call_external_api(request: Request):
-    client = request.app.state.http_client
-    response = await client.get("https://api.example.com/data")
-    return response.json()
-```
-
-### 依赖注入方式
-
-```python
-from typing import Annotated
-from fastapi import Depends, Request
-import httpx
-
-
 async def get_http_client(request: Request) -> httpx.AsyncClient:
+    """依赖注入：获取 HTTP 客户端"""
     return request.app.state.http_client
 
 
 HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]
+```
+
+在 `main.py` 的 lifespan 中初始化：
+
+```python
+# main.py
+from app.core.http import init_http_client, close_http_client
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    await init_http_client(app)
+    yield
+    await close_http_client(app)
+```
+
+### 在路由中使用
+
+```python
+from app.core.http import HttpClient
 
 
 @app.get("/users/{user_id}")
@@ -73,6 +76,11 @@ async def get_user(user_id: int, client: HttpClient):
     response.raise_for_status()
     return response.json()
 ```
+
+**优势**：
+- 测试时可用 `app.dependency_overrides[get_http_client] = mock_client` 轻松替换
+- 类型安全，IDE 自动补全
+- 连接池在整个应用生命周期内复用
 
 ---
 
@@ -302,13 +310,13 @@ client = httpx.AsyncClient(
 
 ## 最佳实践
 
-1. **共享客户端** - 在 lifespan 中创建，避免每次请求新建
+1. **共享客户端** - 使用 `init_http_client()` 初始化，避免每次请求新建
 2. **配置超时** - 始终设置合理的超时，避免无限等待
 3. **连接池** - 根据并发量调整 `max_connections`
 4. **错误处理** - 捕获特定异常类型，提供友好错误信息
 5. **重试策略** - 对网络错误使用指数退避重试
 6. **HTTP/2** - 对同一主机的多请求启用 HTTP/2
-7. **关闭客户端** - 确保在 lifespan 中调用 `aclose()`
+7. **关闭客户端** - 确保在 lifespan 中调用 `close_http_client()`
 
 ---
 

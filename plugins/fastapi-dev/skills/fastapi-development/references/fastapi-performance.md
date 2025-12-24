@@ -224,22 +224,41 @@ async def aggregate_data():
 
 ### 共享 HTTP 客户端
 
+在 `core/http.py` 中管理共享客户端，通过依赖注入使用：
+
 ```python
-from contextlib import asynccontextmanager
+# core/http.py
+from typing import Annotated
+
 import httpx
+from fastapi import Depends, FastAPI, Request
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 共享客户端，复用连接
+async def init_http_client(app: FastAPI) -> None:
+    """初始化 HTTP 客户端"""
     app.state.http_client = httpx.AsyncClient()
-    yield
+
+
+async def close_http_client(app: FastAPI) -> None:
+    """关闭 HTTP 客户端"""
     await app.state.http_client.aclose()
 
 
+async def get_http_client(request: Request) -> httpx.AsyncClient:
+    """依赖注入：获取 HTTP 客户端"""
+    return request.app.state.http_client
+
+
+HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]
+```
+
+```python
+# 在路由中使用（依赖注入）
+from app.core.http import HttpClient
+
+
 @app.get("/external")
-async def call_external(request: Request):
-    client = request.app.state.http_client
+async def call_external(client: HttpClient):
     response = await client.get("https://api.example.com")
     return response.json()
 ```

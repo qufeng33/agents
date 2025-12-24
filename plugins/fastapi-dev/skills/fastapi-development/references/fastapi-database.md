@@ -440,26 +440,57 @@ user_service = AsyncCRUDService(User)
 
 ---
 
-## Lifespan 中初始化数据库
+## 数据库生命周期管理
+
+在 `core/database.py` 中统一管理数据库连接：
 
 ```python
-from contextlib import asynccontextmanager
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+# core/database.py
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+from app.config import get_settings
+
+settings = get_settings()
+
+async_engine = create_async_engine(
+    settings.async_database_url,
+    pool_pre_ping=True,
+    pool_recycle=300,
+    echo=settings.debug,
+)
+
+AsyncSessionLocal = async_sessionmaker(
+    bind=async_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False,
+)
+
+
+async def init_database() -> None:
+    """初始化数据库（创建表，仅开发环境）"""
+    if settings.debug:
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+
+async def close_database() -> None:
+    """关闭数据库连接池"""
+    await async_engine.dispose()
+```
+
+在 `main.py` 中调用：
+
+```python
+# main.py
+from app.core.database import init_database, close_database
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 创建表（开发环境）
-    async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    await init_database()
     yield
-
-    # 清理连接池
-    await async_engine.dispose()
-
-
-app = FastAPI(lifespan=lifespan)
+    await close_database()
 ```
 
 ---

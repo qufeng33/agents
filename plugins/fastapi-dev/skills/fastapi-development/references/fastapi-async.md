@@ -219,36 +219,65 @@ async def create_order(order: OrderCreate, background_tasks: BackgroundTasks, db
 
 ## 生命周期事件
 
-使用 `lifespan` 管理应用启动和关闭逻辑。
+使用 `lifespan` 管理应用启动和关闭逻辑：
 
 ```python
+# core/http.py
+from typing import Annotated
+
+import httpx
+from fastapi import Depends, FastAPI, Request
+
+
+async def init_http_client(app: FastAPI) -> None:
+    """初始化 HTTP 客户端"""
+    app.state.http_client = httpx.AsyncClient(timeout=30.0)
+
+
+async def close_http_client(app: FastAPI) -> None:
+    """关闭 HTTP 客户端"""
+    await app.state.http_client.aclose()
+
+
+async def get_http_client(request: Request) -> httpx.AsyncClient:
+    """依赖注入：获取 HTTP 客户端"""
+    return request.app.state.http_client
+
+
+HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]
+```
+
+```python
+# main.py
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-import httpx
 from fastapi import FastAPI
+
+from app.core.database import init_database, close_database
+from app.core.http import init_http_client, close_http_client
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 启动时：初始化资源
-    app.state.http_client = httpx.AsyncClient()
-    app.state.db_pool = await create_db_pool()
+    await init_database()
+    await init_http_client(app)
 
     yield  # 应用运行中
 
     # 关闭时：清理资源
-    await app.state.http_client.aclose()
-    await app.state.db_pool.close()
+    await close_http_client(app)
+    await close_database()
+```
 
-
-app = FastAPI(lifespan=lifespan)
+```python
+# 在路由中使用（依赖注入）
+from app.core.http import HttpClient
 
 
 @app.get("/external")
-async def call_external(request: Request):
-    # 使用共享的 HTTP 客户端
-    client = request.app.state.http_client
+async def call_external(client: HttpClient):
     response = await client.get("https://api.example.com")
     return response.json()
 ```

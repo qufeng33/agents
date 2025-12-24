@@ -49,34 +49,77 @@ uv add "fastapi[standard]"  # 包含 uvicorn, pydantic-settings 等
 
 ```
 app/
+├── __init__.py
 ├── main.py              # 应用入口
 ├── config.py            # 配置管理
-├── routers/             # 所有路由
+├── dependencies.py      # 共享依赖
+├── exceptions.py        # 异常定义
+│
+├── routers/             # 路由层（按资源划分）
+│   ├── __init__.py
 │   ├── users.py
 │   └── items.py
-├── schemas/             # 所有 Pydantic 模型
-├── services/            # 所有业务逻辑
-├── models/              # 所有 ORM 模型
+│
+├── schemas/             # Pydantic 模型
+│   ├── __init__.py
+│   ├── user.py
+│   └── item.py
+│
+├── services/            # 业务逻辑
+│   ├── __init__.py
+│   ├── user_service.py
+│   └── item_service.py
+│
+├── models/              # ORM 模型
+│   ├── __init__.py
+│   └── user.py
+│
 └── core/                # 核心基础设施
+    ├── __init__.py
+    ├── database.py
+    ├── security.py
+    └── middleware.py
 ```
 
 ### 模块化结构（按领域组织）
 
 ```
 app/
-├── main.py
-├── config.py
-├── api/v1/router.py     # 路由聚合
-├── modules/             # 按领域划分（单数命名）
-│   ├── user/            # 用户模块（自包含）
+├── __init__.py
+├── main.py                 # 应用入口
+├── config.py               # 全局配置
+├── dependencies.py         # 全局共享依赖
+├── exceptions.py           # 全局异常基类
+│
+├── api/                    # API 版本管理
+│   └── v1/
+│       ├── __init__.py
+│       └── router.py       # v1 路由聚合
+│
+├── modules/                # 功能模块（按领域划分，单数命名）
+│   ├── __init__.py
+│   │
+│   ├── user/               # 用户模块（完全自包含）
+│   │   ├── __init__.py
 │   │   ├── router.py       # HTTP 处理
 │   │   ├── schemas.py      # Pydantic 模型
+│   │   ├── models.py       # ORM 模型
 │   │   ├── repository.py   # 数据访问层
 │   │   ├── service.py      # 业务逻辑层
-│   │   ├── models.py       # ORM 模型
-│   │   └── dependencies.py # 依赖注入
+│   │   ├── dependencies.py # 依赖注入
+│   │   └── exceptions.py   # 模块异常
+│   │
 │   └── item/
-└── core/
+│       └── ...
+│
+└── core/                   # 核心基础设施
+    ├── __init__.py
+    ├── database.py
+    ├── security.py
+    ├── cache.py
+    └── middleware.py
+
+# tests/ 目录与 app/ 同级
 ```
 
 详见 [项目结构](./references/fastapi-project-structure.md) | 模板代码：`assets/simple-api/`、`assets/modular-api/`
@@ -85,26 +128,32 @@ app/
 
 ## 应用入口模板
 
+采用 `setup_xxx` / `init_xxx` 模式分离职责：
+
+- `setup_xxx(app)` - 配置组件（中间件、路由）
+- `init_xxx(app)` / `close_xxx(app)` - 管理资源生命周期（数据库、HTTP 客户端）
+
 ```python
+# main.py
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
 
 from app.config import get_settings
-from app.modules.user.router import router as user_router
+from app.api.v1.router import setup_router
+from app.core.database import init_database, close_database
+from app.core.http import init_http_client, close_http_client
+from app.core.middleware import setup_middleware
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    # 启动时初始化应用级资源，存储到 app.state
-    # app.state.db_pool = await create_db_pool()
-    # app.state.redis = await create_redis_client()
+    await init_database()
+    await init_http_client(app)
     yield
-    # 关闭时清理
-    # await app.state.db_pool.close()
+    await close_http_client(app)
+    await close_database()
 
 
 settings = get_settings()
@@ -116,18 +165,45 @@ app = FastAPI(
     docs_url="/docs" if settings.debug else None,
 )
 
-# 中间件（顺序重要：后添加的先执行）
-app.add_middleware(GZipMiddleware, minimum_size=1000)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+setup_middleware(app)
+setup_router(app)
+```
 
-# 路由
-app.include_router(user_router, prefix="/api/v1/users", tags=["users"])
+```python
+# core/middleware.py
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+
+from app.config import get_settings
+
+
+def setup_middleware(app: FastAPI) -> None:
+    """配置中间件（顺序重要：后添加的先执行）"""
+    settings = get_settings()
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+```
+
+```python
+# api/v1/router.py
+from fastapi import APIRouter, FastAPI
+
+from app.modules.user.router import router as user_router
+
+api_router = APIRouter()
+api_router.include_router(user_router, prefix="/users", tags=["users"])
+
+
+def setup_router(app: FastAPI) -> None:
+    """配置路由"""
+    app.include_router(api_router, prefix="/api/v1")
 ```
 
 ---
