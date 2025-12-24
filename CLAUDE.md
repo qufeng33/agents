@@ -23,7 +23,12 @@ agents/
 │           ├── fastapi-architecture/
 │           │   └── SKILL.md
 │           └── fastapi-development/
-│               └── SKILL.md
+│               ├── SKILL.md
+│               └── references/         # 详细参考文档
+│                   ├── fastapi-project-structure.md
+│                   ├── fastapi-database.md
+│                   ├── fastapi-async.md
+│                   └── ...
 └── shared/                             # 跨 plugin 共享资源（可选）
 ```
 
@@ -98,12 +103,10 @@ mkdir -p plugins/{plugin-name}/{agents,commands,skills}
 
 ## 待改进项
 
-根据 Skill Review 的建议，后续可优化：
-
 1. **fastapi-architecture Skill**
    - 统一使用祈使句式
    - 添加设计文档模板
 
 2. **fastapi-development Skill**
-   - 拆分代码模板到 `examples/`
-   - 添加 `references/` 目录
+   - ~~添加 `references/` 目录~~ ✅ 已完成
+   - 拆分代码模板到 `assets/`（simple-api/、modular-api/）
