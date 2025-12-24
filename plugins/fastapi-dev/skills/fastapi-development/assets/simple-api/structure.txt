@@ -1,0 +1,42 @@
+# 简单项目结构（按层组织）
+# 适用于：小项目、原型验证、单人开发、< 20 个文件
+
+app/
+├── __init__.py
+├── main.py              # 应用入口
+├── config.py            # 配置管理
+├── dependencies.py      # 共享依赖
+├── exceptions.py        # 异常定义
+│
+├── routers/             # 路由层（按资源划分）
+│   ├── __init__.py
+│   ├── users.py
+│   └── items.py
+│
+├── schemas/             # Pydantic 模型
+│   ├── __init__.py
+│   ├── user.py
+│   └── item.py
+│
+├── services/            # 业务逻辑
+│   ├── __init__.py
+│   ├── user_service.py
+│   └── item_service.py
+│
+├── models/              # ORM 模型
+│   ├── __init__.py
+│   └── user.py
+│
+└── core/                # 核心基础设施
+    ├── __init__.py
+    ├── database.py
+    └── security.py
+
+# 特点：
+# - 同类文件放在一起（所有 router 放 routers/）
+# - 简单直接，容易理解
+# - 适合快速开发
+
+# 缺点：
+# - 随着功能增加，每个目录会变得臃肿
+# - 修改一个功能需要跨多个目录

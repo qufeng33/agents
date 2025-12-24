@@ -1,633 +1,350 @@
 ---
 name: fastapi-development
 description: |
-  FastAPI 开发实现知识库：编写代码的最佳实践，包括 API、数据库、测试、代码规范。
-  This skill should be used when implementing FastAPI code, writing routers, services, models, schemas, or tests.
-  Triggers: "实现", "编写", "代码", "router", "service", "model", "测试", "重构", "implement", "write code", "create endpoint", "refactor", "add test", "CRUD", "dependency injection", "error handling", "Pydantic schema"
+  This skill should be used when the user wants to implement, write, or code FastAPI features.
+  Covers project structure, async patterns, dependency injection, Pydantic schemas, SQLAlchemy/SQLModel,
+  error handling, testing, logging, performance optimization, and deployment.
+
+  Trigger phrases: "write a router", "implement endpoint", "create API", "add CRUD", "write service",
+  "Pydantic schema", "SQLAlchemy model", "async database", "error handling", "write tests",
+  "配置管理", "依赖注入", "数据库集成", "错误处理", "性能优化"
 ---
 
-# FastAPI 开发实现指南
+# FastAPI 最佳实践
 
-专注于**代码编写**的最佳实践。
+> 适用版本：FastAPI >= 0.120.0 | Python >= 3.11 | Pydantic >= 2.7.0
+>
+> 更新时间：2025-12
+
+## 快速参考
+
+### 版本要求
+
+```bash
+# 使用 uv 创建项目（推荐）
+uv init my-project && cd my-project
+uv add "fastapi[standard]"  # 包含 uvicorn, pydantic-settings 等
+```
+
+### 核心原则
+
+1. **异步优先** - I/O 操作使用 `async def`，CPU 密集型任务分发到 worker
+2. **类型安全** - 使用 `Annotated` 声明参数和依赖
+3. **分离关注点** - 请求/响应模型分离，按领域组织代码
+4. **依赖注入** - 利用 DI 系统管理资源和验证逻辑
+5. **显式配置** - 使用 pydantic-settings 管理环境配置
 
 ---
 
-## 0. Pydantic 规范
+## 项目结构
 
-### 充分利用内置验证
+根据项目规模选择合适的结构：
 
-- 使用 `EmailStr`, `HttpUrl`, `Field(min_length=, max_length=, ge=, le=)` 等内置验证
-- 使用 `Enum` 限制可选值
-- 使用 `regex` 模式匹配
-- 避免自定义验证器，除非内置无法满足
+| 场景 | 推荐结构 |
+|------|----------|
+| 小项目 / 原型 / 单人开发 | 简单结构（按层组织） |
+| 团队开发 / 中大型项目 | 模块化结构（按领域组织） |
 
-### 全局 Base Model
+### 简单结构（按层组织）
+
+```
+app/
+├── main.py              # 应用入口
+├── config.py            # 配置管理
+├── routers/             # 所有路由
+│   ├── users.py
+│   └── items.py
+├── schemas/             # 所有 Pydantic 模型
+├── services/            # 所有业务逻辑
+├── models/              # 所有 ORM 模型
+└── core/                # 核心基础设施
+```
+
+### 模块化结构（按领域组织）
+
+```
+app/
+├── main.py
+├── config.py
+├── api/v1/router.py     # 路由聚合
+├── modules/             # 按领域划分（单数命名）
+│   ├── user/            # 用户模块（自包含）
+│   │   ├── router.py       # HTTP 处理
+│   │   ├── schemas.py      # Pydantic 模型
+│   │   ├── repository.py   # 数据访问层
+│   │   ├── service.py      # 业务逻辑层
+│   │   ├── models.py       # ORM 模型
+│   │   └── dependencies.py # 依赖注入
+│   └── item/
+└── core/
+```
+
+详见 [项目结构](./references/fastapi-project-structure.md) | 模板代码：`assets/simple-api/`、`assets/modular-api/`
+
+---
+
+## 应用入口模板
 
 ```python
-from pydantic import BaseModel, ConfigDict
-from datetime import datetime
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
-class AppBaseModel(BaseModel):
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+
+from app.config import get_settings
+from app.modules.user.router import router as user_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    # 启动时初始化应用级资源，存储到 app.state
+    # app.state.db_pool = await create_db_pool()
+    # app.state.redis = await create_redis_client()
+    yield
+    # 关闭时清理
+    # await app.state.db_pool.close()
+
+
+settings = get_settings()
+
+app = FastAPI(
+    title=settings.app_name,
+    version="1.0.0",
+    lifespan=lifespan,
+    docs_url="/docs" if settings.debug else None,
+)
+
+# 中间件（顺序重要：后添加的先执行）
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 路由
+app.include_router(user_router, prefix="/api/v1/users", tags=["users"])
+```
+
+---
+
+## 配置管理
+
+采用二阶段初始化：先初始化日志，再加载配置，配置失败时日志可用。
+
+```python
+from functools import lru_cache
+from typing import Literal
+
+from pydantic import ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    debug: bool = False
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+
+    # 必填配置（无默认值，缺失时启动报错）
+    database_url: str
+    secret_key: str
+
+    # 可选配置
+    access_token_expire_minutes: int = 30
+    cors_origins: list[str] = ["http://localhost:3000"]
+
+
+@lru_cache
+def get_settings() -> Settings:
+    try:
+        return Settings()
+    except ValidationError as exc:
+        missing = ["/".join(map(str, err.get("loc", []))) for err in exc.errors()]
+        raise RuntimeError(f"缺少必要的环境变量: {', '.join(missing)}") from None
+```
+
+---
+
+## 路由与依赖注入
+
+```python
+from typing import Annotated
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from app.modules.user.schemas import UserCreate, UserResponse
+from app.modules.user.service import UserService
+from app.modules.user.dependencies import get_user_service
+
+router = APIRouter()
+
+
+@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_user(
+    user_in: UserCreate,
+    service: Annotated[UserService, Depends(get_user_service)],
+):
+    return await service.create(user_in)
+```
+
+---
+
+## Pydantic 模型
+
+```python
+from datetime import datetime
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+
+
+class BaseSchema(BaseModel):
     model_config = ConfigDict(
         from_attributes=True,
         str_strip_whitespace=True,
     )
-```
 
-### Settings 拆分
 
-按模块拆分 `BaseSettings`，不要单一大配置文件：
-
-```python
-# app/modules/auth/config.py
-class AuthSettings(BaseSettings):
-    secret_key: str
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
-
-# app/modules/database/config.py
-class DatabaseSettings(BaseSettings):
-    url: str
-    pool_size: int = 5
-```
-
----
-
-## 0.1 Dependencies 规范
-
-### 业务校验
-
-Pydantic 无法处理的校验放在依赖中：
-
-```python
-async def valid_user_id(user_id: int, db: DBSession) -> User:
-    """验证用户存在"""
-    user = await db.get(User, user_id)
-    if not user:
-        raise HTTPException(404, "User not found")
-    return user
-
-async def valid_owned_resource(
-    resource_id: int,
-    current_user: CurrentUser,
-    db: DBSession,
-) -> Resource:
-    """验证资源存在且属于当前用户"""
-    resource = await db.get(Resource, resource_id)
-    if not resource or resource.owner_id != current_user.id:
-        raise HTTPException(404, "Resource not found")
-    return resource
-```
-
-### 依赖缓存
-
-同一请求内，相同依赖只执行一次。可以放心组合依赖：
-
-```python
-# 这两个依赖都调用 get_db，但 get_db 只执行一次
-async def get_user_service(db: DBSession) -> UserService: ...
-async def get_order_service(db: DBSession) -> OrderService: ...
-```
-
-### 优先 async
-
-即使非 I/O 操作，也优先使用 async 依赖，避免线程池开销。
-
----
-
-## 0.2 Observability 规范
-
-### Structured Logging
-
-```python
-from loguru import logger
-import sys
-
-# 配置 JSON 格式（生产环境）
-logger.configure(
-    handlers=[{
-        "sink": sys.stdout,
-        "format": "{message}",
-        "serialize": True,  # JSON 格式
-    }]
-)
-
-# 使用
-logger.info("User created", user_id=user.id, email=user.email)
-```
-
-### Health Checks
-
-```python
-@router.get("/health")
-async def health() -> dict:
-    return {"status": "healthy"}
-
-@router.get("/ready")
-async def ready(db: DBSession) -> dict:
-    await db.execute(text("SELECT 1"))
-    return {"status": "ready"}
-```
-
-### Request ID Tracking
-
-```python
-from uuid import uuid4
-from starlette.middleware.base import BaseHTTPMiddleware
-
-class RequestIDMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        request_id = request.headers.get("X-Request-ID", str(uuid4()))
-        with logger.contextualize(request_id=request_id):
-            response = await call_next(request)
-            response.headers["X-Request-ID"] = request_id
-            return response
-```
-
----
-
-## 0.3 Documentation 规范
-
-### 生产环境隐藏文档
-
-```python
-app = FastAPI(
-    openapi_url="/openapi.json" if settings.debug else None,
-)
-```
-
-### 完整元数据
-
-```python
-@router.post(
-    "/",
-    response_model=UserResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="创建用户",
-    description="创建新用户账户",
-    responses={
-        409: {"description": "邮箱已存在"},
-    },
-)
-async def create_user(...): ...
-```
-
----
-
-## 0.4 Testing 规范
-
-### 从一开始用 async 测试
-
-使用 `httpx.AsyncClient`，避免后期事件循环冲突：
-
-```python
-import pytest
-from httpx import AsyncClient, ASGITransport
-
-@pytest.fixture
-async def client() -> AsyncClient:
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as ac:
-        yield ac
-```
-
-### 测试原则
-
-- 测试行为，不测试实现
-- 每个测试独立，不依赖执行顺序
-- 使用 factory 创建测试数据
-- 覆盖 happy path + edge cases
-
----
-
-## 1. 代码规范
-
-### 工具配置
-
-```toml
-# pyproject.toml
-[tool.ruff]
-target-version = "py311"
-line-length = 100
-
-[tool.ruff.lint]
-select = ["E", "W", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "ASYNC"]
-
-[tool.mypy]
-python_version = "3.11"
-strict = true
-```
-
-### 命名规范
-
-| 元素 | 规范 | 示例 |
-|------|------|------|
-| 变量/函数 | snake_case | `get_user_by_id` |
-| 类 | PascalCase | `UserService` |
-| 常量 | UPPER_SNAKE | `MAX_RETRIES` |
-
-### 类型提示
-
-```python
-# 必须使用类型提示
-from typing import Annotated
-
-async def get_user(user_id: int) -> User | None:
-    ...
-
-# 使用 Annotated 增强依赖注入
-UserServiceDep = Annotated[UserService, Depends(get_user_service)]
-```
-
----
-
-## 2. API 实现
-
-### Router 模板
-
-```python
-from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-
-router = APIRouter(prefix="/users", tags=["users"])
-
-@router.get("/", response_model=list[UserResponse])
-async def list_users(
-    service: UserServiceDep,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-) -> list[UserResponse]:
-    """获取用户列表"""
-    return await service.list(skip=skip, limit=limit)
-
-@router.get("/{user_id}", response_model=UserResponse)
-async def get_user(
-    user_id: int,
-    service: UserServiceDep,
-) -> UserResponse:
-    """获取单个用户"""
-    user = await service.get(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(
-    data: UserCreate,
-    service: UserServiceDep,
-) -> UserResponse:
-    """创建用户"""
-    return await service.create(data)
-
-@router.put("/{user_id}", response_model=UserResponse)
-async def update_user(
-    user_id: int,
-    data: UserUpdate,
-    service: UserServiceDep,
-) -> UserResponse:
-    """更新用户"""
-    user = await service.update(user_id, data)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(
-    user_id: int,
-    service: UserServiceDep,
-) -> None:
-    """删除用户"""
-    if not await service.delete(user_id):
-        raise HTTPException(status_code=404, detail="User not found")
-```
-
-### 依赖注入
-
-```python
-# app/core/deps.py
-from typing import Annotated, AsyncGenerator
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with async_session() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-
-async def get_user_service(
-    db: Annotated[AsyncSession, Depends(get_db)],
-) -> UserService:
-    return UserService(db)
-
-# 类型别名
-DBSession = Annotated[AsyncSession, Depends(get_db)]
-UserServiceDep = Annotated[UserService, Depends(get_user_service)]
-```
-
----
-
-## 3. Schema 实现
-
-### Pydantic 模型
-
-```python
-from pydantic import BaseModel, EmailStr, ConfigDict, Field
-from datetime import datetime
-
-class UserBase(BaseModel):
+class UserCreate(BaseSchema):
     email: EmailStr
-    name: str = Field(min_length=1, max_length=100)
+    password: str = Field(min_length=8, max_length=100)
+    username: str = Field(min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_]+$")
 
-class UserCreate(UserBase):
-    password: str = Field(min_length=8)
 
-class UserUpdate(BaseModel):
-    email: EmailStr | None = None
-    name: str | None = Field(None, min_length=1, max_length=100)
-
-class UserResponse(UserBase):
-    model_config = ConfigDict(from_attributes=True)
-
+class UserResponse(BaseSchema):
     id: int
-    is_active: bool
+    email: EmailStr
+    username: str
     created_at: datetime
 ```
 
-### 分页响应
+---
+
+## 数据库依赖
 
 ```python
-from typing import Generic, TypeVar
-from pydantic import BaseModel
+from typing import Annotated, Generator
+from fastapi import Depends
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 
-T = TypeVar("T")
+engine = create_engine(settings.database_url, pool_pre_ping=True, pool_recycle=300)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
-class PaginatedResponse(BaseModel, Generic[T]):
-    items: list[T]
-    total: int
-    page: int
-    page_size: int
+
+def get_db() -> Generator[Session, None, None]:
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+DBSession = Annotated[Session, Depends(get_db)]
 ```
 
 ---
 
-## 4. Service 实现
-
-### Service 模板
+## 错误处理
 
 ```python
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
-class UserService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
 
-    async def get(self, user_id: int) -> User | None:
-        result = await self.session.execute(
-            select(User).where(User.id == user_id)
-        )
-        return result.scalar_one_or_none()
-
-    async def list(self, skip: int = 0, limit: int = 20) -> list[User]:
-        result = await self.session.execute(
-            select(User).offset(skip).limit(limit)
-        )
-        return list(result.scalars().all())
-
-    async def create(self, data: UserCreate) -> User:
-        user = User(**data.model_dump(exclude={"password"}))
-        user.hashed_password = hash_password(data.password)
-        self.session.add(user)
-        await self.session.flush()
-        await self.session.refresh(user)
-        return user
-
-    async def update(self, user_id: int, data: UserUpdate) -> User | None:
-        user = await self.get(user_id)
-        if not user:
-            return None
-        for key, value in data.model_dump(exclude_unset=True).items():
-            setattr(user, key, value)
-        await self.session.flush()
-        await self.session.refresh(user)
-        return user
-
-    async def delete(self, user_id: int) -> bool:
-        user = await self.get(user_id)
-        if not user:
-            return False
-        await self.session.delete(user)
-        return True
-```
-
----
-
-## 5. Model 实现
-
-### SQLAlchemy 模型
-
-```python
-from datetime import datetime
-from sqlalchemy import String, DateTime, ForeignKey, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.core.database import Base
-
-class TimestampMixin:
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-
-class User(TimestampMixin, Base):
-    __tablename__ = "users"
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
-    name: Mapped[str] = mapped_column(String(100))
-    hashed_password: Mapped[str] = mapped_column(String(255))
-    is_active: Mapped[bool] = mapped_column(default=True)
-
-    # 关系
-    orders: Mapped[list["Order"]] = relationship(back_populates="user")
-```
-
-### 数据库连接
-
-```python
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from sqlalchemy.orm import DeclarativeBase
-
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    pool_pre_ping=True,
-)
-
-async_session = async_sessionmaker(engine, expire_on_commit=False)
-
-class Base(DeclarativeBase):
-    pass
-```
-
-### 查询优化
-
-```python
-from sqlalchemy.orm import selectinload, joinedload
-
-# 避免 N+1：使用预加载
-async def get_user_with_orders(user_id: int) -> User | None:
-    result = await session.execute(
-        select(User)
-        .options(selectinload(User.orders))
-        .where(User.id == user_id)
-    )
-    return result.scalar_one_or_none()
-```
-
----
-
-## 6. 错误处理
-
-### 自定义异常
-
-```python
-from fastapi import HTTPException, status
-
-class AppException(HTTPException):
-    def __init__(self, status_code: int, detail: str, code: str):
-        super().__init__(status_code=status_code, detail=detail)
+class AppException(Exception):
+    def __init__(self, code: str, message: str, status_code: int = 400):
         self.code = code
+        self.message = message
+        self.status_code = status_code
 
-class NotFoundError(AppException):
-    def __init__(self, resource: str, id: int | str):
-        super().__init__(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"{resource} with id {id} not found",
-            code="NOT_FOUND",
-        )
 
-class ConflictError(AppException):
-    def __init__(self, detail: str):
-        super().__init__(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=detail,
-            code="CONFLICT",
-        )
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"code": exc.code, "message": exc.message},
+    )
 ```
 
 ---
 
-## 7. 测试实现
-
-### conftest.py
+## 后台任务
 
 ```python
-import pytest
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from fastapi import BackgroundTasks
 
-@pytest.fixture
-async def db_session():
-    """每个测试使用独立事务，自动回滚"""
-    async with engine.connect() as conn:
-        await conn.begin()
-        async with async_session(bind=conn) as session:
-            yield session
-        await conn.rollback()
 
-@pytest.fixture
-async def client(db_session) -> AsyncClient:
-    """测试客户端"""
-    app.dependency_overrides[get_db] = lambda: db_session
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as ac:
-        yield ac
-    app.dependency_overrides.clear()
-```
+def process_in_background(item_id: int):
+    """后台任务应创建自己的数据库连接"""
+    db = SessionLocal()
+    try:
+        item = db.query(Item).filter(Item.id == item_id).first()
+        # 处理逻辑...
+    finally:
+        db.close()
 
-### API 测试
 
-```python
-class TestUsersAPI:
-    async def test_create_success(self, client: AsyncClient):
-        response = await client.post("/users/", json={
-            "email": "test@example.com",
-            "name": "Test",
-            "password": "secret123",
-        })
-        assert response.status_code == 201
-        assert response.json()["email"] == "test@example.com"
-
-    async def test_create_duplicate_email(self, client: AsyncClient):
-        await client.post("/users/", json={...})
-        response = await client.post("/users/", json={...})
-        assert response.status_code == 409
-
-    async def test_get_not_found(self, client: AsyncClient):
-        response = await client.get("/users/99999")
-        assert response.status_code == 404
-```
-
-### Service 测试
-
-```python
-class TestUserService:
-    async def test_create(self, mock_session):
-        service = UserService(mock_session)
-        result = await service.create(UserCreate(...))
-        mock_session.add.assert_called_once()
-```
-
-### Fixture 工厂
-
-```python
-@pytest.fixture
-def user_factory(db_session):
-    async def create(**kwargs) -> User:
-        user = User(
-            email=kwargs.get("email", "test@example.com"),
-            name=kwargs.get("name", "Test"),
-            hashed_password="hashed",
-        )
-        db_session.add(user)
-        await db_session.flush()
-        return user
-    return create
+@router.post("/items/")
+async def create_item(item: ItemCreate, background_tasks: BackgroundTasks, db: DBSession):
+    db_item = Item(**item.model_dump())
+    db.add(db_item)
+    db.commit()
+    # 传递 ID 而非对象
+    background_tasks.add_task(process_in_background, db_item.id)
+    return db_item
 ```
 
 ---
 
-## 8. 代码质量检查
+## 详细文档
 
-```bash
-# 格式化
-ruff format .
+更多详细内容请参考 references 目录：
 
-# Lint
-ruff check . --fix
+### 核心开发
+- [编码规范](./references/fastapi-coding-conventions.md) - 命名规范、类型注解、Ruff 配置
+- [项目结构](./references/fastapi-project-structure.md) - 两种结构选择（简单/模块化）
+- [API 设计](./references/fastapi-api-design.md) - REST 规范、分页、错误处理
+- [异步处理](./references/fastapi-async.md)
+- [依赖注入](./references/fastapi-dependencies.md)
+- [数据验证](./references/fastapi-validation.md)
 
-# 类型检查
-mypy app
+### 数据与安全
+- [数据库集成](./references/fastapi-database.md) - SQLAlchemy 2.0/SQLModel 异步
+- [安全性](./references/fastapi-security.md) - OAuth2、JWT、CORS
+- [错误处理](./references/fastapi-error-handling.md)
 
-# 测试 + 覆盖率
-pytest --cov=app --cov-report=term-missing
+### 第三方集成
+- [HTTP 客户端](./references/fastapi-httpx.md) - httpx AsyncClient 最佳实践
+- [日志](./references/fastapi-logging.md) - Loguru 二阶段初始化、结构化日志
+- [测试](./references/fastapi-testing.md) - pytest-asyncio、依赖覆盖、数据库测试
+
+### 工具与运维
+- [uv 包管理](./references/fastapi-uv.md) - 项目初始化、依赖管理、Docker 集成
+- [性能优化](./references/fastapi-performance.md) - 缓存、连接池、并发
+- [部署](./references/fastapi-deployment.md) - Docker、K8s、Nginx
+
+### 项目模板
+- `assets/simple-api/` - 简单结构模板（按层组织）
+- `assets/modular-api/` - 模块化结构模板（按领域组织）
+
+---
+
+## 获取更多文档
+
+如果以上内容不足，使用 context7 获取最新官方文档：
+
+```
+mcp__context7__get-library-docs
+  context7CompatibleLibraryID: /fastapi/fastapi
+  topic: <相关主题>
+  mode: code (API/示例) 或 info (概念)
 ```
 
-### 质量标准
-
-| 指标 | 目标 |
-|------|------|
-| 测试覆盖率 | >= 80% |
-| 类型覆盖率 | 100% |
-| 函数长度 | <= 20 行 |
-| 圈复杂度 | <= 10 |
+常用主题：`dependencies`, `middleware`, `lifespan`, `background tasks`, `websocket`, `testing`, `security`, `oauth2`, `jwt`
