@@ -210,42 +210,91 @@ def setup_router(app: FastAPI) -> None:
 
 ## 配置管理
 
-采用二阶段初始化：先初始化日志，再加载配置，配置失败时日志可用。
+采用分层嵌套结构，使用 `env_prefix` 区分模块，`@lru_cache` 缓存实例：
 
 ```python
+# config.py
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import ValidationError
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class DatabaseSettings(BaseSettings):
+    """数据库配置，环境变量前缀 DB_"""
+    model_config = SettingsConfigDict(env_prefix="DB_")
+
+    host: str = "localhost"
+    port: int = 5432
+    name: str = "app"
+    user: str = "postgres"
+    password: SecretStr
+
+    @property
+    def url(self) -> str:
+        return f"postgresql+asyncpg://{self.user}:{self.password.get_secret_value()}@{self.host}:{self.port}/{self.name}"
+
+
+class RedisSettings(BaseSettings):
+    """Redis 配置，环境变量前缀 REDIS_"""
+    model_config = SettingsConfigDict(env_prefix="REDIS_")
+
+    host: str = "localhost"
+    port: int = 6379
+    db: int = 0
+
+    @property
+    def url(self) -> str:
+        return f"redis://{self.host}:{self.port}/{self.db}"
+
+
 class Settings(BaseSettings):
+    """应用主配置"""
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
 
+    # 应用配置
+    app_name: str = "FastAPI App"
     debug: bool = False
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    secret_key: SecretStr
 
-    # 必填配置（无默认值，缺失时启动报错）
-    database_url: str
-    secret_key: str
+    # 嵌套配置
+    db: DatabaseSettings = DatabaseSettings()
+    redis: RedisSettings = RedisSettings()
 
-    # 可选配置
+    # 其他配置
     access_token_expire_minutes: int = 30
     cors_origins: list[str] = ["http://localhost:3000"]
 
 
 @lru_cache
 def get_settings() -> Settings:
-    try:
-        return Settings()
-    except ValidationError as exc:
-        missing = ["/".join(map(str, err.get("loc", []))) for err in exc.errors()]
-        raise RuntimeError(f"缺少必要的环境变量: {', '.join(missing)}") from None
+    """获取配置（缓存单例）"""
+    return Settings()
+```
+
+对应的 `.env` 文件：
+
+```bash
+# 应用
+SECRET_KEY=your-secret-key
+DEBUG=true
+
+# 数据库（DB_ 前缀）
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=myapp
+DB_USER=postgres
+DB_PASSWORD=password
+
+# Redis（REDIS_ 前缀）
+REDIS_HOST=localhost
+REDIS_PORT=6379
 ```
 
 ---

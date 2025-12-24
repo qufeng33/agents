@@ -13,7 +13,7 @@ from app.config import get_settings
 settings = get_settings()
 
 engine = create_engine(
-    settings.database_url,
+    settings.db.url,
     pool_pre_ping=True,       # 连接前检查有效性
     pool_recycle=300,         # 5分钟回收连接
     pool_size=5,              # 连接池大小
@@ -66,7 +66,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 # SQLite: sqlite+aiosqlite://
 
 async_engine = create_async_engine(
-    settings.async_database_url,
+    settings.db.url,  # 使用 asyncpg 驱动
     pool_pre_ping=True,
     pool_recycle=300,
     echo=settings.debug,
@@ -298,7 +298,7 @@ from app.config import get_settings
 
 settings = get_settings()
 
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", settings.db.url)
 target_metadata = Base.metadata
 ```
 
@@ -453,7 +453,7 @@ from app.config import get_settings
 settings = get_settings()
 
 async_engine = create_async_engine(
-    settings.async_database_url,
+    settings.db.url,  # 使用 asyncpg 驱动
     pool_pre_ping=True,
     pool_recycle=300,
     echo=settings.debug,
