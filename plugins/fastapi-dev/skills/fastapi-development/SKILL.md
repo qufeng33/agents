@@ -212,21 +212,16 @@ app = FastAPI(title="MyApp", lifespan=lifespan)
 
 ### 配置管理
 
-```python
-from functools import lru_cache
-from pydantic_settings import BaseSettings, SettingsConfigDict
+使用 `pydantic-settings` 管理应用配置：
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+- **`.env` 文件** - 管理开发环境配置
+- **`SecretStr`** - 敏感信息防止日志泄露
+- **必填字段无默认值** - 启动时强制验证
+- **`Field(ge=1, le=100)`** - 类型约束验证
+- **`@lru_cache`** - 全局单例，避免重复解析
+- **嵌套配置** - 使用 `env_nested_delimiter="_"` + `env_nested_max_split=1`
 
-    debug: bool = False
-    database_url: str
-    secret_key: str
-
-@lru_cache
-def get_settings() -> Settings:
-    return Settings()
-```
+详见 [配置管理](./references/fastapi-config.md)
 
 ### 路由与依赖注入
 
@@ -301,6 +296,7 @@ async def app_exception_handler(request: Request, exc: AppException):
 
 ### 核心开发
 - [核心模式](./references/fastapi-patterns.md) - 异步、依赖注入、后台任务、Lifespan
+- [配置管理](./references/fastapi-config.md) - pydantic-settings、嵌套配置、验证器
 - [数据模型](./references/fastapi-models.md) - Pydantic 验证、类型注解
 - [错误处理](./references/fastapi-errors.md) - 异常体系、统一响应
 - [项目结构](./references/fastapi-project-structure.md) - 目录布局详解
