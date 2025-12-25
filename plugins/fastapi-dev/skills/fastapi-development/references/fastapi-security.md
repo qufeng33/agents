@@ -141,6 +141,56 @@ class AuthService:
         return Token(access_token=access_token)
 ```
 
+### 密码策略
+
+在用户注册/修改密码时验证密码强度：
+
+```python
+# modules/user/schemas.py
+import re
+
+from pydantic import BaseModel, Field, field_validator
+
+
+class PasswordMixin(BaseModel):
+    """密码验证 Mixin"""
+
+    password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("密码必须包含至少一个大写字母")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("密码必须包含至少一个小写字母")
+        if not re.search(r"\d", v):
+            raise ValueError("密码必须包含至少一个数字")
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+            raise ValueError("密码必须包含至少一个特殊字符")
+        return v
+
+
+class UserCreate(PasswordMixin):
+    email: EmailStr
+    name: str = Field(..., min_length=1, max_length=100)
+
+
+class PasswordChange(BaseModel):
+    """修改密码"""
+
+    current_password: str
+    new_password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        # 复用相同逻辑
+        return PasswordMixin.validate_password_strength(v)
+```
+
+> 💡 **提示**：密码验证在 Pydantic schema 层完成，确保所有入口（注册、修改密码）统一校验。
+
 ### 登录端点
 
 ```python

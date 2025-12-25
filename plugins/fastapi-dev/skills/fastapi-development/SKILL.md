@@ -45,7 +45,9 @@ Router (HTTP 层) → Service (业务逻辑层) → Repository (数据访问层)
 |----|------|----------|
 | **Router** | HTTP 处理、参数验证、响应格式 | 写 SQL、业务逻辑 |
 | **Service** | 业务逻辑、事务编排、跨模块协调 | 直接操作数据库 |
-| **Repository** | 数据访问、SQL 查询、ORM 操作 | 处理 HTTP、业务规则 |
+| **Repository** | 数据访问、SQL 查询、ORM 操作 | 处理 HTTP、业务规则、**调用 commit** |
+
+> ⚠️ **事务约定**：一个请求 = 一个事务。`get_db()` 依赖统一管理 commit/rollback，Repository 只用 `flush()`。
 
 **好处**：可测试（mock Repository）、可替换（切换数据库）、职责清晰、代码复用
 
