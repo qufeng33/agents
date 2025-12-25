@@ -136,7 +136,7 @@ SQLModel 整合了 SQLAlchemy 和 Pydantic。
 ### 模型定义
 
 ```python
-from datetime import datetime
+from datetime import UTC, datetime
 from sqlmodel import SQLModel, Field, Relationship
 
 
@@ -150,7 +150,7 @@ class User(UserBase, table=True):
     """数据库表模型"""
     id: int | None = Field(default=None, primary_key=True)
     hashed_password: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # 关联
     posts: list["Post"] = Relationship(back_populates="author")

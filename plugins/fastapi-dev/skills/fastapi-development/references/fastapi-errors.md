@@ -208,18 +208,23 @@ class InvalidCredentialsError(AppException):
 
 ```python
 # app/modules/user/service.py
+from sqlalchemy import select
 from .exceptions import UserNotFoundError, EmailAlreadyExistsError
 
 
 class UserService:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
     async def get(self, user_id: int) -> User:
-        user = self.db.query(User).filter(User.id == user_id).first()
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        user = result.scalar_one_or_none()
         if not user:
             raise UserNotFoundError(user_id)
         return user
 
     async def create(self, user_in: UserCreate) -> User:
-        if self._get_by_email(user_in.email):
+        if await self._get_by_email(user_in.email):
             raise EmailAlreadyExistsError(user_in.email)
         # 创建用户...
 ```
@@ -231,19 +236,19 @@ class UserService:
 ### yield 依赖的异常处理
 
 ```python
-async def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    except AppException:
-        # 业务异常不回滚
-        raise
-    except Exception:
-        # 其他异常回滚
-        db.rollback()
-        raise
-    finally:
-        db.close()
+async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except AppException:
+            # 业务异常：回滚但不隐藏
+            await session.rollback()
+            raise
+        except Exception:
+            # 其他异常：回滚
+            await session.rollback()
+            raise
 ```
 
 ### 捕获并转换异常
@@ -251,9 +256,10 @@ async def get_db():
 ```python
 async def get_user_or_404(
     user_id: int,
-    db: DBSession,
+    db: AsyncDBSession,
 ) -> User:
-    user = db.query(User).filter(User.id == user_id).first()
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
     if not user:
         raise UserNotFoundError(user_id)
     return user

@@ -70,49 +70,61 @@ def get_settings():
 
 ### Redis 缓存
 
+使用 lifespan 管理 Redis 连接：
+
 ```python
-import redis.asyncio as redis
-from fastapi import Depends
+# core/cache.py
 import json
+from typing import Annotated
 
-redis_client: redis.Redis | None = None
+import redis.asyncio as redis
+from fastapi import Depends, FastAPI, Request
 
 
-async def get_redis() -> redis.Redis:
-    global redis_client
-    if redis_client is None:
-        redis_client = await redis.from_url("redis://localhost")
-    return redis_client
+async def init_redis(app: FastAPI) -> None:
+    """初始化 Redis 连接"""
+    app.state.redis = await redis.from_url("redis://localhost")
+
+
+async def close_redis(app: FastAPI) -> None:
+    """关闭 Redis 连接"""
+    await app.state.redis.close()
+
+
+async def get_redis(request: Request) -> redis.Redis:
+    """依赖注入：获取 Redis 客户端"""
+    return request.app.state.redis
+
+
+RedisClient = Annotated[redis.Redis, Depends(get_redis)]
 
 
 async def get_cached_or_fetch(
+    redis_client: redis.Redis,
     key: str,
     fetch_func,
     ttl: int = 300,
-    redis: redis.Redis = Depends(get_redis),
 ):
-    # 尝试从缓存获取
-    cached = await redis.get(key)
+    """尝试从缓存获取，否则调用 fetch_func 并缓存"""
+    cached = await redis_client.get(key)
     if cached:
         return json.loads(cached)
 
-    # 获取数据
     data = await fetch_func()
-
-    # 存入缓存
-    await redis.setex(key, ttl, json.dumps(data))
+    await redis_client.setex(key, ttl, json.dumps(data))
     return data
+```
 
-
+```python
+# 使用示例
 @app.get("/users/{user_id}")
-async def get_user(user_id: int, redis: redis.Redis = Depends(get_redis)):
+async def get_user(user_id: int, redis_client: RedisClient):
     cache_key = f"user:{user_id}"
 
     async def fetch():
-        # 从数据库获取
         return await user_service.get(user_id)
 
-    return await get_cached_or_fetch(cache_key, fetch, ttl=600, redis=redis)
+    return await get_cached_or_fetch(redis_client, cache_key, fetch, ttl=600)
 ```
 
 ### HTTP 缓存头
@@ -150,41 +162,53 @@ engine = create_engine(
 ### 预加载关联（避免 N+1）
 
 ```python
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload, joinedload
 
 # 批量预加载
 @app.get("/users/")
-async def list_users(db: DBSession):
-    users = db.query(User).options(
-        selectinload(User.posts),
-        selectinload(User.comments),
-    ).all()
-    return users
+async def list_users(db: AsyncDBSession):
+    result = await db.execute(
+        select(User).options(
+            selectinload(User.posts),
+            selectinload(User.comments),
+        )
+    )
+    return result.scalars().all()
 
 
 # 关联预加载
 @app.get("/posts/{post_id}")
-async def get_post(post_id: int, db: DBSession):
-    post = db.query(Post).options(
-        joinedload(Post.author),
-    ).filter(Post.id == post_id).first()
-    return post
+async def get_post(post_id: int, db: AsyncDBSession):
+    result = await db.execute(
+        select(Post)
+        .where(Post.id == post_id)
+        .options(joinedload(Post.author))
+    )
+    return result.scalar_one_or_none()
 ```
 
 ### 分页
 
 ```python
 from fastapi import Query
+from sqlalchemy import select, func
 
 
 @app.get("/items/")
 async def list_items(
-    db: DBSession,
+    db: AsyncDBSession,
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
-    total = db.query(Item).count()
-    items = db.query(Item).offset(skip).limit(limit).all()
+    # 总数
+    total_result = await db.execute(select(func.count()).select_from(Item))
+    total = total_result.scalar_one()
+
+    # 分页数据
+    result = await db.execute(select(Item).offset(skip).limit(limit))
+    items = result.scalars().all()
+
     return {
         "items": items,
         "total": total,
@@ -224,44 +248,12 @@ async def aggregate_data():
 
 ### 共享 HTTP 客户端
 
-在 `core/http.py` 中管理共享客户端，通过依赖注入使用：
+参见 [fastapi-httpx.md](./fastapi-httpx.md) 的「生命周期管理 + 依赖注入」章节。
 
-```python
-# core/http.py
-from typing import Annotated
-
-import httpx
-from fastapi import Depends, FastAPI, Request
-
-
-async def init_http_client(app: FastAPI) -> None:
-    """初始化 HTTP 客户端"""
-    app.state.http_client = httpx.AsyncClient()
-
-
-async def close_http_client(app: FastAPI) -> None:
-    """关闭 HTTP 客户端"""
-    await app.state.http_client.aclose()
-
-
-async def get_http_client(request: Request) -> httpx.AsyncClient:
-    """依赖注入：获取 HTTP 客户端"""
-    return request.app.state.http_client
-
-
-HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]
-```
-
-```python
-# 在路由中使用（依赖注入）
-from app.core.http import HttpClient
-
-
-@app.get("/external")
-async def call_external(client: HttpClient):
-    response = await client.get("https://api.example.com")
-    return response.json()
-```
+核心要点：
+- 在 lifespan 中初始化 `httpx.AsyncClient`，存储到 `app.state`
+- 通过依赖注入获取客户端
+- 测试时可用 `dependency_overrides` 替换
 
 ---
 

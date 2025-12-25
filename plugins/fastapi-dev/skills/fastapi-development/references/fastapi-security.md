@@ -67,7 +67,7 @@ def create_access_token(
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
-    db: DBSession,
+    db: AsyncDBSession,
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -82,7 +82,8 @@ async def get_current_user(
     except InvalidTokenError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id).first()
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception
     return user
@@ -118,9 +119,10 @@ router = APIRouter()
 @router.post("/token", response_model=Token)
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: DBSession,
+    db: AsyncDBSession,
 ):
-    user = db.query(User).filter(User.email == form_data.username).first()
+    result = await db.execute(select(User).where(User.email == form_data.username))
+    user = result.scalar_one_or_none()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -225,7 +227,7 @@ from fastapi.security import SecurityScopes
 async def get_current_user_with_scopes(
     security_scopes: SecurityScopes,
     token: Annotated[str, Depends(oauth2_scheme)],
-    db: DBSession,
+    db: AsyncDBSession,
 ) -> User:
     authenticate_value = "Bearer"
     if security_scopes.scopes:
@@ -253,7 +255,8 @@ async def get_current_user_with_scopes(
                 headers={"WWW-Authenticate": authenticate_value},
             )
 
-    user = db.query(User).filter(User.id == user_id).first()
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception
     return user
@@ -385,9 +388,9 @@ class UserResponse(BaseModel):
 
 
 @app.get("/users/{user_id}", response_model=UserResponse)
-async def get_user(user_id: int, db: DBSession):
-    user = db.query(User).filter(User.id == user_id).first()
-    return user  # FastAPI 自动过滤 hashed_password
+async def get_user(user_id: int, db: AsyncDBSession):
+    result = await db.execute(select(User).where(User.id == user_id))
+    return result.scalar_one_or_none()  # FastAPI 自动过滤 hashed_password
 ```
 
 ### 日志脱敏

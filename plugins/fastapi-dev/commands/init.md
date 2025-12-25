@@ -7,8 +7,6 @@ allowed-tools: Bash(pwd:*), Bash(ls:*), Bash(test:*), Bash(basename:*)
 
 # FastAPI 项目初始化
 
-使用 **fastapi-development** skill 的指南创建生产级 FastAPI 项目。
-
 ## 当前环境检测
 
 - 当前目录: !`pwd`
@@ -48,7 +46,7 @@ allowed-tools: Bash(pwd:*), Bash(ls:*), Bash(test:*), Bash(basename:*)
 使用 AskUserQuestion 工具确认以下配置：
 
 1. **项目名称**: 根据检测结果预填（`$ARGUMENTS` > 当前目录名）
-2. **结构类型**:
+2. **结构类型**（选择标准见 **fastapi-development** SKILL.md）:
    - 简单结构 (simple): 小型 API、原型、单人开发
    - 模块化结构 (modular): 大型项目、团队协作
 3. **认证方式**: JWT 认证 / 无认证
@@ -73,7 +71,7 @@ cd {project_name}
 # 核心依赖
 uv add "fastapi[standard]" sqlalchemy asyncpg alembic loguru
 
-# 如果需要认证
+# 如果需要认证（详见 references/fastapi-security.md）
 uv add pyjwt "pwdlib[argon2]"
 
 # 开发依赖
@@ -82,30 +80,56 @@ uv add --dev pytest pytest-asyncio httpx ruff ty
 
 ## Step 3: 创建项目结构
 
-根据用户选择的结构类型，参考 **fastapi-development** skill 中的项目结构创建目录和文件：
+根据用户选择的结构类型创建目录和文件：
 
-- 简单结构：按层组织 (routers/, schemas/, services/, models/, core/)
-- 模块化结构：按领域组织 (modules/{domain}/ 包含完整 7 文件)
+**两种结构都遵循 Router → Service → Repository 分层模式**
 
-详见 skill 的 `references/fastapi-project-structure.md`
+- 目录布局：见 **fastapi-development** SKILL.md 的「项目结构」章节
+- 详细说明：见 `references/fastapi-project-structure.md`
+
+### 简单结构核心目录
+
+```
+app/
+├── routers/          # 路由层
+├── services/         # 业务逻辑层
+├── repositories/     # 数据访问层
+├── schemas/          # Pydantic 模型
+├── models/           # ORM 模型
+└── core/             # 基础设施
+```
+
+### 模块化结构核心目录
+
+```
+app/
+├── api/v1/router.py
+├── modules/{domain}/
+│   ├── router.py
+│   ├── service.py
+│   ├── repository.py
+│   ├── schemas.py
+│   ├── models.py
+│   └── dependencies.py
+└── core/
+```
 
 ## Step 4: 配置工具
 
-在 pyproject.toml 中添加工具配置，参考 **fastapi-development** skill：
+在 pyproject.toml 中添加工具配置：
 
-- pytest: asyncio_mode, testpaths
-- ruff: select 规则, ignore 规则（含中文环境优化）
-
-详见 skill 的 `references/fastapi-coding-conventions.md`
+- pytest / ruff / ty 配置：见 `references/fastapi-tooling.md`
 
 ## Step 5: 生成代码文件
 
-使用 **fastapi-development** skill 中的模板生成：
+生成核心文件，遵循 **fastapi-development** 的核心原则：
 
-- `app/main.py` - 应用入口（lifespan 模式）
-- `app/config.py` - 配置管理（pydantic-settings）
-- `app/core/database.py` - 数据库连接
-- 其他必要文件
+| 文件 | 说明 | 参考 |
+|------|------|------|
+| `app/main.py` | 应用入口（lifespan 模式） | SKILL.md |
+| `app/config.py` | 配置管理（pydantic-settings） | SKILL.md |
+| `app/core/database.py` | 数据库连接 | `references/fastapi-database.md` |
+| `app/core/security.py` | 认证模块（如需要） | `references/fastapi-security.md` |
 
 ## Step 6: 完成设置
 
@@ -116,14 +140,23 @@ alembic init alembic
 
 提示用户下一步：
 - 配置 `.env` 文件
+- 修改 `alembic/env.py` 配置
 - `alembic revision --autogenerate -m "init"`
 - `alembic upgrade head`
-- `uv run uvicorn app.main:app --reload`
+- `uv run fastapi dev`
 
 ## 关键点
 
 - 智能检测当前目录状态，避免创建不必要的嵌套目录
+- 两种结构都使用 Router → Service → Repository 分层
 - 使用 AskUserQuestion 交互式确认配置
-- 参考 fastapi-development skill 获取详细模板
 - 生成的代码应该可以直接运行
 - 包含必要的配置文件（.gitignore, .env.example）
+
+## 后续开发引导
+
+初始化完成后，提示用户：
+
+> 项目初始化完成！后续开发中，你可以直接描述需求（如"添加用户注册接口"、"实现 JWT 认证"），**fastapi-pro** agent 会自动介入处理复杂的 FastAPI 开发任务。
+
+如果用户继续提出 FastAPI 相关的开发需求，应主动使用 **fastapi-pro** agent 来处理。

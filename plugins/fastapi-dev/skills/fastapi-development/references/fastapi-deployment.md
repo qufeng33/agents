@@ -113,11 +113,23 @@ CMD ["gunicorn", "app.main:app", \
      "--bind", "0.0.0.0:8000"]
 ```
 
+### .dockerignore
+
+```
+.git
+.venv
+__pycache__
+*.pyc
+.env
+.pytest_cache
+.ruff_cache
+tests/
+*.md
+```
+
 ### docker-compose.yml
 
 ```yaml
-version: "3.9"
-
 services:
   api:
     build: .
@@ -314,6 +326,7 @@ server {
 
 ```python
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 router = APIRouter()
@@ -325,10 +338,10 @@ async def health():
 
 
 @router.get("/health/ready")
-async def readiness(db: DBSession):
+async def readiness(db: AsyncDBSession):
     """就绪检查：验证依赖服务"""
     try:
-        db.execute(text("SELECT 1"))
+        await db.execute(text("SELECT 1"))
         return {"status": "ready", "database": "ok"}
     except Exception as e:
         return JSONResponse(

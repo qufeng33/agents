@@ -1,4 +1,4 @@
-# FastAPI 数据验证
+# FastAPI 数据模型
 
 ## Pydantic v2 基础
 
@@ -66,18 +66,21 @@ class UserInDB(UserResponse):
 ### 字符串约束
 
 ```python
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 
 class Example(BaseModel):
+    # 自动去除字符串首尾空白（在 ConfigDict 中配置）
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     # 长度限制
     username: str = Field(min_length=3, max_length=50)
 
     # 正则模式
     slug: str = Field(pattern=r"^[a-z0-9-]+$")
 
-    # 去除空白（Pydantic v2 默认不自动 strip）
-    name: str = Field(strip_whitespace=True)
+    # name 会自动 strip（通过 model_config）
+    name: str
 ```
 
 ### 数值约束
