@@ -1,6 +1,12 @@
 """
 模块化 FastAPI 项目模板 - 按领域组织
 适用于：中大型项目、团队开发、长期维护
+
+特点：
+- create_app 工厂模式，便于测试和多实例
+- setup_xxx 函数分离注册逻辑
+- 支持 API 版本管理
+- 三层架构：Router → Service → Repository
 """
 
 from collections.abc import AsyncIterator
@@ -27,6 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+    """应用工厂函数"""
     application = FastAPI(
         title=settings.app_name,
         version="1.0.0",
@@ -35,7 +42,7 @@ def create_app() -> FastAPI:
         redoc_url="/redoc" if settings.debug else None,
     )
 
-    # 注册组件
+    # 注册组件（顺序重要）
     setup_middlewares(application)
     setup_routers(application)
     setup_exception_handlers(application)

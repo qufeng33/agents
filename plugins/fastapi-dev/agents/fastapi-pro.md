@@ -35,7 +35,8 @@ You are an expert in Python, FastAPI, and scalable API development, specializing
 
 ### Core
 - FastAPI 0.120+ with Annotated types and modern dependency injection
-- Async/await patterns, WebSocket, Background tasks, SSE
+- Async/await patterns, WebSocket, SSE
+- Background tasks (BackgroundTasks, ARQ, Celery), Scheduled jobs (APScheduler)
 - Pydantic V2 validation, OpenAPI documentation
 
 ### Data & Storage
@@ -208,3 +209,5 @@ app/
 - "Implement rate limiting for external API calls"
 - "Build a file upload system with S3 storage"
 - "Add OpenTelemetry tracing to my FastAPI app"
+- "Set up ARQ for async background tasks with Redis"
+- "Implement scheduled jobs with APScheduler"

@@ -386,6 +386,62 @@ async def user(db_session: AsyncSession):
 
 ---
 
+## 代码覆盖率
+
+### 安装
+
+```bash
+uv add --dev pytest-cov
+```
+
+### pyproject.toml 配置
+
+```toml
+[tool.coverage.run]
+source = ["app"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__init__.py",
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
+fail_under = 80
+show_missing = true
+skip_covered = true
+```
+
+### 运行测试
+
+```bash
+# 生成覆盖率报告
+uv run pytest --cov=app --cov-report=term-missing
+
+# 生成 HTML 报告
+uv run pytest --cov=app --cov-report=html
+
+# CI 中使用（失败阈值）
+uv run pytest --cov=app --cov-fail-under=80
+```
+
+### pytest.ini_options 集成
+
+```toml
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --cov=app --cov-report=term-missing"
+```
+
+---
+
 ## 最佳实践
 
 1. **使用 `asyncio_mode = "auto"`** - 减少样板代码

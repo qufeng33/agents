@@ -271,6 +271,16 @@ async def transfer_with_notification(
     # 不调用 commit，由 get_db() 统一处理
 ```
 
+#### 数据库兼容性
+
+| 数据库 | Savepoint 支持 | 注意事项 |
+|--------|----------------|----------|
+| PostgreSQL | ✅ 完全支持 | 无限制 |
+| MySQL/MariaDB | ✅ 支持 | 仅 InnoDB 引擎，MyISAM 不支持事务 |
+| SQLite | ⚠️ 部分支持 | 需要 `PRAGMA foreign_keys=ON`，WAL 模式下更稳定 |
+
+> **测试注意**：使用 SQLite 内存数据库测试时，savepoint 行为与 PostgreSQL 一致。但文件模式下并发写入可能有限制。
+
 ### 手动事务（特殊场景）
 
 后台任务、CLI 脚本等非请求上下文：

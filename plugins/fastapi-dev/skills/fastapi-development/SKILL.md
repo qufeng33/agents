@@ -10,13 +10,14 @@ description: |
   - 中间件配置、CORS、请求日志、GZip 压缩
   - 认证授权、OAuth2、JWT、权限控制
   - 错误处理体系、自定义异常、统一响应格式
+  - 后台任务、任务队列（ARQ、Celery）、定时任务（APScheduler）
   - 日志配置、Loguru 两阶段初始化
   - pytest 异步测试、依赖覆盖、fixture
   - httpx 异步 HTTP 客户端集成
   - Docker 部署、Kubernetes、生产配置
   - 性能优化、缓存、连接池
 
-  关键词：实现端点、创建 API、CRUD 操作、Pydantic schema、SQLAlchemy 模型、异步数据库、错误处理、编写测试、FastAPI 中间件、JWT 认证、部署配置、lifespan、依赖注入
+  关键词：实现端点、创建 API、CRUD 操作、Pydantic schema、SQLAlchemy 模型、异步数据库、错误处理、编写测试、FastAPI 中间件、JWT 认证、部署配置、lifespan、依赖注入、后台任务、定时任务、任务队列
 ---
 
 # FastAPI 最佳实践
@@ -146,56 +147,31 @@ app/
 
 ---
 
-## 详细文档
+## 参考文档
 
-### 核心开发
-- [核心模式](./references/fastapi-patterns.md) - 分层架构、依赖注入、后台任务
-- [应用启动](./references/fastapi-startup.md) - 两阶段初始化、Lifespan、init/setup 模式
-- [中间件](./references/fastapi-middleware.md) - 请求日志、CORS、异常处理、认证
-- [配置管理](./references/fastapi-config.md) - pydantic-settings、嵌套配置、验证器
-- [数据模型](./references/fastapi-models.md) - Pydantic 验证、类型注解
-- [错误处理](./references/fastapi-errors.md) - 异常体系、统一响应
-- [项目结构](./references/fastapi-project-structure.md) - 目录布局详解
+按主题分类的详细文档，每个主题的完整代码示例在指定文档中。
 
-### 数据与安全
-- [数据库集成](./references/fastapi-database.md) - SQLAlchemy 2.0 异步
-- [安全性](./references/fastapi-security.md) - OAuth2、JWT、权限控制
+| 分类 | 主题 | 文档 | 说明 |
+|------|------|------|------|
+| **核心** | 分层架构 | [fastapi-patterns.md](./references/fastapi-patterns.md) | Repository/Service、依赖注入 |
+| | 应用启动 | [fastapi-startup.md](./references/fastapi-startup.md) | lifespan、init/setup 模式 |
+| | 配置管理 | [fastapi-config.md](./references/fastapi-config.md) | pydantic-settings、嵌套配置 |
+| | 数据模型 | [fastapi-models.md](./references/fastapi-models.md) | Pydantic 验证、分离模型 |
+| | 错误处理 | [fastapi-errors.md](./references/fastapi-errors.md) | 自定义异常、统一响应 |
+| | 中间件 | [fastapi-middleware.md](./references/fastapi-middleware.md) | CORS、日志、执行顺序 |
+| | 项目结构 | [fastapi-project-structure.md](./references/fastapi-project-structure.md) | 简单/模块化布局 |
+| **数据** | 数据库 | [fastapi-database.md](./references/fastapi-database.md) | SQLAlchemy 2.0 异步、事务 |
+| | 安全性 | [fastapi-security.md](./references/fastapi-security.md) | OAuth2、JWT、权限控制 |
+| **运维** | 后台任务 | [fastapi-tasks.md](./references/fastapi-tasks.md) | BackgroundTasks、ARQ、Celery、APScheduler |
+| | 日志 | [fastapi-logging.md](./references/fastapi-logging.md) | Loguru 两阶段初始化 |
+| | 测试 | [fastapi-testing.md](./references/fastapi-testing.md) | pytest-asyncio、依赖覆盖 |
+| | 部署 | [fastapi-deployment.md](./references/fastapi-deployment.md) | Docker、Kubernetes |
+| | 性能 | [fastapi-performance.md](./references/fastapi-performance.md) | 缓存、连接池、并发 |
+| **工具** | 开发工具 | [fastapi-tooling.md](./references/fastapi-tooling.md) | uv、Ruff、ty |
+| | API 设计 | [fastapi-api-design.md](./references/fastapi-api-design.md) | REST 规范、分页 |
+| | HTTP 客户端 | [fastapi-httpx.md](./references/fastapi-httpx.md) | httpx AsyncClient |
 
-### 工具与运维
-- [日志](./references/fastapi-logging.md) - Loguru 两阶段初始化、上下文绑定
-- [开发工具](./references/fastapi-tooling.md) - uv、Ruff、ty、pre-commit
-- [API 设计](./references/fastapi-api-design.md) - REST 规范、分页
-- [性能优化](./references/fastapi-performance.md) - 缓存、连接池、并发
-- [测试](./references/fastapi-testing.md) - pytest-asyncio、依赖覆盖
-- [部署](./references/fastapi-deployment.md) - Docker、Kubernetes
-
-### 集成
-- [HTTP 客户端](./references/fastapi-httpx.md) - httpx AsyncClient
-
----
-
-## 参考文档权威位置
-
-每个主题的完整代码示例应在指定文档中，其他文档引用。
-
-| 主题 | 完整代码位置 | 简要说明 |
-|------|-------------|----------|
-| 分层架构 (Repository/Service) | [fastapi-patterns.md](./references/fastapi-patterns.md) | 依赖注入链、职责划分 |
-| 数据库 Session 依赖 | [fastapi-database.md](./references/fastapi-database.md) | `get_db()`、事务管理 |
-| 应用启动流程 | [fastapi-startup.md](./references/fastapi-startup.md) | lifespan、init/setup 模式 |
-| 配置管理 | [fastapi-config.md](./references/fastapi-config.md) | pydantic-settings、嵌套配置 |
-| CORS 中间件 | [fastapi-middleware.md](./references/fastapi-middleware.md) | 配置驱动、执行顺序 |
-| 异常体系 | [fastapi-errors.md](./references/fastapi-errors.md) | 自定义异常、处理器 |
-| Pydantic 模型 | [fastapi-models.md](./references/fastapi-models.md) | 验证、分离模型 |
-| 日志配置 | [fastapi-logging.md](./references/fastapi-logging.md) | 两阶段初始化 |
-| HTTP 客户端 | [fastapi-httpx.md](./references/fastapi-httpx.md) | 生命周期管理、DI |
-| 认证/JWT | [fastapi-security.md](./references/fastapi-security.md) | OAuth2、权限控制 |
-| API 设计 | [fastapi-api-design.md](./references/fastapi-api-design.md) | REST 规范、分页、版本管理 |
-| 测试 | [fastapi-testing.md](./references/fastapi-testing.md) | pytest-asyncio、依赖覆盖 |
-| 性能优化 | [fastapi-performance.md](./references/fastapi-performance.md) | 缓存、连接池、并发 |
-| 部署 | [fastapi-deployment.md](./references/fastapi-deployment.md) | Docker、Kubernetes |
-| 项目结构 | [fastapi-project-structure.md](./references/fastapi-project-structure.md) | 简单/模块化布局 |
-| 开发工具 | [fastapi-tooling.md](./references/fastapi-tooling.md) | uv、Ruff、ty |
+代码模板见 `assets/simple-api/` 和 `assets/modular-api/`
 
 ---
 

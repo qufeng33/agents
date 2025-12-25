@@ -326,38 +326,7 @@ async def update_item(item: ValidItem, data: ItemUpdate, service: ItemServiceDep
 
 ## 后台任务
 
-```python
-from fastapi import BackgroundTasks
-
-def send_email(email: str, msg: str):
-    # 同步函数自动在线程池执行
-    ...
-
-@router.post("/notify")
-async def notify(email: str, bg: BackgroundTasks):
-    bg.add_task(send_email, email, "Hello")
-    return {"status": "scheduled"}
-```
-
-**最佳实践**：传递 ID 而非对象，后台任务自己创建 session。
-
-```python
-def process_order(order_id: int):
-    db = SessionLocal()
-    try:
-        order = db.query(Order).get(order_id)
-        # 处理...
-    finally:
-        db.close()
-
-@router.post("/orders")
-async def create_order(order: OrderCreate, bg: BackgroundTasks, db: DBSession):
-    db_order = Order(**order.model_dump())
-    db.add(db_order)
-    db.commit()
-    bg.add_task(process_order, db_order.id)  # 传 ID，不传对象
-    return db_order
-```
+详见 [后台任务与调度](./fastapi-tasks.md)（BackgroundTasks、ARQ、Celery、APScheduler）。
 
 ---
 
@@ -423,5 +392,4 @@ async def get_users(user_ids: list[int]):
 4. **yield 管理资源** - 确保资源正确清理
 5. **类型提示** - 始终提供返回类型
 6. **优先 async** - 简单逻辑使用 async 依赖，避免线程池开销
-7. **后台任务传 ID** - 不传递 ORM 对象或 db session
-8. **lifespan 管理资源** - 启动时初始化，关闭时清理
+7. **lifespan 管理资源** - 启动时初始化，关闭时清理
