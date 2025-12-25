@@ -1,5 +1,5 @@
 ---
-name: fastapi-feature
+name: feature
 description: 需求驱动的功能开发，支持 TDD 和快速原型模式
 argument-hint: "<feature_description>"
 ---

@@ -1,5 +1,5 @@
 ---
-name: fastapi-init
+name: init
 description: 交互式初始化 FastAPI 项目，支持简单结构和模块化结构
 argument-hint: "[project-name]"
 allowed-tools: Bash(pwd:*), Bash(ls:*), Bash(test:*), Bash(basename:*)

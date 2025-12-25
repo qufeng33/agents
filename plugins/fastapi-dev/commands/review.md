@@ -1,5 +1,5 @@
 ---
-name: fastapi-review
+name: review
 description: 全面的代码审查，关注代码规范、架构一致性和性能优化
 argument-hint: "<scope>"
 ---

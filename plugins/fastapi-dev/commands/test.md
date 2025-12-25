@@ -1,5 +1,5 @@
 ---
-name: fastapi-test
+name: test
 description: 为 FastAPI 代码生成或改进测试
 argument-hint: "<target>"
 ---
