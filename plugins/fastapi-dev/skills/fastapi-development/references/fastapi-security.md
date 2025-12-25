@@ -59,8 +59,9 @@ def decode_access_token(token: str) -> int | None:
     """解码 token，返回 user_id，无效则返回 None"""
     try:
         payload = jwt.decode(token, settings.secret_key.get_secret_value(), algorithms=["HS256"])
-        return payload.get("sub")
-    except InvalidTokenError:
+        sub = payload.get("sub")
+        return int(sub) if sub is not None else None
+    except (InvalidTokenError, ValueError, TypeError):
         return None
 ```
 
@@ -259,6 +260,22 @@ async def delete_user(
 ### 基于 OAuth2 Scopes
 
 ```python
+# core/security.py（扩展）
+def decode_access_token_with_scopes(token: str) -> tuple[int, list[str]] | None:
+    """解码 token，返回 (user_id, scopes)，无效则返回 None"""
+    try:
+        payload = jwt.decode(token, settings.secret_key.get_secret_value(), algorithms=["HS256"])
+        sub = payload.get("sub")
+        if sub is None:
+            return None
+        scopes = payload.get("scopes", [])
+        return int(sub), scopes
+    except (InvalidTokenError, ValueError, TypeError):
+        return None
+```
+
+```python
+# core/dependencies.py
 from fastapi import Security
 from fastapi.security import SecurityScopes
 

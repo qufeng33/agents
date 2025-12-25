@@ -97,7 +97,7 @@ app/
 
 使用 `lifespan` 管理应用生命周期（启动/关闭时的资源初始化与清理）。
 
-详见 [核心模式 - Lifespan](./references/fastapi-patterns.md)
+详见 [核心模式 - Lifespan](./references/fastapi-patterns.md#生命周期管理lifespan)
 
 ### 配置管理
 
@@ -118,7 +118,7 @@ app/
 - 依赖链：Router → Service → Repository → Database
 - 类型别名简化重复声明：`DBSession = Annotated[Session, Depends(get_db)]`
 
-详见 [核心模式 - 依赖注入](./references/fastapi-patterns.md)
+详见 [核心模式 - 依赖注入](./references/fastapi-patterns.md#依赖注入)
 
 ### 数据模型
 
