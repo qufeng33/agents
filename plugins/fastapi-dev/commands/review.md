@@ -152,7 +152,7 @@ git diff --name-only HEAD
 ruff check .
 
 # 类型检查
-mypy app
+ty check app
 
 # 测试覆盖率
 pytest --cov=app --cov-report=term-missing

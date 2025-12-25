@@ -108,7 +108,7 @@ argument-hint: "<feature_description>"
 pytest
 pytest --cov=app
 ruff check .
-mypy app
+ty check app
 ```
 
 ## 代码模板

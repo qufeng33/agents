@@ -495,7 +495,6 @@ uv add --dev ruff
 ```toml
 # pyproject.toml
 [tool.ruff]
-target-version = "py313"  # Python 3.13
 line-length = 100
 exclude = [
     ".git",
@@ -507,19 +506,23 @@ exclude = [
 
 [tool.ruff.lint]
 select = [
+    # 基础规则（init.md 包含）
     "E",      # pycodestyle errors
     "W",      # pycodestyle warnings
     "F",      # Pyflakes
     "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
     "B",      # flake8-bugbear
+    "A",      # flake8-builtins
     "C4",     # flake8-comprehensions
-    "UP",     # pyupgrade (现代化语法)
     "SIM",    # flake8-simplify
-    "ANN",    # flake8-annotations
     "ASYNC",  # flake8-async
+    # 进阶规则（可选）
+    "ANN",    # flake8-annotations (类型注解)
     "FA",     # flake8-future-annotations
     "S",      # flake8-bandit (安全)
-    "T20",    # flake8-print
+    "T20",    # flake8-print (禁止 print)
     "PT",     # flake8-pytest-style
     "RUF",    # Ruff 专有规则
 ]
@@ -528,6 +531,9 @@ ignore = [
     "ANN101", # missing self type
     "ANN102", # missing cls type
     "S101",   # assert usage (测试中使用)
+    "RUF001", # 中文环境：字符串中的 Unicode
+    "RUF002", # 中文环境：docstring 中的 Unicode
+    "RUF003", # 中文环境：注释中的 Unicode
 ]
 
 [tool.ruff.lint.per-file-ignores]

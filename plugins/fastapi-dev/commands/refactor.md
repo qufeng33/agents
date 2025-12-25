@@ -87,7 +87,7 @@ pytest
 ruff check .
 
 # 类型检查
-mypy app
+ty check app
 ```
 
 ## 常见重构模式
