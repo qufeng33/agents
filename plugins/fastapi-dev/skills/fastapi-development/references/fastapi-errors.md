@@ -2,21 +2,26 @@
 
 ## HTTPException
 
-FastAPI 内置的异常类，用于返回 HTTP 错误响应。
+FastAPI 内置的异常类，用于返回 HTTP 错误响应。在分层架构中，Router 层负责将业务异常转换为 HTTP 响应。
 
 ```python
-from fastapi import HTTPException, status
+from fastapi import APIRouter, HTTPException, status
+
+from app.modules.item.dependencies import ItemServiceDep
+from app.modules.item.exceptions import ItemNotFoundError
+
+router = APIRouter()
 
 
-@app.get("/items/{item_id}")
-async def get_item(item_id: int, db: DBSession):
-    item = db.query(Item).filter(Item.id == item_id).first()
-    if not item:
+@router.get("/items/{item_id}")
+async def get_item(item_id: int, service: ItemServiceDep):
+    try:
+        return await service.get_by_id(item_id)
+    except ItemNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item not found",
         )
-    return item
 ```
 
 ### 带自定义 Headers
@@ -208,23 +213,22 @@ class InvalidCredentialsError(AppException):
 
 ```python
 # app/modules/user/service.py
-from sqlalchemy import select
+from .repository import UserRepository
 from .exceptions import UserNotFoundError, EmailAlreadyExistsError
 
 
 class UserService:
-    def __init__(self, db: AsyncSession):
-        self.db = db
+    def __init__(self, repo: UserRepository):
+        self.repo = repo
 
     async def get(self, user_id: int) -> User:
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        user = result.scalar_one_or_none()
+        user = await self.repo.get_by_id(user_id)
         if not user:
             raise UserNotFoundError(user_id)
         return user
 
     async def create(self, user_in: UserCreate) -> User:
-        if await self._get_by_email(user_in.email):
+        if await self.repo.get_by_email(user_in.email):
             raise EmailAlreadyExistsError(user_in.email)
         # 创建用户...
 ```

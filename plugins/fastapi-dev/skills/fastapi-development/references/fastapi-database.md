@@ -1,30 +1,40 @@
 # FastAPI 数据库集成
 
-## SQLAlchemy 2.0 同步
+> SQLAlchemy 2.0 异步优先 | asyncpg | Alembic
 
-### 基础配置
+## 核心配置
+
+### 异步引擎与 Session
 
 ```python
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+# core/database.py
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.orm import DeclarativeBase
 
 from app.config import get_settings
 
 settings = get_settings()
 
-engine = create_engine(
+# 异步驱动：postgresql+asyncpg:// | mysql+aiomysql:// | sqlite+aiosqlite://
+async_engine = create_async_engine(
     settings.db.url,
-    pool_pre_ping=True,       # 连接前检查有效性
-    pool_recycle=300,         # 5分钟回收连接
-    pool_size=5,              # 连接池大小
-    max_overflow=10,          # 最大溢出连接数
-    echo=settings.debug,      # 调试模式打印 SQL
+    pool_size=20,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=3600,
+    pool_pre_ping=True,  # 悲观连接检测
+    echo=settings.debug,
 )
 
-SessionLocal = sessionmaker(
-    bind=engine,
-    autoflush=False,
-    autocommit=False,
+AsyncSessionLocal = async_sessionmaker(
+    bind=async_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,  # 异步必须：避免 commit 后隐式查询
+    autoflush=False,         # 显式控制 flush 时机
 )
 
 
@@ -32,61 +42,60 @@ class Base(DeclarativeBase):
     pass
 ```
 
-### 依赖注入
+### 生命周期管理
 
 ```python
-from typing import Annotated, Generator
-from fastapi import Depends
-from sqlalchemy.orm import Session
+# core/database.py
+async def init_database() -> None:
+    """初始化数据库（仅开发环境创建表）"""
+    if settings.debug:
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
 
-def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def close_database() -> None:
+    """关闭连接池"""
+    await async_engine.dispose()
+```
+
+```python
+# main.py
+from contextlib import asynccontextmanager
+from collections.abc import AsyncGenerator
+
+from fastapi import FastAPI
+
+from app.core.database import init_database, close_database
 
 
-DBSession = Annotated[Session, Depends(get_db)]
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    await init_database()
+    yield
+    await close_database()
+
+
+app = FastAPI(lifespan=lifespan)
 ```
 
 ---
 
-## SQLAlchemy 2.0 异步
+## 依赖注入
 
-### 异步配置
-
-```python
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-
-# 注意：使用异步驱动
-# PostgreSQL: postgresql+asyncpg://
-# MySQL: mysql+aiomysql://
-# SQLite: sqlite+aiosqlite://
-
-async_engine = create_async_engine(
-    settings.db.url,  # 使用 asyncpg 驱动
-    pool_pre_ping=True,
-    pool_recycle=300,
-    echo=settings.debug,
-)
-
-AsyncSessionLocal = async_sessionmaker(
-    bind=async_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autoflush=False,
-)
-```
-
-### 异步依赖
+### Session 依赖
 
 ```python
-from typing import AsyncGenerator
+# core/dependencies.py
+from typing import Annotated
+from collections.abc import AsyncGenerator
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import AsyncSessionLocal
 
 
-async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -96,210 +105,302 @@ async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
             raise
 
 
-AsyncDBSession = Annotated[AsyncSession, Depends(get_async_db)]
+DBSession = Annotated[AsyncSession, Depends(get_db)]
 ```
 
-### 异步查询
+### 分层架构
 
-```python
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
+DBSession 不应直接注入到 Router，而是通过分层架构访问：
 
-
-@app.get("/users/{user_id}")
-async def get_user(user_id: int, db: AsyncDBSession):
-    result = await db.execute(
-        select(User).where(User.id == user_id)
-    )
-    user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(status_code=404)
-    return user
-
-
-@app.get("/users/{user_id}/with-posts")
-async def get_user_with_posts(user_id: int, db: AsyncDBSession):
-    result = await db.execute(
-        select(User)
-        .where(User.id == user_id)
-        .options(selectinload(User.posts))  # 预加载关联
-    )
-    return result.scalar_one_or_none()
 ```
+Router → Service → Repository → DBSession
+```
+
+完整的分层模式（Repository、Service、依赖注入链）参见 [核心模式 - 分层架构](./fastapi-patterns.md#分层架构)。
 
 ---
 
-## SQLModel（推荐）
+## 关系加载策略
 
-SQLModel 整合了 SQLAlchemy 和 Pydantic。
+> **异步环境禁止隐式懒加载**，访问未加载的关系会抛出 `MissingGreenlet` 错误。
+
+### 推荐策略
+
+| 关系类型 | 加载策略 | 说明 |
+|---------|---------|------|
+| One-to-Many / Many-to-Many | `selectinload()` | IN 查询，不影响原查询 |
+| Many-to-One | `joinedload()` | 单条记录，JOIN 更高效 |
+| 默认防护 | `lazy="raise"` | 强制显式加载，防止意外 |
 
 ### 模型定义
 
 ```python
-from datetime import UTC, datetime
-from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
-class UserBase(SQLModel):
-    email: str = Field(unique=True, index=True)
-    username: str = Field(min_length=3, max_length=50, index=True)
-    is_active: bool = True
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str]
+
+    # lazy="raise" 防止异步环境下的意外懒加载
+    posts: Mapped[list["Post"]] = relationship(
+        back_populates="author",
+        lazy="raise",
+    )
 
 
-class User(UserBase, table=True):
-    """数据库表模型"""
-    id: int | None = Field(default=None, primary_key=True)
-    hashed_password: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+class Post(Base):
+    __tablename__ = "posts"
 
-    # 关联
-    posts: list["Post"] = Relationship(back_populates="author")
+    id: Mapped[int] = mapped_column(primary_key=True)
+    title: Mapped[str]
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
 
-
-class UserCreate(UserBase):
-    """创建请求"""
-    password: str = Field(min_length=8)
-
-
-class UserResponse(UserBase):
-    """响应模型"""
-    id: int
-    created_at: datetime
-
-
-class Post(SQLModel, table=True):
-    id: int | None = Field(default=None, primary_key=True)
-    title: str
-    content: str
-    author_id: int = Field(foreign_key="user.id")
-
-    author: User | None = Relationship(back_populates="posts")
+    author: Mapped["User"] = relationship(
+        back_populates="posts",
+        lazy="raise",
+    )
 ```
 
-### CRUD 操作
+### 查询时显式加载
 
 ```python
-from sqlmodel import Session, select
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload, joinedload
 
 
-class UserRepository:
-    def __init__(self, db: Session):
-        self.db = db
+# One-to-Many: 使用 selectinload
+async def get_user_with_posts(db: AsyncSession, user_id: int) -> User | None:
+    stmt = (
+        select(User)
+        .where(User.id == user_id)
+        .options(selectinload(User.posts))
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
 
-    def create(self, user_in: UserCreate) -> User:
-        user = User(
-            email=user_in.email,
-            username=user_in.username,
-            hashed_password=hash_password(user_in.password),
+
+# Many-to-One: 使用 joinedload
+async def get_post_with_author(db: AsyncSession, post_id: int) -> Post | None:
+    stmt = (
+        select(Post)
+        .where(Post.id == post_id)
+        .options(joinedload(Post.author))
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+# 嵌套关系: 链式加载
+async def get_user_with_posts_and_comments(db: AsyncSession, user_id: int):
+    stmt = (
+        select(User)
+        .where(User.id == user_id)
+        .options(
+            selectinload(User.posts).selectinload(Post.comments)
         )
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
-        return user
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+```
 
-    def get_by_id(self, user_id: int) -> User | None:
-        return self.db.get(User, user_id)
+### 自动加载（简化场景）
 
-    def get_by_email(self, email: str) -> User | None:
-        statement = select(User).where(User.email == email)
-        return self.db.exec(statement).first()
-
-    def list(self, skip: int = 0, limit: int = 100) -> list[User]:
-        statement = select(User).offset(skip).limit(limit)
-        return self.db.exec(statement).all()
-
-    def update(self, user: User, user_in: UserUpdate) -> User:
-        user_data = user_in.model_dump(exclude_unset=True)
-        for key, value in user_data.items():
-            setattr(user, key, value)
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
-        return user
-
-    def delete(self, user: User) -> None:
-        self.db.delete(user)
-        self.db.commit()
+```python
+# 关系定义时设置默认加载策略（适用于总是需要加载的场景）
+posts: Mapped[list["Post"]] = relationship(
+    back_populates="author",
+    lazy="selectin",  # 自动使用 selectin 加载
+)
 ```
 
 ---
 
 ## 事务管理
 
-### 手动事务
+### 默认行为（依赖注入）
+
+`get_db()` 依赖已处理事务生命周期：
 
 ```python
-@app.post("/transfer")
-async def transfer_money(
-    from_id: int,
-    to_id: int,
-    amount: float,
-    db: DBSession,
-):
-    try:
-        from_account = db.query(Account).filter(Account.id == from_id).with_for_update().first()
-        to_account = db.query(Account).filter(Account.id == to_id).with_for_update().first()
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()   # 请求成功自动 commit
+        except Exception:
+            await session.rollback()  # 异常自动 rollback
+            raise
+```
 
-        if from_account.balance < amount:
-            raise HTTPException(status_code=400, detail="Insufficient funds")
+**事务边界 = Service 方法**：一个 Service 方法对应一个请求，对应一个事务。
 
-        from_account.balance -= amount
-        to_account.balance += amount
+### 分层中的事务规则
 
-        db.commit()
-        return {"message": "Transfer successful"}
-    except Exception:
-        db.rollback()
-        raise
+| 层 | 事务操作 | 说明 |
+|----|---------|------|
+| **Repository** | `flush()` / `refresh()` | 不调用 commit，只同步到数据库获取 ID |
+| **Service** | 无显式操作 | 依赖注入自动管理 |
+| **Router** | 无 | 不接触事务 |
+
+```python
+# Repository - 只用 flush，不 commit
+async def create(self, user: User) -> User:
+    self.db.add(user)
+    await self.db.flush()      # 同步到 DB，获取自增 ID
+    await self.db.refresh(user)  # 刷新对象状态
+    return user
+
+# Service - 多个 Repository 操作在同一事务中
+async def create_user_with_profile(self, data: UserCreate) -> User:
+    user = await self.user_repo.create(User(...))
+    await self.profile_repo.create(Profile(user_id=user.id, ...))
+    return user  # 两个操作在同一事务，依赖注入统一 commit
 ```
 
 ### 嵌套事务（Savepoint）
 
+部分操作允许失败时使用：
+
 ```python
-from sqlalchemy import event
+# Service 层
+async def transfer_with_notification(
+    self,
+    from_id: int,
+    to_id: int,
+    amount: float,
+) -> None:
+    # 主事务：转账（必须成功）
+    from_account = await self.account_repo.get_by_id(from_id)
+    to_account = await self.account_repo.get_by_id(to_id)
 
+    from_account.balance -= amount
+    to_account.balance += amount
 
-@app.post("/complex-operation")
-async def complex_operation(db: DBSession):
-    # 创建主记录
-    order = Order(...)
-    db.add(order)
-    db.flush()  # 获取 order.id
-
-    # 嵌套事务
-    savepoint = db.begin_nested()
+    # 嵌套事务：通知（可失败）
     try:
-        # 可能失败的操作
-        process_payment(order)
-        savepoint.commit()
-    except PaymentError:
-        savepoint.rollback()
-        order.status = "payment_failed"
+        async with self.db.begin_nested():
+            await self.notification_repo.create(...)
+    except NotificationError:
+        pass  # 通知失败不影响转账，savepoint 自动回滚
 
-    db.commit()
-    return order
+    # 不调用 commit，由 get_db() 统一处理
 ```
+
+### 手动事务（特殊场景）
+
+后台任务、CLI 脚本等非请求上下文：
+
+```python
+async def background_job():
+    async with AsyncSessionLocal() as session:
+        async with session.begin():
+            # 操作...
+            pass
+        # 自动 commit
+```
+
+---
+
+## Repository 模式
+
+Repository 封装数据访问逻辑，提供领域友好的查询接口。
+
+```python
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+class UserRepository:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_by_id(self, user_id: int) -> User | None:
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()
+
+    async def get_by_email(self, email: str) -> User | None:
+        result = await self.db.execute(select(User).where(User.email == email))
+        return result.scalar_one_or_none()
+
+    async def list(self, *, skip: int = 0, limit: int = 100) -> list[User]:
+        result = await self.db.execute(select(User).offset(skip).limit(limit))
+        return list(result.scalars().all())
+
+    async def create(self, user: User) -> User:
+        self.db.add(user)
+        await self.db.flush()
+        await self.db.refresh(user)
+        return user
+
+    async def update(self, user: User, data: dict) -> User:
+        for key, value in data.items():
+            setattr(user, key, value)
+        await self.db.flush()
+        await self.db.refresh(user)
+        return user
+
+    async def delete(self, user: User) -> None:
+        await self.db.delete(user)
+
+    async def count(self) -> int:
+        result = await self.db.execute(select(func.count(User.id)))
+        return result.scalar_one()
+```
+
+完整的分层架构（Service、依赖注入、Router）参见 [核心模式 - 分层架构](./fastapi-patterns.md#分层架构)。
 
 ---
 
 ## 数据库迁移（Alembic）
 
-### 初始化
+### 异步初始化
 
 ```bash
-alembic init alembic
+alembic init -t async migrations
 ```
 
-### 配置 `alembic/env.py`
+### 配置 env.py
 
 ```python
-from app.core.database import Base
+# migrations/env.py
+from sqlalchemy.ext.asyncio import async_engine_from_config
+
 from app.config import get_settings
+from app.core.database import Base
+from app.models import *  # noqa: F401, F403 - 导入所有模型
 
 settings = get_settings()
-
 config.set_main_option("sqlalchemy.url", settings.db.url)
 target_metadata = Base.metadata
+
+
+def run_migrations_offline() -> None:
+    context.configure(
+        url=settings.db.url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+async def run_async_migrations() -> None:
+    connectable = async_engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+    )
+    async with connectable.connect() as connection:
+        await connection.run_sync(do_run_migrations)
+    await connectable.dispose()
+
+
+def do_run_migrations(connection):
+    context.configure(connection=connection, target_metadata=target_metadata)
+    with context.begin_transaction():
+        context.run_migrations()
 ```
 
 ### 常用命令
@@ -311,218 +412,44 @@ alembic revision --autogenerate -m "add users table"
 # 执行迁移
 alembic upgrade head
 
-# 回滚
+# 回滚一个版本
 alembic downgrade -1
 
 # 查看历史
-alembic history
+alembic history --verbose
+```
+
+### Docker 集成
+
+```dockerfile
+CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0"]
 ```
 
 ---
 
-## 连接池配置
+## SQL 优先聚合
 
-### PostgreSQL 推荐配置
-
-```python
-engine = create_engine(
-    database_url,
-    pool_size=5,              # 基础连接数
-    max_overflow=10,          # 允许溢出连接数
-    pool_timeout=30,          # 获取连接超时（秒）
-    pool_recycle=1800,        # 连接回收时间（秒）
-    pool_pre_ping=True,       # 使用前检查连接
-)
-```
-
-### SQLite 配置
+数据库处理聚合比 Python 更快更高效。
 
 ```python
-# SQLite 需要特殊配置支持多线程
-engine = create_engine(
-    "sqlite:///./app.db",
-    connect_args={"check_same_thread": False},
-)
-```
-
----
-
-## 同步 Session 在异步 FastAPI 中的处理
-
-当必须使用同步 ORM（如某些第三方库）时，使用 `run_in_threadpool` 避免阻塞事件循环：
-
-```python
-from fastapi.concurrency import run_in_threadpool
-
-
-def sync_db_operation(db: Session, user_id: int) -> User:
-    """同步数据库操作"""
-    return db.query(User).filter(User.id == user_id).first()
-
-
-@app.get("/users/{user_id}")
-async def get_user(user_id: int, db: DBSession):
-    # 在线程池中运行同步操作
-    user = await run_in_threadpool(sync_db_operation, db, user_id)
-    if not user:
-        raise HTTPException(status_code=404)
-    return user
-```
-
----
-
-## 异步 CRUD 服务模式
-
-```python
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-
-
-class AsyncCRUDService[T]:
-    """通用异步 CRUD 服务"""
-
-    def __init__(self, model: type[T]):
-        self.model = model
-
-    async def get(self, db: AsyncSession, id: int) -> T | None:
-        result = await db.execute(
-            select(self.model).where(self.model.id == id)
-        )
-        return result.scalar_one_or_none()
-
-    async def get_multi(
-        self,
-        db: AsyncSession,
-        *,
-        skip: int = 0,
-        limit: int = 100,
-    ) -> list[T]:
-        result = await db.execute(
-            select(self.model).offset(skip).limit(limit)
-        )
-        return list(result.scalars().all())
-
-    async def create(self, db: AsyncSession, *, obj_in: dict) -> T:
-        db_obj = self.model(**obj_in)
-        db.add(db_obj)
-        await db.commit()
-        await db.refresh(db_obj)
-        return db_obj
-
-    async def update(
-        self,
-        db: AsyncSession,
-        *,
-        db_obj: T,
-        obj_in: dict,
-    ) -> T:
-        for field, value in obj_in.items():
-            setattr(db_obj, field, value)
-        db.add(db_obj)
-        await db.commit()
-        await db.refresh(db_obj)
-        return db_obj
-
-    async def delete(self, db: AsyncSession, *, id: int) -> None:
-        obj = await self.get(db, id)
-        if obj:
-            await db.delete(obj)
-            await db.commit()
-
-    async def count(self, db: AsyncSession) -> int:
-        result = await db.execute(select(func.count()).select_from(self.model))
-        return result.scalar_one()
-
-
-# 使用
-user_service = AsyncCRUDService(User)
-```
-
----
-
-## 数据库生命周期管理
-
-在 `core/database.py` 中统一管理数据库连接：
-
-```python
-# core/database.py
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-
-from app.config import get_settings
-
-settings = get_settings()
-
-async_engine = create_async_engine(
-    settings.db.url,  # 使用 asyncpg 驱动
-    pool_pre_ping=True,
-    pool_recycle=300,
-    echo=settings.debug,
-)
-
-AsyncSessionLocal = async_sessionmaker(
-    bind=async_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autoflush=False,
-)
-
-
-async def init_database() -> None:
-    """初始化数据库（创建表，仅开发环境）"""
-    if settings.debug:
-        async with async_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-
-async def close_database() -> None:
-    """关闭数据库连接池"""
-    await async_engine.dispose()
-```
-
-在 `main.py` 中调用：
-
-```python
-# main.py
-from app.core.database import init_database, close_database
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    await init_database()
-    yield
-    await close_database()
-```
-
----
-
-## SQL 优先处理数据聚合
-
-数据库处理数据比 CPython 更快更干净。复杂聚合应在 SQL 层完成，而非 Python 侧。
-
-```python
-# ❌ 错误：Python 侧聚合 - 慢且占用内存
-@router.get("/posts/stats")
-async def get_stats(db: AsyncDBSession):
+# ❌ Python 侧聚合 - 加载全部数据到内存
+async def get_stats_slow(db: AsyncSession):
     result = await db.execute(select(Post))
-    all_posts = result.scalars().all()
-
-    # 在 Python 中聚合 - 加载全部数据到内存
-    total = len(all_posts)
-    published = sum(1 for p in all_posts if p.is_published)
-    avg_views = sum(p.views for p in all_posts) / total if total else 0
-
-    return {"total": total, "published": published, "avg_views": avg_views}
+    posts = result.scalars().all()
+    return {
+        "total": len(posts),
+        "published": sum(1 for p in posts if p.is_published),
+    }
 
 
-# ✅ 正确：SQL 聚合 - 快速且高效
+# ✅ SQL 聚合 - 只返回结果
 from sqlalchemy import func, case
 
-@router.get("/posts/stats")
-async def get_stats(db: AsyncDBSession):
+async def get_stats(db: AsyncSession):
     result = await db.execute(
         select(
             func.count(Post.id).label("total"),
-            func.count(case((Post.is_published == True, 1))).label("published"),
+            func.count(case((Post.is_published == True, 1))).label("published"),  # noqa: E712
             func.coalesce(func.avg(Post.views), 0).label("avg_views"),
         )
     )
@@ -530,30 +457,80 @@ async def get_stats(db: AsyncDBSession):
     return {"total": row.total, "published": row.published, "avg_views": float(row.avg_views)}
 ```
 
-**适用 SQL 聚合的场景**：
-- 聚合计算（COUNT, SUM, AVG, MAX, MIN）
-- 分组统计（GROUP BY）
-- 复杂筛选和排序
-- 分页（LIMIT/OFFSET）
-- 窗口函数（ROW_NUMBER, RANK）
+---
 
-**不适用场景**：
-- 需要复杂业务逻辑转换
-- 需要调用外部服务
-- 数据量小且需要多次使用
+## 连接池配置
+
+### 生产环境推荐
+
+```python
+async_engine = create_async_engine(
+    DATABASE_URL,
+    pool_size=20,        # 常驻连接数
+    max_overflow=10,     # 溢出连接数
+    pool_timeout=30,     # 获取超时（秒）
+    pool_recycle=3600,   # 回收周期（秒）
+    pool_pre_ping=True,  # 使用前检测
+)
+```
+
+### 特殊场景
+
+```python
+from sqlalchemy.pool import NullPool, StaticPool
+
+# 外部连接池（如 PgBouncer）
+engine = create_async_engine(DATABASE_URL, poolclass=NullPool)
+
+# 内存数据库测试
+engine = create_async_engine(
+    "sqlite+aiosqlite:///:memory:",
+    poolclass=StaticPool,
+)
+```
+
+---
+
+## 同步兼容（精简）
+
+当必须使用同步库时，使用 `run_in_threadpool` 避免阻塞：
+
+```python
+from fastapi.concurrency import run_in_threadpool
+
+
+def sync_operation(session, user_id: int):
+    """同步数据库操作"""
+    return session.query(User).filter(User.id == user_id).first()
+
+
+@router.get("/users/{user_id}")
+async def get_user(user_id: int, db: SyncDBSession):
+    user = await run_in_threadpool(sync_operation, db, user_id)
+    return user
+```
+
+或在异步 Session 中运行同步代码：
+
+```python
+async def async_main():
+    async with AsyncSessionLocal() as session:
+        result = await session.run_sync(sync_orm_function)
+```
 
 ---
 
 ## 最佳实践
 
-1. **使用依赖注入管理 Session** - 确保自动关闭
-2. **异步场景用异步驱动** - asyncpg, aiomysql, aiosqlite
-3. **配置连接池** - 避免连接泄漏
-4. **使用 Alembic 管理迁移** - 版本化数据库变更
-5. **索引常用查询字段** - 提升查询性能
-6. **预加载关联** - 避免 N+1 查询（`selectinload`, `joinedload`）
-7. **SQLModel 简化开发** - 减少重复代码
-8. **expire_on_commit=False** - 异步 Session 必须设置
-9. **run_in_threadpool** - 同步代码在异步上下文中执行
-10. **dispose 连接池** - 在 lifespan 关闭时释放
-11. **SQL 优先聚合** - 聚合计算在数据库层完成，避免加载全部数据
+| 实践 | 说明 |
+|-----|------|
+| 异步驱动 | asyncpg / aiomysql / aiosqlite |
+| `expire_on_commit=False` | 异步 Session 必须，避免隐式查询 |
+| `lazy="raise"` | 防止意外懒加载，强制显式 |
+| `selectinload` / `joinedload` | 显式预加载，避免 N+1 |
+| 依赖注入管理 Session | 自动关闭，请求隔离 |
+| Repository 模式 | 封装数据访问，便于测试 |
+| SQL 聚合 | 复杂计算在数据库层完成 |
+| 连接池配置 | `pool_pre_ping=True` 检测失效连接 |
+| Alembic 迁移 | 版本化数据库变更 |
+| `dispose()` 连接池 | lifespan 关闭时释放资源 |

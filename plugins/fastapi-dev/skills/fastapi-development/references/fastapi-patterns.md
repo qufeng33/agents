@@ -1,5 +1,133 @@
 # FastAPI 核心模式
 
+## 分层架构
+
+```
+Router (HTTP 层) → Service (业务逻辑层) → Repository (数据访问层) → Database
+```
+
+| 层 | 职责 | 不应该做 |
+|----|------|----------|
+| **Router** | HTTP 处理、参数验证、响应格式、异常转换 | 写 SQL、业务逻辑 |
+| **Service** | 业务逻辑、数据转换、跨模块协调 | 直接操作数据库、HTTP 处理 |
+| **Repository** | 数据访问、SQL 查询、ORM 操作 | 处理 HTTP、业务规则 |
+
+### 分层示例
+
+```python
+# modules/user/repository.py
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.modules.user.models import User
+
+
+class UserRepository:
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def get_by_id(self, user_id: int) -> User | None:
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()
+
+    async def get_by_email(self, email: str) -> User | None:
+        result = await self.db.execute(select(User).where(User.email == email))
+        return result.scalar_one_or_none()
+
+    async def create(self, user: User) -> User:
+        self.db.add(user)
+        await self.db.flush()
+        await self.db.refresh(user)
+        return user
+```
+
+```python
+# modules/user/service.py
+from app.modules.user.repository import UserRepository
+from app.modules.user.schemas import UserCreate
+from app.modules.user.models import User
+from app.core.security import hash_password
+
+
+class UserService:
+    def __init__(self, repo: UserRepository):
+        self.repo = repo
+
+    async def get_by_id(self, user_id: int) -> User | None:
+        return await self.repo.get_by_id(user_id)
+
+    async def create(self, data: UserCreate) -> User:
+        # 业务逻辑：检查邮箱唯一性
+        if await self.repo.get_by_email(data.email):
+            raise ValueError("Email already registered")
+
+        # 业务逻辑：密码哈希
+        user = User(
+            email=data.email,
+            name=data.name,
+            hashed_password=hash_password(data.password),
+        )
+        return await self.repo.create(user)
+```
+
+```python
+# modules/user/dependencies.py
+from typing import Annotated
+from fastapi import Depends
+
+from app.core.dependencies import DBSession
+from app.modules.user.repository import UserRepository
+from app.modules.user.service import UserService
+
+
+def get_user_repository(db: DBSession) -> UserRepository:
+    return UserRepository(db)
+
+
+def get_user_service(
+    repo: Annotated[UserRepository, Depends(get_user_repository)],
+) -> UserService:
+    return UserService(repo)
+
+
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+```
+
+```python
+# modules/user/router.py
+from fastapi import APIRouter, HTTPException
+
+from app.modules.user.dependencies import UserServiceDep
+from app.modules.user.schemas import UserCreate, UserResponse
+
+router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/{user_id}")
+async def get_user(user_id: int, service: UserServiceDep) -> UserResponse:
+    user = await service.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+@router.post("/", status_code=201)
+async def create_user(data: UserCreate, service: UserServiceDep) -> UserResponse:
+    try:
+        return await service.create(data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+```
+
+### 分层好处
+
+- **可测试**：mock Repository 测试 Service，mock Service 测试 Router
+- **可替换**：切换数据库只需修改 Repository
+- **职责清晰**：每层专注自己的事
+- **代码复用**：Service 可被多个 Router 或后台任务复用
+
+---
+
 ## async def vs def 选择
 
 | 场景 | 推荐 | 原因 |
@@ -149,27 +277,45 @@ app = FastAPI(dependencies=[Depends(log_request)])
 
 ## 资源存在性验证
 
+通过 Service 层进行资源验证，保持分层一致性。
+
 ```python
-from sqlalchemy import select
+# modules/item/dependencies.py
+from typing import Annotated
+from fastapi import Depends, HTTPException
+
+from .service import ItemService
+
+
+def get_item_service(
+    repo: Annotated[ItemRepository, Depends(get_item_repository)],
+) -> ItemService:
+    return ItemService(repo)
 
 
 async def get_item_or_404(
     item_id: int,
-    db: AsyncDBSession,
+    service: Annotated[ItemService, Depends(get_item_service)],
 ) -> Item:
-    result = await db.execute(select(Item).where(Item.id == item_id))
-    item = result.scalar_one_or_none()
+    item = await service.get_by_id(item_id)
     if not item:
         raise HTTPException(404, "Item not found")
     return item
 
 
 ValidItem = Annotated[Item, Depends(get_item_or_404)]
+```
 
-
-@app.get("/items/{item_id}")
+```python
+# modules/item/router.py
+@router.get("/{item_id}")
 async def read_item(item: ValidItem):
     return item  # 保证存在
+
+
+@router.put("/{item_id}")
+async def update_item(item: ValidItem, data: ItemUpdate, service: ItemServiceDep):
+    return await service.update(item, data)
 ```
 
 ---

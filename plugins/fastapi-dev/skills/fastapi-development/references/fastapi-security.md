@@ -14,12 +14,10 @@ uv add pyjwt "pwdlib[argon2]"
 ### 完整实现
 
 ```python
+# core/security.py
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel
 from pwdlib import PasswordHash
@@ -31,18 +29,10 @@ settings = get_settings()
 # 密码哈希（使用 Argon2 算法）
 password_hash = PasswordHash.recommended()
 
-# OAuth2 scheme
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
-
 
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
-
-
-class TokenData(BaseModel):
-    user_id: int | None = None
-    scopes: list[str] = []
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -65,31 +55,50 @@ def create_access_token(
     return jwt.encode(to_encode, settings.secret_key.get_secret_value(), algorithm="HS256")
 
 
+def decode_access_token(token: str) -> int | None:
+    """解码 token，返回 user_id，无效则返回 None"""
+    try:
+        payload = jwt.decode(token, settings.secret_key.get_secret_value(), algorithms=["HS256"])
+        return payload.get("sub")
+    except InvalidTokenError:
+        return None
+```
+
+```python
+# core/dependencies.py
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+
+from app.core.security import decode_access_token
+from app.modules.user.repository import UserRepository
+from app.modules.user.models import User
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
+
+
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
-    db: AsyncDBSession,
+    user_repo: Annotated[UserRepository, Depends(get_user_repository)],
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    try:
-        payload = jwt.decode(token, settings.secret_key.get_secret_value(), algorithms=["HS256"])
-        user_id: int = payload.get("sub")
-        if user_id is None:
-            raise credentials_exception
-    except InvalidTokenError:
+
+    user_id = decode_access_token(token)
+    if user_id is None:
         raise credentials_exception
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    user = await user_repo.get_by_id(user_id)
     if user is None:
         raise credentials_exception
+
     return user
 
 
-# 类型别名
 CurrentUser = Annotated[User, Depends(get_current_user)]
 ```
 
@@ -109,10 +118,41 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
 ```
 
+### AuthService
+
+```python
+# modules/auth/service.py
+from app.core.security import verify_password, create_access_token, Token
+from app.modules.user.repository import UserRepository
+from app.modules.auth.exceptions import InvalidCredentialsError
+
+
+class AuthService:
+    def __init__(self, user_repo: UserRepository):
+        self.user_repo = user_repo
+
+    async def authenticate(self, email: str, password: str) -> Token:
+        user = await self.user_repo.get_by_email(email)
+        if not user or not verify_password(password, user.hashed_password):
+            raise InvalidCredentialsError()
+
+        access_token = create_access_token(data={"sub": user.id})
+        return Token(access_token=access_token)
+```
+
 ### 登录端点
 
 ```python
-from fastapi import APIRouter
+# modules/auth/router.py
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
+
+from app.core.security import Token
+from .service import AuthService
+from .dependencies import get_auth_service
+from .exceptions import InvalidCredentialsError
 
 router = APIRouter()
 
@@ -120,19 +160,16 @@ router = APIRouter()
 @router.post("/token", response_model=Token)
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    db: AsyncDBSession,
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ):
-    result = await db.execute(select(User).where(User.email == form_data.username))
-    user = result.scalar_one_or_none()
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    try:
+        return await auth_service.authenticate(form_data.username, form_data.password)
+    except InvalidCredentialsError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=401,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-
-    access_token = create_access_token(data={"sub": user.id})
-    return Token(access_token=access_token)
 ```
 
 ---
@@ -222,13 +259,17 @@ async def delete_user(
 ### 基于 OAuth2 Scopes
 
 ```python
+from fastapi import Security
 from fastapi.security import SecurityScopes
+
+from app.core.security import decode_access_token_with_scopes
+from app.modules.user.repository import UserRepository
 
 
 async def get_current_user_with_scopes(
     security_scopes: SecurityScopes,
     token: Annotated[str, Depends(oauth2_scheme)],
-    db: AsyncDBSession,
+    user_repo: Annotated[UserRepository, Depends(get_user_repository)],
 ) -> User:
     authenticate_value = "Bearer"
     if security_scopes.scopes:
@@ -240,12 +281,12 @@ async def get_current_user_with_scopes(
         headers={"WWW-Authenticate": authenticate_value},
     )
 
-    try:
-        payload = jwt.decode(token, settings.secret_key.get_secret_value(), algorithms=["HS256"])
-        user_id: int = payload.get("sub")
-        token_scopes = payload.get("scopes", [])
-    except InvalidTokenError:
+    # 解码 token
+    token_data = decode_access_token_with_scopes(token)
+    if token_data is None:
         raise credentials_exception
+
+    user_id, token_scopes = token_data
 
     # 检查 scopes
     for scope in security_scopes.scopes:
@@ -256,19 +297,18 @@ async def get_current_user_with_scopes(
                 headers={"WWW-Authenticate": authenticate_value},
             )
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
+    user = await user_repo.get_by_id(user_id)
     if user is None:
         raise credentials_exception
     return user
 
 
-@app.get("/users/me", dependencies=[Security(get_current_user_with_scopes, scopes=["users:read"])])
+@router.get("/me", dependencies=[Security(get_current_user_with_scopes, scopes=["users:read"])])
 async def read_own_user():
     ...
 
 
-@app.put("/users/me", dependencies=[Security(get_current_user_with_scopes, scopes=["users:write"])])
+@router.put("/me", dependencies=[Security(get_current_user_with_scopes, scopes=["users:write"])])
 async def update_own_user():
     ...
 ```
@@ -388,10 +428,12 @@ class UserResponse(BaseModel):
     # 不包含 hashed_password
 
 
-@app.get("/users/{user_id}", response_model=UserResponse)
-async def get_user(user_id: int, db: AsyncDBSession):
-    result = await db.execute(select(User).where(User.id == user_id))
-    return result.scalar_one_or_none()  # FastAPI 自动过滤 hashed_password
+@router.get("/{user_id}", response_model=UserResponse)
+async def get_user(user_id: int, service: UserServiceDep):
+    user = await service.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user  # FastAPI 根据 response_model 自动过滤 hashed_password
 ```
 
 ### 日志脱敏
