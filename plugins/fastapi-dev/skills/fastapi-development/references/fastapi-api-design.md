@@ -401,6 +401,44 @@ class UserResponseV2(UserResponse):
 
 ---
 
+## 路由注册
+
+集中管理路由注册，在 `main.py` 中统一调用。
+
+```python
+# app/core/routers.py
+from fastapi import FastAPI
+
+from app.api.v1.router import api_router as v1_router
+from app.routers import health
+
+
+def setup_routers(app: FastAPI) -> None:
+    """注册所有路由"""
+    # 健康检查
+    app.include_router(health.router, tags=["health"])
+
+    # API v1
+    app.include_router(v1_router, prefix="/api/v1")
+```
+
+```python
+# app/api/v1/router.py
+from fastapi import APIRouter
+
+from app.modules.user.router import router as user_router
+from app.modules.item.router import router as item_router
+
+api_router = APIRouter()
+
+api_router.include_router(user_router, prefix="/users", tags=["users"])
+api_router.include_router(item_router, prefix="/items", tags=["items"])
+```
+
+> **在 main.py 中调用** 详见 [应用启动与初始化](./fastapi-startup.md)
+
+---
+
 ## 最佳实践清单
 
 ### 路由设计

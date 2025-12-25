@@ -10,69 +10,45 @@ uv add loguru
 
 ---
 
-## 核心架构：二阶段初始化
+## 核心架构：两阶段初始化
 
-为了确保配置验证的严格性以及日志输出的统一性，采用以下流程：
+### 为什么需要两阶段？
 
-1. **引导阶段 (Bootstrap)**:
-   - 在 `config.py` 中通过 `pydantic-settings` 加载环境变量
-   - 如果验证失败，使用 Loguru 默认配置打印错误并立即退出
-2. **配置阶段 (Configuration)**:
-   - 一旦 `Settings` 对象成功加载，调用日志配置函数
-   - 重置 Loguru，应用自定义格式（开发环境彩色，生产环境 JSON）
-   - 通过 `InterceptHandler` 接管 Uvicorn 和 FastAPI 的内部日志
+日志配置依赖 `Settings`，但加载 `Settings` 本身可能失败（如缺少环境变量），此时需要日志来输出错误信息。这是一个"鸡生蛋"问题。
 
-### 配置管理 (app/config.py)
+**解决方案**：两阶段初始化
 
-```python
-from functools import lru_cache
-from typing import Literal
-
-from pydantic import ValidationError
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
-class Settings(BaseSettings):
-    """项目全局配置"""
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-    # 应用
-    debug: bool = False
-
-    # 日志
-    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
-    log_json: bool = False  # 生产环境建议设为 True
-
-    # 必填配置（无默认值）
-    openai_api_key: str
-
-
-@lru_cache
-def get_settings() -> Settings:
-    """获取配置单例"""
-    try:
-        return Settings()
-    except ValidationError as exc:
-        missing = ["/".join(map(str, err.get("loc", []))) for err in exc.errors()]
-        missing_str = ", ".join(missing) if missing else "未知字段"
-        raise RuntimeError(
-            f"缺少必要的环境变量: {missing_str}。请在 .env 文件中配置后再启动。"
-        ) from None
+```
+setup_bootstrap_logging()     # 阶段1: 最小化配置，确保日志可用
+        ↓
+get_settings()               # 可能失败，失败时有日志输出
+        ↓
+setup_logging(settings)      # 阶段2: 根据配置正式初始化
 ```
 
-### 日志系统 (app/core/logging.py)
+### 目录结构
+
+```
+app/
+├── main.py              # 应用入口，两阶段初始化
+├── config.py            # Settings 定义
+└── core/
+    └── logging.py       # 日志配置
+```
+
+---
+
+## 日志系统 (app/core/logging.py)
 
 ```python
 import logging
 import sys
+from pathlib import Path
 from typing import Literal
 
 from loguru import logger
+
+LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
 class InterceptHandler(logging.Handler):
@@ -94,22 +70,53 @@ class InterceptHandler(logging.Handler):
         )
 
 
+def setup_bootstrap_logging() -> None:
+    """
+    引导阶段日志配置。
+
+    在 Settings 加载前调用，确保配置加载失败时有日志输出。
+    使用固定配置，不依赖任何外部配置。
+    """
+    logger.remove()
+    logger.add(
+        sys.stderr,
+        level="DEBUG",
+        format=(
+            "<dim>{time:HH:mm:ss}</dim> | "
+            "<level>{level: <8}</level> | "
+            "<level>{message}</level>"
+        ),
+        colorize=True,
+    )
+
+
 def setup_logging(
-    level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO",
+    *,
+    level: LogLevel = "INFO",
     json_format: bool = False,
+    to_file: bool = False,
+    log_dir: str | Path = "logs",
 ) -> None:
-    """配置日志系统"""
-    # 1. 清除默认 Handler
+    """
+    正式日志配置。
+
+    Args:
+        level: 日志级别
+        json_format: 是否使用 JSON 格式（生产环境）
+        to_file: 是否输出到文件
+        log_dir: 日志文件目录
+    """
+    # 1. 清除所有 handler（包括 bootstrap 阶段的）
     logger.remove()
 
-    # 2. 配置输出格式
+    # 2. 控制台输出
     if json_format:
         # 生产环境：结构化 JSON
         logger.add(
             sys.stderr,
             level=level,
             serialize=True,
-            enqueue=True,  # 异步写入
+            enqueue=True,
         )
     else:
         # 开发环境：彩色美化
@@ -126,221 +133,120 @@ def setup_logging(
             enqueue=True,
         )
 
-    # 3. 拦截标准库日志（uvicorn、httpx 等）
+    # 3. 文件输出（可选）
+    if to_file:
+        log_path = Path(log_dir)
+        log_path.mkdir(parents=True, exist_ok=True)
+
+        logger.add(
+            log_path / "app.log",
+            level=level,
+            rotation="100 MB",
+            retention="7 days",
+            compression="zip",
+            enqueue=True,
+            serialize=json_format,  # 文件格式与控制台一致
+        )
+
+    # 4. 拦截标准库日志（uvicorn、httpx 等）
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
 
-    # 4. 降低第三方库日志级别
+    # 5. 降低第三方库日志级别
     for name in ["httpx", "httpcore", "uvicorn.access"]:
         logging.getLogger(name).setLevel(logging.WARNING)
 
-    logger.info(f"Log system initialized. Level: {level}, JSON: {json_format}")
-```
-
-### 应用集成 (app/main.py)
-
-```python
-from contextlib import asynccontextmanager
-from collections.abc import AsyncIterator
-
-from fastapi import FastAPI
-from loguru import logger
-
-from app.config import get_settings
-from app.core.logging import setup_logging
-
-# 1. 先初始化日志（使用默认配置）
-setup_logging()
-
-# 2. 加载配置（失败时日志可用）
-try:
-    settings = get_settings()
-except RuntimeError as exc:
-    logger.error(str(exc))
-    raise SystemExit(1) from None
-
-# 3. 用配置重新初始化日志
-setup_logging(level=settings.log_level, json_format=settings.log_json)
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    logger.info("Application starting...")
-    yield
-    logger.info("Application shutting down...")
-
-
-app = FastAPI(
-    title="My API",
-    lifespan=lifespan,
-    docs_url="/docs" if settings.debug else None,
-)
+    logger.debug(
+        "Logging initialized | level={} json={} file={}",
+        level,
+        json_format,
+        to_file,
+    )
 ```
 
 ---
 
-## 请求日志中间件
+## 日志相关配置
+
+在 `Settings` 中添加日志相关字段：
 
 ```python
-import time
-from fastapi import Request
-from loguru import logger
+from pathlib import Path
+from typing import Literal
 
+class Settings(BaseSettings):
+    # ... 其他配置
 
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start_time = time.perf_counter()
-
-    with logger.contextualize(
-        request_id=request.headers.get("X-Request-ID", ""),
-        path=request.url.path,
-        method=request.method,
-    ):
-        logger.info("Request started")
-
-        response = await call_next(request)
-
-        duration = time.perf_counter() - start_time
-        logger.info(
-            "Request completed | status={} | duration={:.3f}s",
-            response.status_code,
-            duration,
-        )
-
-    response.headers["X-Process-Time"] = str(duration)
-    return response
+    # 日志配置
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    log_json: bool = False      # 生产环境设为 True
+    log_to_file: bool = False
+    log_dir: Path = Path("logs")
 ```
+
+`get_settings()` 中捕获验证错误并使用 logger 输出：
+
+```python
+@lru_cache
+def get_settings() -> Settings:
+    try:
+        return Settings()
+    except ValidationError as exc:
+        # 此时 bootstrap logging 已生效
+        missing = ["/".join(map(str, err.get("loc", []))) for err in exc.errors()]
+        logger.critical("缺少必要的环境变量: {}", ", ".join(missing))
+        raise RuntimeError("配置加载失败") from None
+```
+
+> 完整配置管理详见 [配置管理](./fastapi-config.md)
+
+> 完整应用启动流程详见 [应用启动与初始化](./fastapi-startup.md)
+>
+> 请求日志中间件详见 [中间件](./fastapi-middleware.md)
 
 ---
 
 ## 上下文绑定
 
-### bind() - 永久绑定
+请求级别的上下文（如 `request_id`）由 `LoggingMiddleware` 通过 `contextualize()` 自动处理。
 
-```python
-from loguru import logger
-
-# 创建带上下文的 logger
-user_logger = logger.bind(user_id=123, service="auth")
-user_logger.info("User logged in")
-# Output: ... | user_id=123 service=auth | User logged in
-```
-
-### contextualize() - 临时上下文
+业务代码中直接使用 logger 即可：
 
 ```python
 from loguru import logger
 
 
-async def process_request(request_id: str):
-    with logger.contextualize(request_id=request_id):
-        logger.info("Processing request")
-        await do_work()
-        logger.info("Request completed")
-    # 离开上下文后 request_id 自动移除
+class UserService:
+    async def get_by_id(self, user_id: int) -> User | None:
+        logger.info("Fetching user {}", user_id)  # 自动带上 request_id
+        return await self.repo.get_by_id(user_id)
 ```
 
-### 依赖注入中使用
-
-```python
-from typing import Annotated
-from fastapi import Depends, Request
-from loguru import logger
-
-
-async def get_request_logger(request: Request):
-    """为每个请求创建带上下文的 logger"""
-    return logger.bind(
-        request_id=request.headers.get("X-Request-ID", ""),
-        path=request.url.path,
-    )
-
-
-RequestLogger = Annotated[logger.__class__, Depends(get_request_logger)]
-
-
-@app.get("/users/{user_id}")
-async def get_user(user_id: int, log: RequestLogger):
-    log.info("Fetching user {}", user_id)
-    # ...
-```
-
----
-
-## 异常日志
-
-### 自动捕获异常
-
-```python
-from loguru import logger
-
-
-@logger.catch(reraise=True)
-async def risky_operation():
-    result = 1 / 0
-    return result
-
-
-# 或使用装饰器
-@app.get("/risky")
-@logger.catch(message="Error in risky endpoint")
-async def risky_endpoint():
-    raise ValueError("Something went wrong")
-```
-
-### 手动记录异常
-
-```python
-try:
-    await risky_operation()
-except Exception:
-    logger.exception("Operation failed")  # 自动包含堆栈
-    raise
-```
-
----
-
-## 多 Worker 配置
-
-### Gunicorn/Uvicorn 多进程
-
-```python
-import os
-from loguru import logger
-
-
-def setup_worker_logging():
-    """每个 worker 独立的日志文件"""
-    pid = os.getpid()
-
-    logger.remove()
-    logger.add(
-        f"logs/worker_{pid}.log",
-        rotation="100 MB",
-        retention="7 days",
-        enqueue=True,  # 异步写入，线程安全
-    )
-```
+> 详见 [中间件 - 请求日志](./fastapi-middleware.md)
 
 ---
 
 ## 测试中捕获日志
 
 ```python
+from collections.abc import Generator
 from contextlib import contextmanager
+
 from loguru import logger
 
 
 @contextmanager
-def capture_logs(level="INFO"):
+def capture_logs(level: str = "DEBUG") -> Generator[list, None, None]:
     """捕获日志用于测试断言"""
-    output = []
+    output: list = []
     handler_id = logger.add(
         lambda m: output.append(m.record),
         level=level,
         format="{message}",
     )
-    yield output
-    logger.remove(handler_id)
+    try:
+        yield output
+    finally:
+        logger.remove(handler_id)
 
 
 def test_logging():
@@ -353,15 +259,41 @@ def test_logging():
 
 ---
 
+## 启动命令
+
+禁用 Uvicorn 默认 access log（使用自定义日志中间件）：
+
+```bash
+# 开发
+uvicorn app.main:app --reload --no-access-log
+
+# 生产
+uvicorn app.main:app --workers 4 --no-access-log
+```
+
+或在代码中：
+
+```python
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("app.main:app", access_log=False)
+```
+
+**为什么禁用 access log？** 详见 [中间件 - 请求日志](./fastapi-middleware.md)
+
+---
+
 ## 最佳实践
 
-1. **二阶段初始化** - 先初始化日志（默认配置），再加载配置，最后用配置重新初始化
-2. **配置驱动** - 所有日志行为（级别、格式）由 `Settings` 控制
-3. **异步队列** - 始终使用 `enqueue=True`，防止日志 I/O 成为性能瓶颈
-4. **禁用 Uvicorn 默认配置** - 启动时使用 `--log-config=None`
-5. **环境适配** - 通过 `LOG_JSON` 环境变量切换开发（彩色）和生产（JSON）格式
-6. **移除默认处理器** - 使用 `logger.remove()` 避免重复日志
-7. **统一日志** - 使用 `InterceptHandler` 拦截第三方库日志
-8. **上下文绑定** - 使用 `bind()` 或 `contextualize()` 添加请求上下文
-9. **异常记录** - 使用 `logger.exception()` 或 `@logger.catch`
-10. **避免敏感信息** - 不要记录密码、token 等敏感数据
+| 实践 | 说明 |
+|------|------|
+| **两阶段初始化** | Bootstrap → Settings → 正式配置 |
+| **Bootstrap 固定配置** | 不依赖外部配置，确保始终可用 |
+| **配置驱动** | 正式阶段日志行为由 `Settings` 控制 |
+| **异步队列** | 始终 `enqueue=True`，防止 I/O 阻塞 |
+| **统一拦截** | `InterceptHandler` 拦截第三方库日志 |
+| **上下文绑定** | `contextualize()` 用于请求，`bind()` 用于持久绑定 |
+| **禁用 access log** | `--no-access-log`，使用自定义日志中间件 |
+| **环境适配** | 开发用彩色，生产用 JSON |
+| **敏感信息** | 不记录密码、token 等 |

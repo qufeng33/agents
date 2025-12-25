@@ -135,7 +135,9 @@ app/
 ## 详细文档
 
 ### 核心开发
-- [核心模式](./references/fastapi-patterns.md) - 异步、依赖注入、后台任务、Lifespan
+- [核心模式](./references/fastapi-patterns.md) - 分层架构、依赖注入、后台任务
+- [应用启动](./references/fastapi-startup.md) - 两阶段初始化、Lifespan、init/setup 模式
+- [中间件](./references/fastapi-middleware.md) - 请求日志、CORS、异常处理、认证
 - [配置管理](./references/fastapi-config.md) - pydantic-settings、嵌套配置、验证器
 - [数据模型](./references/fastapi-models.md) - Pydantic 验证、类型注解
 - [错误处理](./references/fastapi-errors.md) - 异常体系、统一响应
@@ -146,6 +148,7 @@ app/
 - [安全性](./references/fastapi-security.md) - OAuth2、JWT、权限控制
 
 ### 工具与运维
+- [日志](./references/fastapi-logging.md) - Loguru 两阶段初始化、上下文绑定
 - [开发工具](./references/fastapi-tooling.md) - uv、Ruff、ty、pre-commit
 - [API 设计](./references/fastapi-api-design.md) - REST 规范、分页
 - [性能优化](./references/fastapi-performance.md) - 缓存、连接池、并发
@@ -154,7 +157,6 @@ app/
 
 ### 集成
 - [HTTP 客户端](./references/fastapi-httpx.md) - httpx AsyncClient
-- [日志](./references/fastapi-logging.md) - Loguru 结构化日志
 
 ---
 

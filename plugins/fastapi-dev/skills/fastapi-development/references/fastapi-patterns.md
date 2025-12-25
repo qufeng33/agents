@@ -364,38 +364,29 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动
+    # 启动：初始化资源
     app.state.http_client = httpx.AsyncClient()
     app.state.db_pool = await create_db_pool()
 
     yield  # 运行中
 
-    # 关闭
+    # 关闭：清理资源
     await app.state.http_client.aclose()
     await app.state.db_pool.close()
 
 app = FastAPI(lifespan=lifespan)
+```
 
+通过 `request.app.state` 访问共享资源：
+
+```python
 @app.get("/external")
 async def external(request: Request):
     client = request.app.state.http_client
     return (await client.get("https://api.example.com")).json()
 ```
 
-### 分离职责模式
-
-参见 [fastapi-httpx.md](./fastapi-httpx.md) 的「生命周期管理 + 依赖注入」章节。
-
-```python
-# main.py - lifespan 示例
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    await init_database()
-    await init_http_client(app)
-    yield
-    await close_http_client(app)
-    await close_database()
-```
+> 完整的应用启动流程和 `init_xxx`/`setup_xxx` 模式详见 [应用启动与初始化](./fastapi-startup.md)
 
 ---
 

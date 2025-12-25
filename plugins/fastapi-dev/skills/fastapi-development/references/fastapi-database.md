@@ -58,25 +58,7 @@ async def close_database() -> None:
     await async_engine.dispose()
 ```
 
-```python
-# main.py
-from contextlib import asynccontextmanager
-from collections.abc import AsyncGenerator
-
-from fastapi import FastAPI
-
-from app.core.database import init_database, close_database
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    await init_database()
-    yield
-    await close_database()
-
-
-app = FastAPI(lifespan=lifespan)
-```
+> **在 lifespan 中调用** 详见 [应用启动与初始化](./fastapi-startup.md)
 
 ---
 
