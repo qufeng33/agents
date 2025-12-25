@@ -268,50 +268,11 @@ router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 ---
 
-## 请求限流中间件
+## 请求限流
 
-使用 `slowapi` 或自定义实现：
+推荐使用 `slowapi`（基于 Redis，支持分布式限流）。
 
-```python
-# app/middlewares/ratelimit.py
-import time
-from collections import defaultdict
-
-from fastapi import Request
-from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
-
-
-class RateLimitMiddleware(BaseHTTPMiddleware):
-    """简单的内存限流中间件（生产环境建议用 Redis）"""
-
-    def __init__(self, app, requests_per_minute: int = 60):
-        super().__init__(app)
-        self.requests_per_minute = requests_per_minute
-        self.requests: dict[str, list[float]] = defaultdict(list)
-
-    async def dispatch(self, request: Request, call_next):
-        client_ip = request.client.host if request.client else "unknown"
-        now = time.time()
-        minute_ago = now - 60
-
-        # 清理过期记录
-        self.requests[client_ip] = [
-            t for t in self.requests[client_ip] if t > minute_ago
-        ]
-
-        if len(self.requests[client_ip]) >= self.requests_per_minute:
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "code": "RATE_LIMITED",
-                    "message": "Too many requests",
-                },
-            )
-
-        self.requests[client_ip].append(now)
-        return await call_next(request)
-```
+> 完整的 slowapi 配置和使用示例详见 [安全性 - 请求限流](./fastapi-security.md)
 
 ---
 

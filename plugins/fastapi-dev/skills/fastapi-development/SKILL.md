@@ -160,6 +160,24 @@ app/
 
 ---
 
+## 参考文档权威位置
+
+每个主题的完整代码示例应在指定文档中，其他文档引用。
+
+| 主题 | 完整代码位置 | 简要说明 |
+|------|-------------|----------|
+| 分层架构 (Repository/Service) | [fastapi-patterns.md](./references/fastapi-patterns.md) | 依赖注入链、职责划分 |
+| 数据库 Session 依赖 | [fastapi-database.md](./references/fastapi-database.md) | `get_db()`、事务管理 |
+| 应用启动流程 | [fastapi-startup.md](./references/fastapi-startup.md) | lifespan、init/setup 模式 |
+| CORS 中间件 | [fastapi-middleware.md](./references/fastapi-middleware.md) | 配置驱动、执行顺序 |
+| 异常体系 | [fastapi-errors.md](./references/fastapi-errors.md) | 自定义异常、处理器 |
+| Pydantic 模型 | [fastapi-models.md](./references/fastapi-models.md) | 验证、分离模型 |
+| 日志配置 | [fastapi-logging.md](./references/fastapi-logging.md) | 两阶段初始化 |
+| HTTP 客户端 | [fastapi-httpx.md](./references/fastapi-httpx.md) | 生命周期管理、DI |
+| 认证/JWT | [fastapi-security.md](./references/fastapi-security.md) | OAuth2、权限控制 |
+
+---
+
 ## 获取更多文档
 
 使用 context7 获取最新官方文档：

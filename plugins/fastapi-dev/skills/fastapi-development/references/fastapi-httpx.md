@@ -50,13 +50,9 @@ async def get_http_client(request: Request) -> httpx.AsyncClient:
 HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]
 ```
 
-在 `main.py` 的 lifespan 中初始化：
+在 lifespan 中初始化（完整启动流程参见 [应用启动与初始化](./fastapi-startup.md)）：
 
 ```python
-# main.py
-from app.core.http import init_http_client, close_http_client
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await init_http_client(app)
@@ -67,10 +63,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 ### 在路由中使用
 
 ```python
+from fastapi import APIRouter
+
 from app.core.http import HttpClient
 
+router = APIRouter()
 
-@app.get("/users/{user_id}")
+
+@router.get("/users/{user_id}")
 async def get_user(user_id: int, client: HttpClient):
     response = await client.get(f"https://api.example.com/users/{user_id}")
     response.raise_for_status()
@@ -177,7 +177,7 @@ import asyncio
 import httpx
 
 
-@app.get("/aggregate")
+@router.get("/aggregate")
 async def aggregate_data(client: HttpClient):
     # 并行请求多个 API
     tasks = [
@@ -223,7 +223,7 @@ async def fetch_with_retry(client: httpx.AsyncClient, url: str) -> dict:
     return response.json()
 
 
-@app.get("/reliable-fetch")
+@router.get("/reliable-fetch")
 async def reliable_fetch(client: HttpClient):
     return await fetch_with_retry(client, "https://api.example.com/data")
 ```

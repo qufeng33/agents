@@ -195,127 +195,20 @@ async def list_users(
 
 ## 错误响应格式
 
-### 统一错误模型
+统一错误响应格式：`code` + `message` + `details` 三元组。
 
-```python
-from pydantic import BaseModel
-
-
-class ErrorDetail(BaseModel):
-    """错误详情"""
-    field: str | None = None
-    message: str
-    code: str | None = None
-
-
-class ErrorResponse(BaseModel):
-    """统一错误响应"""
-    code: str
-    message: str
-    details: list[ErrorDetail] | None = None
-
-
-# 响应示例
+```json
 {
     "code": "VALIDATION_ERROR",
     "message": "Request validation failed",
     "details": [
-        {"field": "email", "message": "Invalid email format", "code": "invalid_format"},
-        {"field": "password", "message": "Must be at least 8 characters", "code": "min_length"}
+        {"field": "email", "message": "Invalid email format"},
+        {"field": "password", "message": "Must be at least 8 characters"}
     ]
 }
 ```
 
-### 异常类设计
-
-```python
-class AppException(Exception):
-    def __init__(
-        self,
-        code: str,
-        message: str,
-        status_code: int = 400,
-        details: list[ErrorDetail] | None = None,
-    ) -> None:
-        self.code = code
-        self.message = message
-        self.status_code = status_code
-        self.details = details
-        super().__init__(message)
-
-
-class NotFoundError(AppException):
-    def __init__(self, resource: str, id: str) -> None:
-        super().__init__(
-            code="NOT_FOUND",
-            message=f"{resource} with id '{id}' not found",
-            status_code=404,
-        )
-
-
-class ValidationError(AppException):
-    def __init__(self, details: list[ErrorDetail]) -> None:
-        super().__init__(
-            code="VALIDATION_ERROR",
-            message="Validation failed",
-            status_code=422,
-            details=details,
-        )
-
-
-class ConflictError(AppException):
-    def __init__(self, message: str) -> None:
-        super().__init__(
-            code="CONFLICT",
-            message=message,
-            status_code=409,
-        )
-```
-
-### 全局异常处理器
-
-```python
-from fastapi import Request
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-
-
-async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=ErrorResponse(
-            code=exc.code,
-            message=exc.message,
-            details=exc.details,
-        ).model_dump(exclude_none=True),
-    )
-
-
-async def validation_exception_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
-    details = [
-        ErrorDetail(
-            field=".".join(str(loc) for loc in err["loc"]),
-            message=err["msg"],
-            code=err["type"],
-        )
-        for err in exc.errors()
-    ]
-    return JSONResponse(
-        status_code=422,
-        content=ErrorResponse(
-            code="VALIDATION_ERROR",
-            message="Request validation failed",
-            details=details,
-        ).model_dump(),
-    )
-
-
-# 注册
-app.add_exception_handler(AppException, app_exception_handler)
-app.add_exception_handler(RequestValidationError, validation_exception_handler)
-```
+> 完整的异常体系、异常类定义、全局异常处理器详见 [错误处理](./fastapi-errors.md)
 
 ---
 

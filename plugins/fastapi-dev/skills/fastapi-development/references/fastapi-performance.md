@@ -7,14 +7,16 @@
 使用 orjson 替代标准 json，大型响应性能提升显著。
 
 ```python
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from fastapi.responses import ORJSONResponse
+
+router = APIRouter()
 
 # 全局默认
 app = FastAPI(default_response_class=ORJSONResponse)
 
 # 或单个路由
-@app.get("/items/", response_class=ORJSONResponse)
+@router.get("/items/", response_class=ORJSONResponse)
 async def list_items():
     return [{"id": i, "name": f"Item {i}"} for i in range(1000)]
 ```
@@ -43,7 +45,7 @@ async def generate_large_file():
         yield f"Line {i}\n"
 
 
-@app.get("/download")
+@router.get("/download")
 async def download():
     return StreamingResponse(
         generate_large_file(),
@@ -117,7 +119,7 @@ async def get_cached_or_fetch(
 
 ```python
 # 使用示例
-@app.get("/users/{user_id}")
+@router.get("/users/{user_id}")
 async def get_user(user_id: int, redis_client: RedisClient):
     cache_key = f"user:{user_id}"
 
@@ -133,7 +135,7 @@ async def get_user(user_id: int, redis_client: RedisClient):
 from fastapi import Response
 
 
-@app.get("/static-data")
+@router.get("/static-data")
 async def get_static_data(response: Response):
     response.headers["Cache-Control"] = "public, max-age=3600"
     response.headers["ETag"] = "abc123"
@@ -147,17 +149,19 @@ async def get_static_data(response: Response):
 ### 连接池配置
 
 ```python
-from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 
-engine = create_engine(
-    database_url,
-    pool_size=10,            # 基础连接数
-    max_overflow=20,         # 允许溢出
-    pool_timeout=30,         # 获取连接超时
-    pool_recycle=1800,       # 30分钟回收
-    pool_pre_ping=True,      # 使用前检查
+async_engine = create_async_engine(
+    database_url,            # postgresql+asyncpg://...
+    pool_size=20,            # 常驻连接数
+    max_overflow=10,         # 溢出连接数
+    pool_timeout=30,         # 获取超时（秒）
+    pool_recycle=3600,       # 回收周期（秒）
+    pool_pre_ping=True,      # 使用前检测
 )
 ```
+
+> 完整的异步引擎配置、Session 管理详见 [数据库集成](./fastapi-database.md)
 
 ### 预加载关联（避免 N+1）
 
@@ -166,7 +170,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload, joinedload
 
 # 批量预加载
-@app.get("/users/")
+@router.get("/users/")
 async def list_users(db: AsyncDBSession):
     result = await db.execute(
         select(User).options(
@@ -178,7 +182,7 @@ async def list_users(db: AsyncDBSession):
 
 
 # 关联预加载
-@app.get("/posts/{post_id}")
+@router.get("/posts/{post_id}")
 async def get_post(post_id: int, db: AsyncDBSession):
     result = await db.execute(
         select(Post)
@@ -195,7 +199,7 @@ from fastapi import Query
 from sqlalchemy import select, func
 
 
-@app.get("/items/")
+@router.get("/items/")
 async def list_items(
     db: AsyncDBSession,
     skip: int = Query(0, ge=0),
@@ -228,7 +232,7 @@ import asyncio
 import httpx
 
 
-@app.get("/aggregate")
+@router.get("/aggregate")
 async def aggregate_data():
     async with httpx.AsyncClient() as client:
         # 并行请求
@@ -276,7 +280,7 @@ def cpu_intensive(data: str) -> str:
     return data
 
 
-@app.post("/compute")
+@router.post("/compute")
 async def compute(data: str):
     loop = asyncio.get_event_loop()
     result = await loop.run_in_executor(executor, cpu_intensive, data)
@@ -297,13 +301,13 @@ def process_video(video_id: int):
     ...
 
 
-@app.post("/videos/{video_id}/process")
+@router.post("/videos/{video_id}/process")
 async def start_processing(video_id: int):
     task = process_video.delay(video_id)
     return {"task_id": task.id}
 
 
-@app.get("/tasks/{task_id}")
+@router.get("/tasks/{task_id}")
 async def get_task_status(task_id: str):
     task = celery_app.AsyncResult(task_id)
     return {"status": task.status, "result": task.result}

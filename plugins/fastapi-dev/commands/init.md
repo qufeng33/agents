@@ -87,33 +87,6 @@ uv add --dev pytest pytest-asyncio httpx ruff ty
 - 目录布局：见 **fastapi-development** SKILL.md 的「项目结构」章节
 - 详细说明：见 `references/fastapi-project-structure.md`
 
-### 简单结构核心目录
-
-```
-app/
-├── routers/          # 路由层
-├── services/         # 业务逻辑层
-├── repositories/     # 数据访问层
-├── schemas/          # Pydantic 模型
-├── models/           # ORM 模型
-└── core/             # 基础设施
-```
-
-### 模块化结构核心目录
-
-```
-app/
-├── api/v1/router.py
-├── modules/{domain}/
-│   ├── router.py
-│   ├── service.py
-│   ├── repository.py
-│   ├── schemas.py
-│   ├── models.py
-│   └── dependencies.py
-└── core/
-```
-
 ## Step 4: 配置工具
 
 在 pyproject.toml 中添加工具配置：

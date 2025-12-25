@@ -403,64 +403,14 @@ app = FastAPI(
 
 ## 日志配置
 
-```python
-import logging
-import sys
-from logging.handlers import RotatingFileHandler
+生产环境日志要点：
 
+- **JSON 格式** - 便于日志聚合工具（ELK、Loki）分析
+- **异步队列** - `enqueue=True` 防止 I/O 阻塞
+- **文件轮转** - 按大小/时间轮转，防止磁盘占满
+- **禁用 access log** - 使用自定义日志中间件
 
-def setup_logging(debug: bool = False):
-    log_level = logging.DEBUG if debug else logging.INFO
-
-    # 格式
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-
-    # 控制台处理器
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-
-    # 文件处理器（生产环境）
-    file_handler = RotatingFileHandler(
-        "app.log",
-        maxBytes=10 * 1024 * 1024,  # 10MB
-        backupCount=5,
-    )
-    file_handler.setFormatter(formatter)
-
-    # 配置根日志器
-    root_logger = logging.getLogger()
-    root_logger.setLevel(log_level)
-    root_logger.addHandler(console_handler)
-    root_logger.addHandler(file_handler)
-
-    # 降低第三方库日志级别
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
-    logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
-```
-
-### 结构化日志（JSON）
-
-```python
-import json
-import logging
-
-
-class JSONFormatter(logging.Formatter):
-    def format(self, record):
-        log_record = {
-            "timestamp": self.formatTime(record),
-            "level": record.levelname,
-            "message": record.getMessage(),
-            "logger": record.name,
-        }
-        if record.exc_info:
-            log_record["exception"] = self.formatException(record.exc_info)
-        if hasattr(record, "extra"):
-            log_record.update(record.extra)
-        return json.dumps(log_record)
-```
+> 完整的 Loguru 配置、两阶段初始化、InterceptHandler 详见 [日志](./fastapi-logging.md)
 
 ---
 

@@ -193,99 +193,16 @@ filterwarnings = [
 
 ---
 
-## GitHub Actions
-
-```yaml
-name: CI
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Setup Python
-        run: uv python install 3.13
-
-      - name: Install dependencies
-        run: uv sync --locked
-
-      - name: Lint
-        run: uv run ruff check .
-
-      - name: Type check
-        run: uvx ty check
-
-      - name: Test
-        run: uv run pytest --cov
-```
-
----
-
 ## Docker 集成
 
-### 基础 Dockerfile
+uv 与 Docker 配合使用的要点：
 
-```dockerfile
-FROM python:3.13-slim
+- **复制 uv 二进制** - `COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/`
+- **启用字节码编译** - `UV_COMPILE_BYTECODE=1` 提升启动速度
+- **分层缓存** - 先复制 `pyproject.toml` 和 `uv.lock`，再复制代码
+- **多阶段构建** - 减小最终镜像体积
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-WORKDIR /app
-
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_LINK_MODE=copy
-
-COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-dev --no-install-project
-
-COPY . .
-RUN uv sync --locked --no-dev
-
-RUN adduser --disabled-password --gecos "" appuser
-USER appuser
-
-EXPOSE 8000
-
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-### 多阶段构建
-
-```dockerfile
-# 构建阶段
-FROM python:3.13-slim AS builder
-
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-WORKDIR /app
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
-
-COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-dev --no-install-project
-
-COPY . .
-RUN uv sync --locked --no-dev
-
-# 运行阶段
-FROM python:3.13-slim
-
-WORKDIR /app
-COPY --from=builder /app/.venv /app/.venv
-COPY --from=builder /app .
-
-ENV PATH="/app/.venv/bin:$PATH"
-
-RUN adduser --disabled-password --gecos "" appuser
-USER appuser
-
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
+> 完整的 Dockerfile、docker-compose、Kubernetes 配置详见 [部署](./fastapi-deployment.md)
 
 ---
 

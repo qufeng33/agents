@@ -208,7 +208,7 @@ async def get_api_key(
 ValidAPIKey = Annotated[str, Depends(get_api_key)]
 
 
-@app.get("/protected")
+@router.get("/protected")
 async def protected_route(api_key: ValidAPIKey):
     return {"message": "Access granted"}
 ```
@@ -247,7 +247,7 @@ allow_admin = RoleChecker([Role.ADMIN])
 allow_moderator = RoleChecker([Role.ADMIN, Role.MODERATOR])
 
 
-@app.delete("/users/{user_id}")
+@router.delete("/users/{user_id}")
 async def delete_user(
     user_id: int,
     admin: Annotated[User, Depends(allow_admin)],
@@ -317,22 +317,18 @@ async def update_own_user():
 
 ## CORS 配置
 
-```python
-from fastapi.middleware.cors import CORSMiddleware
+CORS（跨域资源共享）是 Web 安全的重要组成部分，控制哪些域可以访问 API。
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://myapp.com",
-    ],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["*"],
-    expose_headers=["X-Request-ID"],
-    max_age=600,  # 预检请求缓存时间（秒）
-)
-```
+**关键配置项**：
+
+| 参数 | 说明 |
+|------|------|
+| `allow_origins` | 允许的源列表（生产环境避免使用 `["*"]`） |
+| `allow_credentials` | 是否允许携带 Cookie |
+| `allow_methods` | 允许的 HTTP 方法 |
+| `expose_headers` | 允许前端访问的响应头 |
+
+> 完整配置示例和配置驱动模式参见 [中间件 - CORS](./fastapi-middleware.md#cors-中间件)
 
 ---
 
@@ -385,10 +381,14 @@ def setup_middleware(app: FastAPI) -> None:
 
 ```python
 # 在路由中使用
+from fastapi import APIRouter
+
 from app.core.middleware import limiter
 
+router = APIRouter()
 
-@app.get("/limited")
+
+@router.get("/limited")
 @limiter.limit("10/minute")
 async def limited_route(request: Request):
     return {"message": "This route is rate limited"}

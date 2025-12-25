@@ -313,26 +313,20 @@ class UserService:
 
 ### yield 依赖的事务管理
 
+基于 [数据库集成](./fastapi-database.md#依赖注入) 中的 `get_db()` 依赖，可扩展区分业务异常：
+
 ```python
-from collections.abc import AsyncGenerator
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.exceptions import AppException
-
-
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
             yield session
             await session.commit()
         except AppException:
-            # 业务异常：回滚但继续抛出
             await session.rollback()
-            raise
+            raise  # 业务异常：回滚后继续抛出，由异常处理器处理
         except Exception:
-            # 其他异常：回滚
             await session.rollback()
-            raise
+            raise  # 其他异常：回滚
 ```
 
 ### 依赖中验证并抛出异常

@@ -138,14 +138,18 @@ async def create_user(data: UserCreate, service: UserServiceDep) -> UserResponse
 | CPU 密集型 | `ProcessPoolExecutor` | 不阻塞事件循环 |
 
 ```python
+from fastapi import APIRouter
+
+router = APIRouter()
+
 # I/O 密集型：async def
-@app.get("/external")
+@router.get("/external")
 async def call_api():
     async with httpx.AsyncClient() as client:
         return (await client.get("https://api.example.com")).json()
 
 # 同步阻塞：def（自动线程池）
-@app.get("/sync")
+@router.get("/sync")
 def sync_operation():
     time.sleep(1)  # 不会阻塞事件循环
     return {"done": True}
@@ -153,7 +157,7 @@ def sync_operation():
 # CPU 密集型：外部进程
 executor = ProcessPoolExecutor(max_workers=4)
 
-@app.post("/compute")
+@router.post("/compute")
 async def compute(data: str):
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(executor, heavy_task, data)
@@ -163,12 +167,12 @@ async def compute(data: str):
 
 ```python
 # 错误：在 async def 中阻塞
-@app.get("/bad")
+@router.get("/bad")
 async def bad():
     time.sleep(5)  # 阻塞事件循环！
 
 # 正确：使用 def 或 asyncio.sleep
-@app.get("/good")
+@router.get("/good")
 async def good():
     await asyncio.sleep(5)
 ```
@@ -181,7 +185,10 @@ async def good():
 
 ```python
 from typing import Annotated
-from fastapi import Depends, Query
+from fastapi import APIRouter, Depends, Query
+
+router = APIRouter()
+
 
 def pagination(
     skip: int = Query(default=0, ge=0),
@@ -191,7 +198,7 @@ def pagination(
 
 Pagination = Annotated[dict, Depends(pagination)]
 
-@app.get("/items/")
+@router.get("/items/")
 async def list_items(params: Pagination):
     return params
 ```
@@ -212,28 +219,25 @@ async def get_current_user(token: Annotated[str, Depends(get_token)]) -> User:
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
-@app.get("/me")
+@router.get("/me")
 async def get_me(user: CurrentUser):
     return user
 ```
 
 ### yield 依赖（资源管理）
 
+`yield` 依赖用于管理需要清理的资源（数据库连接、HTTP 客户端等）。
+
 ```python
-async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-
-
-AsyncDBSession = Annotated[AsyncSession, Depends(get_async_db)]
+async def get_resource() -> AsyncGenerator[Resource, None]:
+    resource = await create_resource()
+    try:
+        yield resource      # 请求处理期间使用
+    finally:
+        await resource.close()  # 请求结束后清理
 ```
 
-> 详细的数据库配置参见 [fastapi-database.md](./fastapi-database.md)
+> **数据库 Session 依赖**：完整的 `get_db()` 实现（含事务管理）参见 [数据库集成 - 依赖注入](./fastapi-database.md#依赖注入)
 
 ### 类作为依赖
 
@@ -250,7 +254,7 @@ class PermissionChecker:
 
 require_admin = PermissionChecker(["admin"])
 
-@app.delete("/users/{user_id}")
+@router.delete("/users/{user_id}")
 async def delete_user(admin: Annotated[User, Depends(require_admin)]):
     ...
 ```
@@ -261,7 +265,7 @@ async def delete_user(admin: Annotated[User, Depends(require_admin)]):
 
 ```python
 # 禁用缓存：每次都创建新实例
-@app.get("/items/")
+@router.get("/items/")
 async def items(val: Annotated[str, Depends(get_random, use_cache=False)]):
     ...
 ```
@@ -329,7 +333,7 @@ def send_email(email: str, msg: str):
     # 同步函数自动在线程池执行
     ...
 
-@app.post("/notify")
+@router.post("/notify")
 async def notify(email: str, bg: BackgroundTasks):
     bg.add_task(send_email, email, "Hello")
     return {"status": "scheduled"}
@@ -346,7 +350,7 @@ def process_order(order_id: int):
     finally:
         db.close()
 
-@app.post("/orders")
+@router.post("/orders")
 async def create_order(order: OrderCreate, bg: BackgroundTasks, db: DBSession):
     db_order = Order(**order.model_dump())
     db.add(db_order)
@@ -359,31 +363,27 @@ async def create_order(order: OrderCreate, bg: BackgroundTasks, db: DBSession):
 
 ## 生命周期管理（Lifespan）
 
-```python
-from contextlib import asynccontextmanager
+`lifespan` 用于管理应用级别的资源（数据库连接池、HTTP 客户端等）。
 
+```python
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动：初始化资源
+    # 启动：初始化资源，存储到 app.state
     app.state.http_client = httpx.AsyncClient()
-    app.state.db_pool = await create_db_pool()
-
-    yield  # 运行中
-
+    yield
     # 关闭：清理资源
     await app.state.http_client.aclose()
-    await app.state.db_pool.close()
 
 app = FastAPI(lifespan=lifespan)
 ```
 
-通过 `request.app.state` 访问共享资源：
+通过依赖注入访问共享资源（推荐）：
 
 ```python
-@app.get("/external")
-async def external(request: Request):
-    client = request.app.state.http_client
-    return (await client.get("https://api.example.com")).json()
+async def get_http_client(request: Request) -> httpx.AsyncClient:
+    return request.app.state.http_client
+
+HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]
 ```
 
 > 完整的应用启动流程和 `init_xxx`/`setup_xxx` 模式详见 [应用启动与初始化](./fastapi-startup.md)
@@ -393,7 +393,7 @@ async def external(request: Request):
 ## 并发请求
 
 ```python
-@app.get("/users/batch")
+@router.get("/users/batch")
 async def get_users(user_ids: list[int]):
     tasks = [fetch_user(uid) for uid in user_ids]
     results = await asyncio.gather(*tasks, return_exceptions=True)

@@ -290,49 +290,37 @@ async def background_job():
 
 Repository 封装数据访问逻辑，提供领域友好的查询接口。
 
+完整的分层架构示例（Repository → Service → Router）参见 [核心模式 - 分层架构](./fastapi-patterns.md#分层架构)。
+
+### Repository CRUD 方法规范
+
+| 方法 | 返回值 | 说明 |
+|------|--------|------|
+| `get_by_id(id)` | `Model \| None` | 主键查询 |
+| `get_by_xxx(field)` | `Model \| None` | 唯一字段查询 |
+| `list(skip, limit)` | `list[Model]` | 分页列表 |
+| `create(model)` | `Model` | 创建，使用 `flush()` + `refresh()` |
+| `update(model, data)` | `Model` | 更新，使用 `flush()` + `refresh()` |
+| `delete(model)` | `None` | 删除 |
+| `count()` | `int` | 统计数量 |
+
+### 关键操作说明
+
 ```python
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
+# 创建：flush 同步到 DB 获取自增 ID，refresh 刷新对象状态
+async def create(self, user: User) -> User:
+    self.db.add(user)
+    await self.db.flush()      # 同步到 DB，获取自增 ID
+    await self.db.refresh(user)  # 刷新对象状态
+    return user
 
-
-class UserRepository:
-    def __init__(self, db: AsyncSession):
-        self.db = db
-
-    async def get_by_id(self, user_id: int) -> User | None:
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        return result.scalar_one_or_none()
-
-    async def get_by_email(self, email: str) -> User | None:
-        result = await self.db.execute(select(User).where(User.email == email))
-        return result.scalar_one_or_none()
-
-    async def list(self, *, skip: int = 0, limit: int = 100) -> list[User]:
-        result = await self.db.execute(select(User).offset(skip).limit(limit))
-        return list(result.scalars().all())
-
-    async def create(self, user: User) -> User:
-        self.db.add(user)
-        await self.db.flush()
-        await self.db.refresh(user)
-        return user
-
-    async def update(self, user: User, data: dict) -> User:
-        for key, value in data.items():
-            setattr(user, key, value)
-        await self.db.flush()
-        await self.db.refresh(user)
-        return user
-
-    async def delete(self, user: User) -> None:
-        await self.db.delete(user)
-
-    async def count(self) -> int:
-        result = await self.db.execute(select(func.count(User.id)))
-        return result.scalar_one()
+# 聚合查询：使用 SQL 函数
+async def count(self) -> int:
+    result = await self.db.execute(select(func.count(User.id)))
+    return result.scalar_one()
 ```
 
-完整的分层架构（Service、依赖注入、Router）参见 [核心模式 - 分层架构](./fastapi-patterns.md#分层架构)。
+> **注意**：Repository 层只调用 `flush()`，不调用 `commit()`。事务由依赖注入的 `get_db()` 统一管理。
 
 ---
 

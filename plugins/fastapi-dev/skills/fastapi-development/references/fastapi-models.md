@@ -2,7 +2,7 @@
 
 ## Pydantic v2 基础
 
-FastAPI 0.127.0+ 仅支持 Pydantic v2。
+FastAPI >= 0.120.0 仅支持 Pydantic v2。
 
 ---
 
@@ -187,7 +187,9 @@ class StrictInput(BaseModel):
 ### 应用于查询参数
 
 ```python
-from fastapi import Query
+from fastapi import APIRouter, Query
+
+router = APIRouter()
 
 
 class QueryParams(BaseModel):
@@ -197,7 +199,7 @@ class QueryParams(BaseModel):
     limit: int = 100
 
 
-@app.get("/items/")
+@router.get("/items/")
 async def list_items(params: QueryParams = Query()):
     # 额外的查询参数会返回 422 错误
     return {"skip": params.skip, "limit": params.limit}
@@ -210,7 +212,7 @@ async def list_items(params: QueryParams = Query()):
 ### 过滤敏感数据
 
 ```python
-@app.post("/users/", response_model=UserResponse)
+@router.post("/users/", response_model=UserResponse)
 async def create_user(user: UserCreate, db: DBSession):
     # 返回包含 hashed_password 的完整对象
     # FastAPI 自动使用 UserResponse 过滤
@@ -235,7 +237,7 @@ class Item(BaseModel):
     tax: float = 10.5
 
 
-@app.get("/items/{item_id}", response_model=Item, response_model_exclude_unset=True)
+@router.get("/items/{item_id}", response_model=Item, response_model_exclude_unset=True)
 async def get_item(item_id: int):
     return {"name": "Foo", "price": 50.2}
     # 响应只包含 name 和 price，不包含 description 和 tax
