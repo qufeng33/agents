@@ -232,7 +232,7 @@ HTTP处理  业务逻辑    数据访问
 - 便于测试（可单独 mock repository）
 - 易于替换数据源（如从 PostgreSQL 迁移到 MongoDB）
 
-> 完整的分层代码示例（Repository、Service、Router、依赖注入）参见 [核心模式 - 分层架构](./fastapi-patterns.md#分层架构)
+> 完整的分层代码示例（Repository、Service、Router、依赖注入）详见 [核心模式 - 分层架构](./fastapi-patterns.md#分层架构)
 
 ---
 

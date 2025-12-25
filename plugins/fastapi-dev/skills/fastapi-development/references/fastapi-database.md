@@ -98,7 +98,7 @@ DBSession 不应直接注入到 Router，而是通过分层架构访问：
 Router → Service → Repository → DBSession
 ```
 
-完整的分层模式（Repository、Service、依赖注入链）参见 [核心模式 - 分层架构](./fastapi-patterns.md#分层架构)。
+完整的分层模式（Repository、Service、依赖注入链）详见 [核心模式 - 分层架构](./fastapi-patterns.md#分层架构)。
 
 ---
 
@@ -290,7 +290,7 @@ async def background_job():
 
 Repository 封装数据访问逻辑，提供领域友好的查询接口。
 
-完整的分层架构示例（Repository → Service → Router）参见 [核心模式 - 分层架构](./fastapi-patterns.md#分层架构)。
+完整的分层架构示例（Repository → Service → Router）详见 [核心模式 - 分层架构](./fastapi-patterns.md#分层架构)。
 
 ### Repository CRUD 方法规范
 

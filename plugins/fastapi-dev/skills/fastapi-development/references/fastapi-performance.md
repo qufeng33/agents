@@ -252,7 +252,7 @@ async def aggregate_data():
 
 ### 共享 HTTP 客户端
 
-参见 [fastapi-httpx.md](./fastapi-httpx.md) 的「生命周期管理 + 依赖注入」章节。
+详见 [fastapi-httpx.md](./fastapi-httpx.md) 的「生命周期管理 + 依赖注入」章节。
 
 核心要点：
 - 在 lifespan 中初始化 `httpx.AsyncClient`，存储到 `app.state`

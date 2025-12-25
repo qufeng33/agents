@@ -1,8 +1,22 @@
 ---
 name: fastapi-development
 description: |
-  FastAPI 开发最佳实践。包含分层架构、项目结构、异步模式、依赖注入、数据验证、数据库集成、错误处理、测试等。
-  触发：实现端点、创建 API、CRUD 操作、Pydantic schema、SQLAlchemy 模型、异步数据库、错误处理、编写测试
+  FastAPI 开发最佳实践。包含分层架构、项目结构、异步模式、依赖注入、数据验证、数据库集成、错误处理、测试、部署等完整开发周期。
+
+  触发场景：
+  - 创建 FastAPI 端点、路由、REST API 设计
+  - SQLAlchemy 2.0 异步数据库操作、事务管理、Alembic 迁移
+  - Pydantic v2 模型验证、序列化、ConfigDict 配置
+  - 中间件配置、CORS、请求日志、GZip 压缩
+  - 认证授权、OAuth2、JWT、权限控制
+  - 错误处理体系、自定义异常、统一响应格式
+  - 日志配置、Loguru 两阶段初始化
+  - pytest 异步测试、依赖覆盖、fixture
+  - httpx 异步 HTTP 客户端集成
+  - Docker 部署、Kubernetes、生产配置
+  - 性能优化、缓存、连接池
+
+  关键词：实现端点、创建 API、CRUD 操作、Pydantic schema、SQLAlchemy 模型、异步数据库、错误处理、编写测试、FastAPI 中间件、JWT 认证、部署配置、lifespan、依赖注入
 ---
 
 # FastAPI 最佳实践
@@ -169,12 +183,19 @@ app/
 | 分层架构 (Repository/Service) | [fastapi-patterns.md](./references/fastapi-patterns.md) | 依赖注入链、职责划分 |
 | 数据库 Session 依赖 | [fastapi-database.md](./references/fastapi-database.md) | `get_db()`、事务管理 |
 | 应用启动流程 | [fastapi-startup.md](./references/fastapi-startup.md) | lifespan、init/setup 模式 |
+| 配置管理 | [fastapi-config.md](./references/fastapi-config.md) | pydantic-settings、嵌套配置 |
 | CORS 中间件 | [fastapi-middleware.md](./references/fastapi-middleware.md) | 配置驱动、执行顺序 |
 | 异常体系 | [fastapi-errors.md](./references/fastapi-errors.md) | 自定义异常、处理器 |
 | Pydantic 模型 | [fastapi-models.md](./references/fastapi-models.md) | 验证、分离模型 |
 | 日志配置 | [fastapi-logging.md](./references/fastapi-logging.md) | 两阶段初始化 |
 | HTTP 客户端 | [fastapi-httpx.md](./references/fastapi-httpx.md) | 生命周期管理、DI |
 | 认证/JWT | [fastapi-security.md](./references/fastapi-security.md) | OAuth2、权限控制 |
+| API 设计 | [fastapi-api-design.md](./references/fastapi-api-design.md) | REST 规范、分页、版本管理 |
+| 测试 | [fastapi-testing.md](./references/fastapi-testing.md) | pytest-asyncio、依赖覆盖 |
+| 性能优化 | [fastapi-performance.md](./references/fastapi-performance.md) | 缓存、连接池、并发 |
+| 部署 | [fastapi-deployment.md](./references/fastapi-deployment.md) | Docker、Kubernetes |
+| 项目结构 | [fastapi-project-structure.md](./references/fastapi-project-structure.md) | 简单/模块化布局 |
+| 开发工具 | [fastapi-tooling.md](./references/fastapi-tooling.md) | uv、Ruff、ty |
 
 ---
 

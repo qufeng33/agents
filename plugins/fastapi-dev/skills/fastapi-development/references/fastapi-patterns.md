@@ -237,7 +237,7 @@ async def get_resource() -> AsyncGenerator[Resource, None]:
         await resource.close()  # 请求结束后清理
 ```
 
-> **数据库 Session 依赖**：完整的 `get_db()` 实现（含事务管理）参见 [数据库集成 - 依赖注入](./fastapi-database.md#依赖注入)
+> **数据库 Session 依赖**：完整的 `get_db()` 实现（含事务管理）详见 [数据库集成 - 依赖注入](./fastapi-database.md#依赖注入)
 
 ### 类作为依赖
 
@@ -411,7 +411,7 @@ async def get_users(user_ids: list[int]):
 
 ## 异步数据库
 
-参见 [fastapi-database.md](./fastapi-database.md) 的「SQLAlchemy 2.0 异步」章节。
+详见 [fastapi-database.md](./fastapi-database.md) 的「SQLAlchemy 2.0 异步」章节。
 
 ---
 
