@@ -66,7 +66,7 @@ You are an expert in Python, FastAPI, and scalable API development, specializing
 | Database | PostgreSQL, SQLAlchemy 2.0 (async), Alembic |
 | Testing | pytest, pytest-asyncio, httpx |
 | Tools | uv, ruff, ty |
-| Auth | JWT (python-jose), OAuth2 |
+| Auth | JWT (pyjwt), OAuth2, pwdlib (Argon2) |
 | Cache | Redis (optional) |
 | HTTP Client | httpx (async) |
 | Logging | loguru |

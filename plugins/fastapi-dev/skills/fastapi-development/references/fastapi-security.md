@@ -1,5 +1,14 @@
 # FastAPI 安全性
 
+## 依赖安装
+
+```bash
+# JWT + 密码哈希（推荐 Argon2）
+uv add pyjwt "pwdlib[argon2]"
+```
+
+---
+
 ## OAuth2 + JWT 认证
 
 ### 完整实现
@@ -8,18 +17,19 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError, jwt
-from passlib.context import CryptContext
+from jwt.exceptions import InvalidTokenError
 from pydantic import BaseModel
+from pwdlib import PasswordHash
 
 from app.config import get_settings
 
 settings = get_settings()
 
-# 密码哈希
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# 密码哈希（使用 Argon2 算法）
+password_hash = PasswordHash.recommended()
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
@@ -36,11 +46,11 @@ class TokenData(BaseModel):
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return password_hash.verify(plain_password, hashed_password)
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return password_hash.hash(password)
 
 
 def create_access_token(
@@ -69,7 +79,7 @@ async def get_current_user(
         user_id: int = payload.get("sub")
         if user_id is None:
             raise credentials_exception
-    except JWTError:
+    except InvalidTokenError:
         raise credentials_exception
 
     user = db.query(User).filter(User.id == user_id).first()
@@ -80,6 +90,21 @@ async def get_current_user(
 
 # 类型别名
 CurrentUser = Annotated[User, Depends(get_current_user)]
+```
+
+### 配置示例
+
+```python
+# app/config.py
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    # 生成方式: openssl rand -hex 32
+    secret_key: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+    access_token_expire_minutes: int = 30
+
+    model_config = {"env_file": ".env"}
 ```
 
 ### 登录端点
@@ -216,7 +241,7 @@ async def get_current_user_with_scopes(
         payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
         user_id: int = payload.get("sub")
         token_scopes = payload.get("scopes", [])
-    except JWTError:
+    except InvalidTokenError:
         raise credentials_exception
 
     # 检查 scopes
@@ -384,7 +409,7 @@ def sanitize_log(data: dict) -> dict:
 
 ## 最佳实践
 
-1. **永远不存储明文密码** - 使用 bcrypt/argon2
+1. **永远不存储明文密码** - 使用 Argon2（推荐）或 bcrypt
 2. **JWT 过期时间要短** - 建议 15-60 分钟
 3. **使用 HTTPS** - 生产环境必须
 4. **验证所有输入** - Pydantic + 自定义验证
