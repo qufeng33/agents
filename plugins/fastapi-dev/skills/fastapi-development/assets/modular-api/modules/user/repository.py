@@ -7,6 +7,11 @@ from .models import User
 
 
 class UserRepository:
+    """用户数据访问层
+
+    注意：事务由 get_db() 依赖自动管理，Repository 只用 flush/refresh
+    """
+
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -27,10 +32,10 @@ class UserRepository:
 
     async def create(self, user: User) -> User:
         self.db.add(user)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(user)
         return user
 
     async def delete(self, user: User) -> None:
         await self.db.delete(user)
-        await self.db.commit()
+        await self.db.flush()

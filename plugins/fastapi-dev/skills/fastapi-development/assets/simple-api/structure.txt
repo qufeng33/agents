@@ -3,25 +3,22 @@
 
 app/
 ├── __init__.py
-├── main.py              # 应用入口
-├── config.py            # 配置管理
-├── dependencies.py      # 共享依赖
-├── exceptions.py        # 异常定义
+├── main.py              # 应用入口（create_app 工厂模式）
+├── config.py            # 配置管理（pydantic-settings）
+├── dependencies.py      # 共享依赖（DBSession 等类型别名）
+├── exceptions.py        # 异常定义 + setup_exception_handlers
 │
 ├── routers/             # 路由层（按资源划分）
 │   ├── __init__.py
-│   ├── users.py
-│   └── items.py
+│   └── users.py         # HTTP 处理，注入 Service
 │
 ├── schemas/             # Pydantic 模型
 │   ├── __init__.py
-│   ├── user.py
-│   └── item.py
+│   └── user.py          # UserCreate / UserResponse
 │
-├── services/            # 业务逻辑
+├── services/            # 业务逻辑（不调用 commit）
 │   ├── __init__.py
-│   ├── user_service.py
-│   └── item_service.py
+│   └── user_service.py  # 业务规则，使用 flush/refresh
 │
 ├── models/              # ORM 模型
 │   ├── __init__.py
@@ -29,8 +26,20 @@ app/
 │
 └── core/                # 核心基础设施
     ├── __init__.py
-    ├── database.py
-    └── security.py
+    ├── database.py      # get_db() + init/close_database
+    ├── middlewares.py   # setup_middlewares
+    ├── routers.py       # setup_routers
+    └── security.py      # 密码哈希等
+
+# main.py 中使用 setup_xxx 函数：
+# setup_middlewares(application)
+# setup_routers(application)
+# setup_exception_handlers(application)
+
+# 分层架构：
+# Router → Service → Database
+#   ↓         ↓
+# HTTP处理  业务逻辑（事务由 get_db() 自动管理）
 
 # 特点：
 # - 同类文件放在一起（所有 router 放 routers/）

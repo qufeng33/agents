@@ -1,4 +1,4 @@
-"""共享依赖"""
+"""全局共享依赖"""
 
 from typing import Annotated
 

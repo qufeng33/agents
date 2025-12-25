@@ -3,52 +3,47 @@
 适用于：中大型项目、团队开发、长期维护
 """
 
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
 
 from app.config import get_settings
-from app.exceptions import AppException, app_exception_handler
-from app.api.v1.router import api_router
+from app.core.database import close_database, init_database
+from app.core.middlewares import setup_middlewares
+from app.core.routers import setup_routers
+from app.exceptions import setup_exception_handlers
+
+settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 启动时初始化
-    # app.state.db = await create_db_pool()
-    # app.state.redis = await create_redis_client()
+    await init_database()
     yield
     # 关闭时清理
-    # await app.state.db.close()
+    await close_database()
 
 
-settings = get_settings()
+def create_app() -> FastAPI:
+    application = FastAPI(
+        title=settings.app_name,
+        version="1.0.0",
+        lifespan=lifespan,
+        docs_url="/docs" if settings.debug else None,
+        redoc_url="/redoc" if settings.debug else None,
+    )
 
-app = FastAPI(
-    title=settings.app_name,
-    version="1.0.0",
-    lifespan=lifespan,
-    docs_url="/docs" if settings.debug else None,
-)
+    # 注册组件
+    setup_middlewares(application)
+    setup_routers(application)
+    setup_exception_handlers(application)
 
-# 中间件
-app.add_middleware(GZipMiddleware, minimum_size=1000)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    return application
 
-# 异常处理
-app.add_exception_handler(AppException, app_exception_handler)
 
-# API 路由
-app.include_router(api_router, prefix="/api/v1")
+app = create_app()
 
 
 @app.get("/health")

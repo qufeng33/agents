@@ -1,16 +1,11 @@
 """用户模块 - 路由"""
 
-from typing import Annotated
-
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, status
 
 from .schemas import UserCreate, UserResponse, UserList
-from .service import UserService
-from .dependencies import get_user_service
+from .dependencies import UserServiceDep
 
 router = APIRouter()
-
-UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 
 @router.get("/", response_model=UserList)
