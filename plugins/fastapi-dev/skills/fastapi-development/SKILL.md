@@ -7,7 +7,7 @@ description: |
 
 # FastAPI 最佳实践
 
-> FastAPI >= 0.120.0 | Python >= 3.11 | Pydantic >= 2.7.0
+> FastAPI >= 0.120.0 | Python >= 3.13 | Pydantic >= 2.10
 
 ## 核心原则
 
@@ -23,13 +23,7 @@ description: |
 ## 分层架构
 
 ```
-Router (HTTP 层)
-   ↓ 调用
-Service (业务逻辑层)
-   ↓ 调用
-Repository (数据访问层)
-   ↓ 操作
-Database
+Router (HTTP 层) → Service (业务逻辑层) → Repository (数据访问层) → Database
 ```
 
 | 层 | 职责 | 不应该做 |
@@ -38,67 +32,9 @@ Database
 | **Service** | 业务逻辑、事务编排、跨模块协调 | 直接操作数据库 |
 | **Repository** | 数据访问、SQL 查询、ORM 操作 | 处理 HTTP、业务规则 |
 
-### 分层示例
+**好处**：可测试（mock Repository）、可替换（切换数据库）、职责清晰、代码复用
 
-```python
-# repository.py - 只负责数据访问
-class UserRepository:
-    def __init__(self, db: Session):
-        self.db = db
-
-    def get_by_id(self, user_id: int) -> User | None:
-        return self.db.query(User).filter(User.id == user_id).first()
-
-    def get_by_email(self, email: str) -> User | None:
-        return self.db.query(User).filter(User.email == email).first()
-
-    def create(self, user: User) -> User:
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
-        return user
-
-
-# service.py - 业务逻辑
-class UserService:
-    def __init__(self, repo: UserRepository):
-        self.repo = repo
-
-    def register(self, data: UserCreate) -> User:
-        if self.repo.get_by_email(data.email):
-            raise UserAlreadyExistsError(data.email)
-        user = User(
-            email=data.email,
-            hashed_password=hash_password(data.password),
-        )
-        return self.repo.create(user)
-
-
-# dependencies.py
-def get_user_repository(db: DBSession) -> UserRepository:
-    return UserRepository(db)
-
-def get_user_service(repo: Annotated[UserRepository, Depends(get_user_repository)]) -> UserService:
-    return UserService(repo)
-
-
-# router.py - HTTP 处理
-@router.post("/", response_model=UserResponse, status_code=201)
-def create_user(
-    data: UserCreate,
-    service: Annotated[UserService, Depends(get_user_service)],
-):
-    return service.register(data)
-```
-
-### 分层的好处
-
-| 好处 | 说明 |
-|------|------|
-| **可测试** | Service 可 mock Repository 进行单元测试 |
-| **可替换** | 切换数据库只需替换 Repository 实现 |
-| **职责清晰** | Router 不写 SQL，Repository 不处理 HTTP |
-| **复用** | 多个 Router 可共用同一个 Service |
+详见 [核心模式](./references/fastapi-patterns.md)
 
 ---
 
@@ -109,87 +45,35 @@ def create_user(
 | 小项目 / 原型 / 单人开发 | 简单结构（按层组织） |
 | 团队开发 / 中大型项目 | 模块化结构（按领域组织） |
 
-### 简单结构（按层组织）
+### 简单结构
 
 ```
 app/
-├── __init__.py
-├── main.py                 # 应用入口
-├── config.py               # 配置管理
-├── dependencies.py         # 共享依赖
-├── exceptions.py           # 异常定义
-│
-├── routers/                # 路由层
-│   ├── __init__.py
-│   ├── users.py
-│   └── items.py
-│
-├── schemas/                # Pydantic 模型
-│   ├── __init__.py
-│   ├── user.py
-│   └── item.py
-│
-├── services/               # 业务逻辑层
-│   ├── __init__.py
-│   ├── user_service.py
-│   └── item_service.py
-│
-├── repositories/           # 数据访问层
-│   ├── __init__.py
-│   ├── user_repository.py
-│   └── item_repository.py
-│
-├── models/                 # ORM 模型
-│   ├── __init__.py
-│   └── user.py
-│
-└── core/                   # 核心基础设施
-    ├── __init__.py
-    ├── database.py
-    ├── security.py
-    └── middleware.py
+├── main.py              # 应用入口
+├── config.py            # 配置管理
+├── dependencies.py      # 共享依赖
+├── exceptions.py        # 异常定义
+├── routers/             # 路由层
+├── schemas/             # Pydantic 模型
+├── services/            # 业务逻辑层
+├── models/              # ORM 模型
+└── core/                # 数据库、安全等基础设施
 ```
 
-### 模块化结构（按领域组织）
+### 模块化结构
 
 ```
 app/
-├── __init__.py
-├── main.py                 # 应用入口
-├── config.py               # 全局配置
-├── dependencies.py         # 全局共享依赖
-├── exceptions.py           # 全局异常基类
-│
-├── api/                    # API 版本管理
-│   └── v1/
-│       ├── __init__.py
-│       └── router.py       # v1 路由聚合
-│
-├── modules/                # 功能模块（按领域划分）
-│   ├── __init__.py
-│   │
-│   ├── user/               # 用户模块（完全自包含）
-│   │   ├── __init__.py
-│   │   ├── router.py       # 路由层
-│   │   ├── schemas.py      # Pydantic 模型
-│   │   ├── models.py       # ORM 模型
-│   │   ├── repository.py   # 数据访问层
-│   │   ├── service.py      # 业务逻辑层
-│   │   ├── dependencies.py # 模块依赖
-│   │   └── exceptions.py   # 模块异常
-│   │
+├── main.py
+├── config.py
+├── api/v1/              # API 版本管理
+├── modules/             # 功能模块（按领域划分）
+│   ├── user/            # 完全自包含：router/schemas/models/service/repository/exceptions/dependencies
 │   └── item/
-│       └── ...
-│
-└── core/                   # 核心基础设施
-    ├── __init__.py
-    ├── database.py
-    ├── security.py
-    ├── cache.py
-    └── middleware.py
+└── core/
 ```
 
-详见 [项目结构详解](./references/fastapi-project-structure.md)
+详见 [项目结构详解](./references/fastapi-project-structure.md) | 代码模板见 `assets/`
 
 ---
 
@@ -197,98 +81,54 @@ app/
 
 ### 应用入口
 
-```python
-from contextlib import asynccontextmanager
-from fastapi import FastAPI
+使用 `lifespan` 管理应用生命周期（启动/关闭时的资源初始化与清理）。
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 启动：初始化资源
-    yield
-    # 关闭：清理资源
-
-app = FastAPI(title="MyApp", lifespan=lifespan)
-```
+详见 [核心模式 - Lifespan](./references/fastapi-patterns.md)
 
 ### 配置管理
 
 使用 `pydantic-settings` 管理应用配置：
 
-- **`.env` 文件** - 管理开发环境配置
-- **`SecretStr`** - 敏感信息防止日志泄露
+- **`.env` 文件** - 开发环境配置
+- **`SecretStr`** - 敏感信息防泄露
 - **必填字段无默认值** - 启动时强制验证
-- **`Field(ge=1, le=100)`** - 类型约束验证
-- **`@lru_cache`** - 全局单例，避免重复解析
-- **嵌套配置** - 使用 `env_nested_delimiter="_"` + `env_nested_max_split=1`
+- **`Field(ge=1, le=100)`** - 类型约束
+- **`@lru_cache`** - 全局单例
+- **嵌套配置** - `env_nested_delimiter="_"` + `env_nested_max_split=1`
 
 详见 [配置管理](./references/fastapi-config.md)
 
 ### 路由与依赖注入
 
-```python
-from typing import Annotated
-from fastapi import APIRouter, Depends
+- 使用 `Annotated[T, Depends(...)]` 声明依赖
+- 依赖链：Router → Service → Repository → Database
+- 类型别名简化重复声明：`DBSession = Annotated[Session, Depends(get_db)]`
 
-router = APIRouter()
+详见 [核心模式 - 依赖注入](./references/fastapi-patterns.md)
 
-@router.post("/", response_model=UserResponse, status_code=201)
-def create_user(
-    data: UserCreate,
-    service: Annotated[UserService, Depends(get_user_service)],
-):
-    return service.register(data)
-```
+### 数据模型
 
-### 数据库依赖
+- 基类配置：`ConfigDict(from_attributes=True, str_strip_whitespace=True)`
+- 分离模型：`Create` / `Update` / `Response` / `InDB`
+- 字段验证：`Field(min_length=8)`, `EmailStr`, `@field_validator`
 
-```python
-from typing import Annotated
-from fastapi import Depends
-from sqlalchemy.orm import Session
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-DBSession = Annotated[Session, Depends(get_db)]
-```
-
-### Pydantic 模型
-
-```python
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
-
-class BaseSchema(BaseModel):
-    model_config = ConfigDict(from_attributes=True, str_strip_whitespace=True)
-
-class UserCreate(BaseSchema):
-    email: EmailStr
-    password: str = Field(min_length=8)
-
-class UserResponse(BaseSchema):
-    id: int
-    email: EmailStr
-```
+详见 [数据模型](./references/fastapi-models.md)
 
 ### 错误处理
 
-```python
-class AppException(Exception):
-    def __init__(self, code: str, message: str, status_code: int = 400):
-        self.code = code
-        self.message = message
-        self.status_code = status_code
+- 自定义异常基类：包含 `code`, `message`, `status_code`
+- 全局异常处理器：统一响应格式
+- 业务异常：继承基类，定义具体错误
 
-@app.exception_handler(AppException)
-async def app_exception_handler(request: Request, exc: AppException):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"code": exc.code, "message": exc.message},
-    )
-```
+详见 [错误处理](./references/fastapi-errors.md)
+
+### 数据库
+
+- SQLAlchemy 2.0 异步：`AsyncSession`, `async_sessionmaker`
+- Repository 模式封装数据访问
+- 事务管理在 Service 层
+
+详见 [数据库集成](./references/fastapi-database.md)
 
 ---
 

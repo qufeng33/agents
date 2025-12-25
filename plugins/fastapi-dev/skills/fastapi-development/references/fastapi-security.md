@@ -62,7 +62,7 @@ def create_access_token(
         expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
     )
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
+    return jwt.encode(to_encode, settings.secret_key.get_secret_value(), algorithm="HS256")
 
 
 async def get_current_user(
@@ -75,7 +75,7 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+        payload = jwt.decode(token, settings.secret_key.get_secret_value(), algorithms=["HS256"])
         user_id: int = payload.get("sub")
         if user_id is None:
             raise credentials_exception
@@ -97,15 +97,16 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 ```python
 # app/config.py
-from pydantic_settings import BaseSettings
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # 生成方式: openssl rand -hex 32
-    secret_key: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-    access_token_expire_minutes: int = 30
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    model_config = {"env_file": ".env"}
+    # 生成方式: openssl rand -hex 32
+    secret_key: SecretStr
+    access_token_expire_minutes: int = 30
 ```
 
 ### 登录端点
@@ -240,7 +241,7 @@ async def get_current_user_with_scopes(
     )
 
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+        payload = jwt.decode(token, settings.secret_key.get_secret_value(), algorithms=["HS256"])
         user_id: int = payload.get("sub")
         token_scopes = payload.get("scopes", [])
     except InvalidTokenError:

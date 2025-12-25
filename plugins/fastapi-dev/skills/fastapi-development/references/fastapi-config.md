@@ -20,7 +20,7 @@
 from functools import lru_cache
 from typing import Annotated
 
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,6 +35,12 @@ class DatabaseConfig(BaseModel):
     name: str = "mydb"
     user: str = "postgres"
     password: SecretStr
+
+    @computed_field
+    @property
+    def url(self) -> str:
+        """构建数据库连接 URL"""
+        return f"postgresql+asyncpg://{self.user}:{self.password.get_secret_value()}@{self.host}:{self.port}/{self.name}"
 
 
 class RedisConfig(BaseModel):
@@ -87,6 +93,14 @@ class Settings(BaseSettings):
     # ----------------------------------------------------------
     db: DatabaseConfig
     redis: RedisConfig = RedisConfig()  # 可选嵌套，有默认值
+
+    # ----------------------------------------------------------
+    # 计算属性（供 SQLAlchemy 等使用）
+    # ----------------------------------------------------------
+    @computed_field
+    @property
+    def database_url(self) -> str:
+        return self.db.url
 
     # ----------------------------------------------------------
     # 自定义验证器
