@@ -1,7 +1,7 @@
 ---
 name: fastapi-test
 description: 为 FastAPI 代码生成或改进测试
-allowed_args: target
+argument-hint: "<target>"
 ---
 
 # 测试生成

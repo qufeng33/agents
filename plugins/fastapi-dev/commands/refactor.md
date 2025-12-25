@@ -1,7 +1,7 @@
 ---
 name: fastapi-refactor
 description: 安全地重构 FastAPI 代码，保持测试绿色
-allowed_args: target
+argument-hint: "<target>"
 ---
 
 # 代码重构
