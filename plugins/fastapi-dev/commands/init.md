@@ -46,8 +46,8 @@ argument-hint: "[project-name]"
 ## Step 2: 初始化项目
 
 1. 根据情况执行 `uv init .` 或 `uv init {project_name}`
-2. 安装核心依赖：`fastapi[standard]`, `sqlalchemy`, `asyncpg`, `alembic`, `loguru`, `pydantic-settings`
-3. 如需认证：`pyjwt`, `pwdlib[argon2]`
+2. **清理 uv init 生成的冲突文件**：删除自动生成的 `main.py` 或 `hello.py`（与项目结构冲突）
+3. 安装核心依赖：`fastapi[standard]`, `sqlalchemy`, `asyncpg`, `greenlet`, `alembic`, `loguru`, `pydantic-settings`, `pwdlib[argon2]`
 4. 开发依赖：`pytest`, `pytest-asyncio`, `httpx`, `ruff`
 
 ## Step 3: 创建项目结构
@@ -63,7 +63,14 @@ argument-hint: "[project-name]"
 
 ## Step 4: 配置工具
 
-在 pyproject.toml 中添加 pytest / ruff 配置。
+在 pyproject.toml 中添加：
+
+1. **hatch wheel 配置**（必需，否则 `uv run` 无法识别 app 包）：
+   ```toml
+   [tool.hatch.build.targets.wheel]
+   packages = ["app"]
+   ```
+2. pytest / ruff / ty 配置
 
 > 参考 **fastapi-development** skill 的 `references/fastapi-tooling.md`
 
@@ -83,6 +90,7 @@ argument-hint: "[project-name]"
 1. `git init`（如尚未初始化）
 2. `alembic init alembic`
 3. 生成 `.env.example` 和 `.gitignore`
+   - **注意**：`uv.lock` 应提交到版本控制，不要加入 .gitignore
 
 提示用户下一步：
 - 配置 `.env` 文件

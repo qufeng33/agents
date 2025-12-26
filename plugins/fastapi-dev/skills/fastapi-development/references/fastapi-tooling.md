@@ -35,6 +35,22 @@ uv lock                            # 生成
 uv lock --upgrade                  # 升级所有
 ```
 
+### uv.lock 版本控制
+
+**uv.lock 应提交到 Git**，原因：
+- 确保团队成员和 CI/CD 使用完全相同的依赖版本
+- `uv sync --locked` 依赖此文件进行严格版本锁定
+- Docker 构建时用于分层缓存
+
+```gitignore
+# .gitignore - 不要忽略 uv.lock
+.venv/
+__pycache__/
+*.pyc
+.env
+# uv.lock  ← 不要加这行！
+```
+
 ### pyproject.toml 示例
 
 ```toml
@@ -46,6 +62,7 @@ dependencies = [
     "fastapi[standard]>=0.127.0",
     "sqlalchemy>=2.0",
     "asyncpg>=0.31.0",
+    "greenlet>=3.0",           # SQLAlchemy 异步必需
     "alembic>=1.17.0",
     "loguru>=0.7.0",
     "pydantic-settings>=2.7.0",
@@ -63,7 +80,12 @@ dev = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
 ```
+
+> **重要**：`[tool.hatch.build.targets.wheel]` 配置是必需的，否则 `uv run` 无法正确识别 app 包。
 
 ---
 
