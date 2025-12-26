@@ -27,6 +27,7 @@ FastAPI 内置的轻量级后台任务，适合无需追踪状态的简单操作
 
 ```python
 from fastapi import APIRouter, BackgroundTasks
+from app.schemas.response import ApiResponse
 
 router = APIRouter()
 
@@ -37,10 +38,10 @@ def send_email(email: str, message: str):
     pass
 
 
-@router.post("/notify")
-async def notify(email: str, bg: BackgroundTasks):
+@router.post("/notify", response_model=ApiResponse[dict[str, str]])
+async def notify(email: str, bg: BackgroundTasks) -> ApiResponse[dict[str, str]]:
     bg.add_task(send_email, email, "Hello")
-    return {"status": "scheduled"}
+    return ApiResponse(data={"status": "scheduled"})
 ```
 
 ### 数据库操作

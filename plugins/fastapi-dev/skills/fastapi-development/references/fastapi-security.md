@@ -17,6 +17,7 @@ uv add pyjwt "pwdlib[argon2]"
 # core/security.py
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
+from app.schemas.response import ApiResponse
 
 import jwt
 from jwt.exceptions import InvalidTokenError
@@ -497,12 +498,12 @@ class UserResponse(BaseModel):
     # 不包含 hashed_password
 
 
-@router.get("/{user_id}", response_model=UserResponse)
+@router.get("/{user_id}", response_model=ApiResponse[UserResponse])
 async def get_user(user_id: UUID, service: UserServiceDep):
     user = await service.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    return user  # FastAPI 根据 response_model 自动过滤 hashed_password
+    return ApiResponse(data=user)  # ApiResponse 的 data 按 UserResponse 过滤敏感字段
 ```
 
 ### 日志脱敏

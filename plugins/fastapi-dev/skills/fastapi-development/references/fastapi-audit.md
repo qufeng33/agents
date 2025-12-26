@@ -435,6 +435,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends
 
 from app.core.dependencies import require_admin
+from app.schemas.response import ApiResponse
 from app.modules.audit.repository import AuditLogRepository
 from app.modules.audit.schemas import AuditLogResponse
 
@@ -443,7 +444,7 @@ router = APIRouter(prefix="/audit", tags=["audit"])
 
 @router.get(
     "/records/{table_name}/{record_id}",
-    response_model=list[AuditLogResponse],
+    response_model=ApiResponse[list[AuditLogResponse]],
     dependencies=[Depends(require_admin)],
 )
 async def get_record_history(
@@ -452,12 +453,13 @@ async def get_record_history(
     repo: AuditLogRepository = Depends(),
 ):
     """获取记录变更历史（仅管理员）"""
-    return await repo.get_by_record(table_name, record_id)
+    records = await repo.get_by_record(table_name, record_id)
+    return ApiResponse(data=records)
 
 
 @router.get(
     "/users/{user_id}",
-    response_model=list[AuditLogResponse],
+    response_model=ApiResponse[list[AuditLogResponse]],
     dependencies=[Depends(require_admin)],
 )
 async def get_user_activity(
@@ -465,7 +467,8 @@ async def get_user_activity(
     repo: AuditLogRepository = Depends(),
 ):
     """获取用户操作记录（仅管理员）"""
-    return await repo.get_by_user(user_id)
+    records = await repo.get_by_user(user_id)
+    return ApiResponse(data=records)
 ```
 
 ---

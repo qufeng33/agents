@@ -190,6 +190,7 @@ class StrictInput(BaseModel):
 
 ```python
 from fastapi import APIRouter, Query
+from app.schemas.response import ApiResponse
 
 router = APIRouter()
 
@@ -201,10 +202,10 @@ class QueryParams(BaseModel):
     page_size: int = 20
 
 
-@router.get("/items/")
-async def list_items(params: QueryParams = Query()):
+@router.get("/items/", response_model=ApiResponse[dict[str, int]])
+async def list_items(params: QueryParams = Query()) -> ApiResponse[dict[str, int]]:
     # 额外的查询参数会返回 422 错误
-    return {"page": params.page, "page_size": params.page_size}
+    return ApiResponse(data={"page": params.page, "page_size": params.page_size})
 ```
 
 ---
@@ -232,10 +233,10 @@ class Item(BaseModel):
     tax: float = 10.5
 
 
-@router.get("/items/{item_id}", response_model=Item, response_model_exclude_unset=True)
-async def get_item(item_id: UUID) -> Item:
-    return {"name": "Foo", "price": 50.2}
-    # 响应只包含 name 和 price，不包含 description 和 tax
+@router.get("/items/{item_id}", response_model=ApiResponse[Item], response_model_exclude_unset=True)
+async def get_item(item_id: UUID) -> ApiResponse[Item]:
+    return ApiResponse(code=0, message="success", data=Item(name="Foo", price=50.2))
+    # 响应 data 只包含 name 和 price，不包含 description 和 tax
 ```
 
 ---
