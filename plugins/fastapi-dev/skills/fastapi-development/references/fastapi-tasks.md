@@ -420,6 +420,7 @@ from apscheduler.datastores.sqlalchemy import SQLAlchemyDataStore
 from apscheduler.eventbrokers.asyncpg import AsyncpgEventBroker
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.config import get_settings
@@ -432,7 +433,7 @@ async def cleanup_expired_sessions():
     """定时清理过期会话"""
     async with AsyncSessionLocal() as db:
         await db.execute(
-            delete(Session).where(Session.expires_at < datetime.utcnow())
+            delete(Session).where(Session.expires_at < datetime.now(timezone.utc))
         )
         await db.commit()
 
