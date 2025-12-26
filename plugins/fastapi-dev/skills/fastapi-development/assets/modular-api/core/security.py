@@ -1,13 +1,19 @@
-"""安全工具"""
+"""安全工具
+
+依赖安装: uv add pyjwt "pwdlib[argon2]"
+"""
+
+from pwdlib import PasswordHash
+
+# 使用推荐的 Argon2 算法
+password_hash = PasswordHash.recommended()
 
 
 def hash_password(password: str) -> str:
-    """密码哈希（实际项目使用 passlib 或 bcrypt）"""
-    import hashlib
-
-    return hashlib.sha256(password.encode()).hexdigest()
+    """密码哈希"""
+    return password_hash.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证密码"""
-    return hash_password(plain_password) == hashed_password
+    return password_hash.verify(hashed_password, plain_password)

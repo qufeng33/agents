@@ -15,7 +15,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.core.database import async_engine, Base
+from app.core.database import engine, Base
+from app.exceptions import setup_exception_handlers
 from app.routers import users
 
 settings = get_settings()
@@ -25,11 +26,11 @@ settings = get_settings()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 启动：开发环境自动创建表
     if settings.debug:
-        async with async_engine.begin() as conn:
+        async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
     yield
     # 关闭：释放连接池
-    await async_engine.dispose()
+    await engine.dispose()
 
 
 app = FastAPI(
@@ -39,6 +40,9 @@ app = FastAPI(
     docs_url="/docs" if settings.debug else None,
     redoc_url=None,
 )
+
+# 异常处理
+setup_exception_handlers(app)
 
 # 中间件（直接配置）
 app.add_middleware(

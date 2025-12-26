@@ -1,28 +1,18 @@
 """用户路由"""
 
-from typing import Annotated
+from fastapi import APIRouter, Query, status
 
-from fastapi import APIRouter, Depends, status
-
-from app.dependencies import DBSession
+from app.dependencies import UserServiceDep
 from app.schemas.user import UserCreate, UserResponse, UserList
-from app.services.user_service import UserService
 
 router = APIRouter()
-
-
-def get_user_service(db: DBSession) -> UserService:
-    return UserService(db)
-
-
-UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 
 @router.get("/", response_model=UserList)
 async def list_users(
     service: UserServiceDep,
-    skip: int = 0,
-    limit: int = 20,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
 ):
     """获取用户列表"""
     return await service.list(skip=skip, limit=limit)

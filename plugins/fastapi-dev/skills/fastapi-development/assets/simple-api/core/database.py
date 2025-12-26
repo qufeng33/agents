@@ -36,15 +36,3 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         except Exception:
             await session.rollback()
             raise
-
-
-async def init_database() -> None:
-    """初始化数据库（仅开发环境创建表）"""
-    if settings.debug:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-
-
-async def close_database() -> None:
-    """关闭连接池"""
-    await engine.dispose()

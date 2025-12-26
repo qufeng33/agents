@@ -224,6 +224,58 @@ async def get_me(user: CurrentUser):
     return user
 ```
 
+### 依赖放置位置
+
+依赖注入函数和类型别名应该放在 `dependencies.py`，**不要放在 router 或 service 里**。
+
+| 结构 | 位置 | 说明 |
+|------|------|------|
+| **简单结构** | `dependencies.py`（全局） | 集中管理所有依赖 |
+| **模块化结构** | `modules/xxx/dependencies.py` | 模块自包含 |
+
+**原因：**
+- **避免重复**：多个 router 可能使用同一个 Service
+- **职责分离**：router 只做 HTTP 处理，service 只做业务逻辑
+- **避免循环导入**：dependencies 作为独立层，打破循环依赖
+
+**简单结构示例：**
+
+```python
+# dependencies.py
+from app.services.user_service import UserService
+
+DBSession = Annotated[AsyncSession, Depends(get_db)]
+
+def get_user_service(db: DBSession) -> UserService:
+    return UserService(db)
+
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+```
+
+```python
+# routers/users.py（只导入依赖，不定义）
+from app.dependencies import UserServiceDep
+
+@router.get("/{user_id}")
+async def get_user(user_id: int, service: UserServiceDep):
+    ...
+```
+
+**模块化结构示例：**
+
+```python
+# modules/user/dependencies.py
+def get_user_repository(db: DBSession) -> UserRepository:
+    return UserRepository(db)
+
+def get_user_service(
+    repo: Annotated[UserRepository, Depends(get_user_repository)],
+) -> UserService:
+    return UserService(repo)
+
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+```
+
 ### yield 依赖（资源管理）
 
 `yield` 依赖用于管理需要清理的资源（数据库连接、HTTP 客户端等）。

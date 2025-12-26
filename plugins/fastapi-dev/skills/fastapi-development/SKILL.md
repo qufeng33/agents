@@ -22,7 +22,7 @@ description: |
 
 # FastAPI 最佳实践
 
-> FastAPI >= 0.120.0 | Python >= 3.13 | Pydantic >= 2.10
+**要求**: FastAPI ≥0.120.0 | Python ≥3.13 | Pydantic ≥2.10
 
 ## 核心原则
 
@@ -72,10 +72,12 @@ app/
 ├── exceptions.py        # 异常定义
 ├── routers/             # 路由层
 ├── schemas/             # Pydantic 模型
-├── services/            # 业务逻辑层
+├── services/            # 业务逻辑层（直接操作数据库）
 ├── models/              # ORM 模型
 └── core/                # 数据库、安全等基础设施
 ```
+
+> **简化架构**：`Router → Service → Database`（无 Repository 层）。Service 直接注入 `AsyncSession` 操作数据库，适合快速开发。事务仍由 `get_db()` 统一管理。
 
 ### 模块化结构
 

@@ -66,26 +66,34 @@ app/
 ### 代码示例
 
 ```python
-# routers/users.py
+# dependencies.py（集中管理依赖）
 from typing import Annotated
-from fastapi import APIRouter, Depends, status
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.user import UserCreate, UserResponse
+from app.core.database import get_db
 from app.services.user_service import UserService
-from app.dependencies import DBSession
 
-router = APIRouter()
-
+DBSession = Annotated[AsyncSession, Depends(get_db)]
 
 def get_user_service(db: DBSession) -> UserService:
     return UserService(db)
 
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+```
+
+```python
+# routers/users.py（只导入依赖，不定义）
+from fastapi import APIRouter, status
+
+from app.dependencies import UserServiceDep
+from app.schemas.user import UserCreate, UserResponse
+
+router = APIRouter()
+
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(
-    user_in: UserCreate,
-    service: Annotated[UserService, Depends(get_user_service)],
-):
+async def create_user(user_in: UserCreate, service: UserServiceDep):
     return await service.create(user_in)
 ```
 
@@ -154,31 +162,11 @@ app/
 ### 代码示例
 
 ```python
-# modules/user/router.py
-from typing import Annotated
-from fastapi import APIRouter, Depends, status
-
-from .schemas import UserCreate, UserResponse
-from .service import UserService
-from .dependencies import get_user_service
-
-router = APIRouter()
-
-
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(
-    user_in: UserCreate,
-    service: Annotated[UserService, Depends(get_user_service)],
-):
-    return await service.create(user_in)
-```
-
-```python
-# modules/user/dependencies.py
+# modules/user/dependencies.py（模块自包含的依赖）
 from typing import Annotated
 from fastapi import Depends
 
-from app.core.dependencies import DBSession
+from app.dependencies import DBSession
 from .repository import UserRepository
 from .service import UserService
 
@@ -197,16 +185,32 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 ```
 
 ```python
-# api/v1/router.py
+# modules/user/router.py（只导入依赖，不定义）
+from fastapi import APIRouter, status
+
+from .schemas import UserCreate, UserResponse
+from .dependencies import UserServiceDep
+
+router = APIRouter()
+
+
+@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_user(user_in: UserCreate, service: UserServiceDep):
+    return await service.create(user_in)
+```
+
+```python
+# api/v1/router.py（路由聚合）
 from fastapi import APIRouter
 
 from app.modules.user.router import router as user_router
-from app.modules.item.router import router as item_router
 
 api_router = APIRouter()
 
 api_router.include_router(user_router, prefix="/users", tags=["users"])
-api_router.include_router(item_router, prefix="/items", tags=["items"])
+# 添加其他模块路由：
+# from app.modules.item.router import router as item_router
+# api_router.include_router(item_router, prefix="/items", tags=["items"])
 ```
 
 ---

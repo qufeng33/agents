@@ -1,6 +1,6 @@
 """用户模块 - 路由"""
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Query, status
 
 from .schemas import UserCreate, UserResponse, UserList
 from .dependencies import UserServiceDep
@@ -11,8 +11,8 @@ router = APIRouter()
 @router.get("/", response_model=UserList)
 async def list_users(
     service: UserServiceDep,
-    skip: int = 0,
-    limit: int = 20,
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
 ):
     """获取用户列表"""
     return await service.list(skip=skip, limit=limit)
