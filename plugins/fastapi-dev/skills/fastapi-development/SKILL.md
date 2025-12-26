@@ -48,7 +48,7 @@ Router (HTTP 层) → Service (业务逻辑层) → Repository (数据访问层)
 | 层 | 职责 | 不应该做 |
 |----|------|----------|
 | **Router** | HTTP 处理、参数验证、响应格式 | 写 SQL、业务逻辑 |
-| **Service** | 业务逻辑、事务编排、跨模块协调 | 直接操作数据库 |
+| **Service** | 业务逻辑、事务编排、跨模块协调 | 直接操作数据库（简化结构例外） |
 | **Repository** | 数据访问、SQL 查询、ORM 操作 | 处理 HTTP、业务规则、**调用 commit** |
 
 > ⚠️ **事务约定**：一个请求 = 一个事务。`get_db()` 依赖统一管理 commit/rollback，Repository 只用 `flush()`。
@@ -76,12 +76,12 @@ app/
 ├── exceptions.py        # 异常定义
 ├── routers/             # 路由层
 ├── schemas/             # Pydantic 模型
-├── services/            # 业务逻辑层（直接操作数据库）
+├── services/            # 业务逻辑层（简化结构可直接操作数据库）
 ├── models/              # ORM 模型
 └── core/                # 数据库、安全等基础设施
 ```
 
-> **简化架构**：`Router → Service → Database`（无 Repository 层）。Service 直接注入 `AsyncSession` 操作数据库，适合快速开发。事务仍由 `get_db()` 统一管理。
+> **简化架构**：`Router → Service → Database`（无 Repository 层）。此模式下 Service 兼任 Repository，允许直接注入 `AsyncSession` 操作数据库，适合快速开发。事务仍由 `get_db()` 统一管理。
 
 ### 模块化结构
 

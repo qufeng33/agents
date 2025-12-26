@@ -12,10 +12,14 @@ Router (HTTP 层) → Service (业务逻辑层) → Repository (数据访问层)
 | **Service** | 业务逻辑、数据转换、跨模块协调 | 直接操作数据库、HTTP 处理 |
 | **Repository** | 数据访问、SQL 查询、ORM 操作 | 处理 HTTP、业务规则 |
 
+> 本节为三层架构约束；若采用简化结构（无 Repository），Service 兼任数据访问职责，可直接操作 `AsyncSession`。
+
 ### 分层示例
 
 ```python
 # modules/user/repository.py
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +30,7 @@ class UserRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, user_id: int) -> User | None:
+    async def get_by_id(self, user_id: UUID) -> User | None:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
@@ -43,6 +47,7 @@ class UserRepository:
 
 ```python
 # modules/user/service.py
+from uuid import UUID
 from app.modules.user.repository import UserRepository
 from app.modules.user.schemas import UserCreate, UserResponse
 from app.modules.user.models import User
@@ -54,7 +59,7 @@ class UserService:
     def __init__(self, repo: UserRepository):
         self.repo = repo
 
-    async def get_by_id(self, user_id: int) -> UserResponse:
+    async def get_by_id(self, user_id: UUID) -> UserResponse:
         user = await self.repo.get_by_id(user_id)
         if not user:
             raise UserNotFoundError(user_id)
@@ -100,6 +105,8 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 ```python
 # modules/user/router.py
+from uuid import UUID
+
 from fastapi import APIRouter, status
 
 from app.schemas.response import ApiResponse
@@ -110,7 +117,7 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/{user_id}", response_model=ApiResponse[UserResponse])
-async def get_user(user_id: int, service: UserServiceDep) -> ApiResponse[UserResponse]:
+async def get_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[UserResponse]:
     user = await service.get_by_id(user_id)  # 不存在时抛出 UserNotFoundError
     return ApiResponse(data=user)
 
@@ -138,6 +145,8 @@ async def create_user(data: UserCreate, service: UserServiceDep) -> ApiResponse[
 | 异步 I/O（httpx, asyncpg） | `async def` + `await` | 非阻塞 |
 | 同步阻塞 I/O | `def` | FastAPI 自动线程池 |
 | CPU 密集型 | `ProcessPoolExecutor` | 不阻塞事件循环 |
+
+> 说明：上述选择针对 FastAPI 路由/依赖场景；纯工具函数（不在请求链路中）可使用 `def`。
 
 ```python
 from fastapi import APIRouter
@@ -263,10 +272,12 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 ```python
 # routers/users.py（只导入依赖，不定义）
+from uuid import UUID
+
 from app.dependencies import UserServiceDep
 
 @router.get("/{user_id}")
-async def get_user(user_id: int, service: UserServiceDep):
+async def get_user(user_id: UUID, service: UserServiceDep):
     ...
 ```
 
@@ -303,6 +314,8 @@ async def get_resource() -> AsyncGenerator[Resource, None]:
 ### 类作为依赖
 
 ```python
+from uuid import UUID
+
 from app.core.exceptions import ForbiddenError
 from app.core.error_codes import ErrorCode
 
@@ -326,7 +339,7 @@ require_admin = PermissionChecker(["admin"])
 
 @router.delete("/users/{user_id}", response_model=ApiResponse[None])
 async def delete_user(
-    user_id: int,
+    user_id: UUID,
     admin: Annotated[User, Depends(require_admin)],
     service: UserServiceDep,
 ) -> ApiResponse[None]:
@@ -360,7 +373,9 @@ app = FastAPI(dependencies=[Depends(log_request)])
 
 ```python
 # modules/item/dependencies.py
+from uuid import UUID
 from typing import Annotated
+
 from fastapi import Depends
 
 from .service import ItemService
@@ -374,7 +389,7 @@ def get_item_service(
 
 
 async def get_item_or_404(
-    item_id: int,
+    item_id: UUID,
     service: Annotated[ItemService, Depends(get_item_service)],
 ) -> Item:
     item = await service.get_by_id(item_id)

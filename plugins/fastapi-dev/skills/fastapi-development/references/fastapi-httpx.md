@@ -63,6 +63,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 ### 在路由中使用
 
 ```python
+from uuid import UUID
+
 from fastapi import APIRouter
 
 from app.core.http import HttpClient
@@ -71,7 +73,7 @@ router = APIRouter()
 
 
 @router.get("/users/{user_id}")
-async def get_user(user_id: int, client: HttpClient):
+async def get_user(user_id: UUID, client: HttpClient):
     response = await client.get(f"https://api.example.com/users/{user_id}")
     response.raise_for_status()
     return response.json()

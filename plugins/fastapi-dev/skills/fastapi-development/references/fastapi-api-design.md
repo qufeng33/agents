@@ -40,13 +40,15 @@ GET    /api/getUserById        # ❌ 动词
 ### 成功响应
 
 ```python
+from uuid import UUID
+
 from fastapi import status
 
 from app.schemas.response import ApiResponse
 
 
 @router.get("/users/{user_id}", response_model=ApiResponse[UserResponse])
-async def get_user(user_id: int, service: UserServiceDep) -> ApiResponse[UserResponse]:
+async def get_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[UserResponse]:
     user = await service.get(user_id)
     return ApiResponse(data=user)  # 200 OK（默认）
 
@@ -58,7 +60,7 @@ async def create_user(user_in: UserCreate, service: UserServiceDep) -> ApiRespon
 
 
 @router.delete("/users/{user_id}", response_model=ApiResponse[None], status_code=status.HTTP_200_OK)
-async def delete_user(user_id: int, service: UserServiceDep) -> ApiResponse[None]:
+async def delete_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[None]:
     await service.delete(user_id)
     return ApiResponse(data=None, message="User deleted")  # 200 OK
 ```
@@ -212,16 +214,7 @@ async def list_users(
 }
 ```
 
-**错误码分段**：
-
-| 范围 | 类别 | 说明 |
-|------|------|------|
-| 0 | 成功 | 正常响应 |
-| 10000-19999 | 系统级错误 | 数据库、缓存等内部错误 |
-| 30000-39999 | 业务校验错误 | 资源不存在、重复等 |
-| 40000-49999 | 客户端请求错误 | 参数错误、认证失败 |
-
-> 完整的异常体系、错误码枚举、全局异常处理器详见 [错误处理与统一响应](./fastapi-errors.md)
+> 错误码分段与完整异常体系详见 [错误处理与统一响应](./fastapi-errors.md)
 
 ---
 
@@ -252,11 +245,14 @@ class UserUpdatePassword(BaseModel):
 ### 输出模型（响应）
 
 ```python
+from uuid import UUID
+
+
 class UserResponse(BaseModel):
     """用户响应（排除敏感字段）"""
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: UUID
     email: EmailStr
     username: str
     is_active: bool
@@ -294,8 +290,10 @@ app.include_router(v2_router)
 
 ### 版本共存策略
 
+在设计阶段先确认是否需要向后兼容。需要兼容则版本共存；不需要兼容则允许破坏性变更并更新版本号。
+
 ```python
-# 保持向后兼容，新版本添加新功能
+# 需要兼容：新版本添加新功能
 # v1: GET /api/v1/users → UserResponse
 # v2: GET /api/v2/users → UserResponseV2（添加新字段）
 

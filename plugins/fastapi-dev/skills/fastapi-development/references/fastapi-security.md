@@ -16,6 +16,7 @@ uv add pyjwt "pwdlib[argon2]"
 ```python
 # core/security.py
 from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 import jwt
 from jwt.exceptions import InvalidTokenError
@@ -55,12 +56,12 @@ def create_access_token(
     return jwt.encode(to_encode, settings.secret_key.get_secret_value(), algorithm="HS256")
 
 
-def decode_access_token(token: str) -> int | None:
+def decode_access_token(token: str) -> UUID | None:
     """解码 token，返回 user_id，无效则返回 None"""
     try:
         payload = jwt.decode(token, settings.secret_key.get_secret_value(), algorithms=["HS256"])
         sub = payload.get("sub")
-        return int(sub) if sub is not None else None
+        return UUID(sub) if sub is not None else None
     except (InvalidTokenError, ValueError, TypeError):
         return None
 ```
@@ -137,7 +138,7 @@ class AuthService:
         if not user or not verify_password(password, user.hashed_password):
             raise InvalidCredentialsError()
 
-        access_token = create_access_token(data={"sub": user.id})
+        access_token = create_access_token(data={"sub": str(user.id)})
         return Token(access_token=access_token)
 ```
 
@@ -197,30 +198,24 @@ class PasswordChange(BaseModel):
 # modules/auth/router.py
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.core.security import Token
+from app.schemas.response import ApiResponse
 from .service import AuthService
 from .dependencies import get_auth_service
-from .exceptions import InvalidCredentialsError
 
 router = APIRouter()
 
 
-@router.post("/token", response_model=Token)
+@router.post("/token", response_model=ApiResponse[Token])
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ):
-    try:
-        return await auth_service.authenticate(form_data.username, form_data.password)
-    except InvalidCredentialsError:
-        raise HTTPException(
-            status_code=401,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    token = await auth_service.authenticate(form_data.username, form_data.password)
+    return ApiResponse(data=token)
 ```
 
 ---
@@ -271,6 +266,7 @@ async def protected_route(api_key: ValidAPIKey):
 ### 基于角色
 
 ```python
+from uuid import UUID
 from enum import Enum
 
 
@@ -300,7 +296,7 @@ allow_moderator = RoleChecker([Role.ADMIN, Role.MODERATOR])
 
 @router.delete("/users/{user_id}")
 async def delete_user(
-    user_id: int,
+    user_id: UUID,
     admin: Annotated[User, Depends(allow_admin)],
 ):
     # 只有 admin 可访问
@@ -311,7 +307,10 @@ async def delete_user(
 
 ```python
 # core/security.py（扩展）
-def decode_access_token_with_scopes(token: str) -> tuple[int, list[str]] | None:
+from uuid import UUID
+
+
+def decode_access_token_with_scopes(token: str) -> tuple[UUID, list[str]] | None:
     """解码 token，返回 (user_id, scopes)，无效则返回 None"""
     try:
         payload = jwt.decode(token, settings.secret_key.get_secret_value(), algorithms=["HS256"])
@@ -319,7 +318,7 @@ def decode_access_token_with_scopes(token: str) -> tuple[int, list[str]] | None:
         if sub is None:
             return None
         scopes = payload.get("scopes", [])
-        return int(sub), scopes
+        return UUID(sub), scopes
     except (InvalidTokenError, ValueError, TypeError):
         return None
 ```
@@ -483,20 +482,23 @@ async def add_security_headers(request: Request, call_next):
 ### 响应模型过滤
 
 ```python
+from uuid import UUID
+
+
 class UserInDB(BaseModel):
-    id: int
+    id: UUID
     email: str
     hashed_password: str  # 敏感字段
 
 
 class UserResponse(BaseModel):
-    id: int
+    id: UUID
     email: str
     # 不包含 hashed_password
 
 
 @router.get("/{user_id}", response_model=UserResponse)
-async def get_user(user_id: int, service: UserServiceDep):
+async def get_user(user_id: UUID, service: UserServiceDep):
     user = await service.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

@@ -21,6 +21,7 @@ argument-hint: "<feature_description>"
 1. **理解核心问题** - 要解决什么业务场景？
 2. **拆分需求** - 分解为可实现的小单元
 3. **确定优先级** - P0（必须）/ P1（应该）/ P2（可选）
+4. **确认兼容性要求** - 是否已有客户端？是否需要向后兼容？
 
 > 参考 **fastapi-development** skill 的 `references/fastapi-architecture.md`
 

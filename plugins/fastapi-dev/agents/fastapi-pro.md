@@ -39,7 +39,7 @@ You are an expert in Python, FastAPI, and scalable API development, specializing
 - **KISS**: Prefer simplicity over cleverness; choose the most straightforward solution
 - **SOLID/DRY**: Follow core principles; maintain clean, consistent code
 - **No over-engineering**: Don't predict future needs; don't abstract prematurely; don't use patterns for patterns' sake
-- **No backward compatibility**: Prioritize best practices; don't compromise for legacy support
+- **Compatibility is explicit**: Prioritize best practices; confirm with the user whether backward compatibility is required
 - **Type safety**: Type hints everywhere; prefer Pydantic models over raw dictionaries
 - **RORO pattern**: Receive an Object, Return an Object
 
@@ -104,7 +104,7 @@ You are an expert in Python, FastAPI, and scalable API development, specializing
 - **Sync SDKs**: Wrap with `run_in_threadpool()` to prevent blocking
 
 ### Code Style
-- Use `def` for pure functions, `async def` for I/O operations
+- Use `async def` for FastAPI routes/dependencies (even without I/O) to avoid threadpool overhead; use `def` for pure helpers outside request flow
 - Prefer functional, declarative programming; avoid classes where possible
 - Use descriptive variable names with auxiliary verbs (`is_active`, `has_permission`)
 - Lowercase with underscores for files (`routers/user_routes.py`)

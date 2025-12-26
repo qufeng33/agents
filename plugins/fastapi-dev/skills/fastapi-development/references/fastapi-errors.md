@@ -55,19 +55,21 @@ class ErrorResponse(BaseModel):
 ### 使用示例
 
 ```python
+from uuid import UUID
+
 from app.schemas.response import ApiResponse, ApiPagedResponse
 from app.schemas.user import UserResponse
 
 
 @router.get("/{user_id}", response_model=ApiResponse[UserResponse])
-async def get_user(user_id: int, service: UserServiceDep) -> ApiResponse[UserResponse]:
+async def get_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[UserResponse]:
     user = await service.get(user_id)
     return ApiResponse(data=user)
 
 
 @router.get("/", response_model=ApiPagedResponse[UserResponse])
 async def list_users(
-    page: int = 1,
+    page: int = 0,
     page_size: int = 20,
     service: UserServiceDep,
 ) -> ApiPagedResponse[UserResponse]:
@@ -371,7 +373,7 @@ from app.core.error_codes import ErrorCode
 class UserNotFoundError(NotFoundError):
     """用户不存在"""
 
-    def __init__(self, user_id: int):
+    def __init__(self, user_id: UUID):
         super().__init__(
             code=ErrorCode.USER_NOT_FOUND,
             message="用户不存在",
@@ -413,7 +415,7 @@ class UserService:
     def __init__(self, repo: UserRepository):
         self.repo = repo
 
-    async def get(self, user_id: int) -> UserResponse:
+    async def get(self, user_id: UUID) -> UserResponse:
         user = await self.repo.get_by_id(user_id)
         if not user:
             raise UserNotFoundError(user_id)
@@ -446,7 +448,7 @@ async def create_user(user_in: UserCreate, service: UserServiceDep) -> ApiRespon
 
 
 @router.get("/{user_id}", response_model=ApiResponse[UserResponse])
-async def get_user(user_id: int, service: UserServiceDep) -> ApiResponse[UserResponse]:
+async def get_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[UserResponse]:
     user = await service.get(user_id)
     return ApiResponse(data=user)
 ```
@@ -489,7 +491,7 @@ from sqlalchemy import select
 from app.modules.user.exceptions import UserNotFoundError
 
 
-async def get_user_or_404(user_id: int, db: DBSession) -> User:
+async def get_user_or_404(user_id: UUID, db: DBSession) -> User:
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -523,7 +525,7 @@ from app.schemas.response import ErrorResponse
         422: {"model": ErrorResponse, "description": "Validation error"},
     },
 )
-async def get_item(item_id: int, service: ItemServiceDep) -> ApiResponse[ItemResponse]:
+async def get_item(item_id: UUID, service: ItemServiceDep) -> ApiResponse[ItemResponse]:
     item = await service.get(item_id)
     return ApiResponse(data=item)
 ```

@@ -51,13 +51,14 @@ async def notify(email: str, bg: BackgroundTasks):
 > FastAPI 自动将同步函数放入线程池，不会阻塞事件循环。
 
 ```python
+from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import sync_engine  # 同步引擎，专用于后台任务
 
 
-def process_order(order_id: int):
+def process_order(order_id: UUID):
     """后台任务：使用同步 session（运行在线程池）"""
     with Session(sync_engine) as db:
         order = db.scalar(select(Order).where(Order.id == order_id))
@@ -66,14 +67,15 @@ def process_order(order_id: int):
             db.commit()
 
 
-@router.post("/orders", status_code=201)
-async def create_order(order: OrderCreate, bg: BackgroundTasks, db: DBSession):
-    db_order = Order(**order.model_dump())
-    db.add(db_order)
-    await db.commit()
-    await db.refresh(db_order)
-    bg.add_task(process_order, db_order.id)  # 传 ID，不传对象
-    return db_order
+@router.post("/orders", status_code=201, response_model=ApiResponse[OrderResponse])
+async def create_order(
+    order: OrderCreate,
+    bg: BackgroundTasks,
+    service: OrderServiceDep,
+) -> ApiResponse[OrderResponse]:
+    created = await service.create(order)
+    bg.add_task(process_order, created.id)  # 传 ID，不传对象
+    return ApiResponse(data=created)
 ```
 
 > **同步引擎配置**：在 `core/database.py` 中添加 `sync_engine = create_engine(SYNC_DATABASE_URL)`
@@ -107,6 +109,7 @@ uv add arq
 
 ```python
 # app/tasks/worker.py
+from uuid import UUID
 from arq import create_pool
 from arq.connections import RedisSettings
 
@@ -121,7 +124,7 @@ async def send_email(ctx: dict, email: str, message: str):
     return {"sent_to": email}
 
 
-async def process_order(ctx: dict, order_id: int):
+async def process_order(ctx: dict, order_id: UUID):
     """处理订单"""
     # 使用异步 session
     async with AsyncSessionLocal() as db:
@@ -290,12 +293,13 @@ celery_app.autodiscover_tasks(["app.tasks"])
 
 ```python
 # app/tasks/orders.py
+from uuid import UUID
 from app.core.celery import celery_app
 from app.core.database import SyncSessionLocal
 
 
 @celery_app.task(bind=True, max_retries=3)
-def process_order(self, order_id: int):
+def process_order(self, order_id: UUID):
     """
     Celery 任务（同步）
     bind=True 允许访问 self（任务实例）
@@ -315,17 +319,18 @@ def process_order(self, order_id: int):
 ### Pydantic 集成（Celery 5.5+）
 
 ```python
+from uuid import UUID
 from pydantic import BaseModel
 from app.core.celery import celery_app
 
 
 class OrderData(BaseModel):
-    order_id: int
+    order_id: UUID
     items: list[str]
 
 
 class OrderResult(BaseModel):
-    order_id: int
+    order_id: UUID
     status: str
 
 

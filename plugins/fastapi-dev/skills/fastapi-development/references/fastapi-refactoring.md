@@ -76,19 +76,17 @@ async def ensure_email_unique(email: str) -> None:
 
 ```python
 # Before
-async def get_user(user_id: int) -> User | None:
-    if user_id > 0:
-        user = await repo.get(user_id)
-        if user:
-            if user.is_active:
-                return user
+from uuid import UUID
+
+async def get_user(user_id: UUID) -> User | None:
+    user = await repo.get(user_id)
+    if user:
+        if user.is_active:
+            return user
     return None
 
 # After
-async def get_user(user_id: int) -> User | None:
-    if user_id <= 0:
-        return None
-
+async def get_user(user_id: UUID) -> User | None:
     user = await repo.get(user_id)
     if not user:
         return None
@@ -121,9 +119,11 @@ if len(password) < MIN_PASSWORD_LENGTH:
 
 ```python
 # Before
+from uuid import UUID
+
 async def create_order(
-    user_id: int,
-    product_id: int,
+    user_id: UUID,
+    product_id: UUID,
     quantity: int,
     address: str,
     city: str,
@@ -141,8 +141,8 @@ class ShippingAddress:
 
 @dataclass
 class CreateOrderParams:
-    user_id: int
-    product_id: int
+    user_id: UUID
+    product_id: UUID
     quantity: int
     shipping_address: ShippingAddress
 

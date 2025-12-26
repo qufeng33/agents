@@ -212,11 +212,13 @@ def get_settings() -> Settings:
 业务代码中直接使用 logger 即可：
 
 ```python
+from uuid import UUID
+
 from loguru import logger
 
 
 class UserService:
-    async def get_by_id(self, user_id: int) -> User | None:
+    async def get_by_id(self, user_id: UUID) -> User | None:
         logger.info("Fetching user {}", user_id)  # 自动带上 request_id
         return await self.repo.get_by_id(user_id)
 ```

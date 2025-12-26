@@ -178,6 +178,8 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.core.error_codes import ErrorCode
+
 
 class ExceptionMiddleware(BaseHTTPMiddleware):
     """全局异常处理中间件"""
@@ -190,8 +192,10 @@ class ExceptionMiddleware(BaseHTTPMiddleware):
             return JSONResponse(
                 status_code=500,
                 content={
-                    "code": "INTERNAL_ERROR",
+                    "code": ErrorCode.SYSTEM_ERROR,
                     "message": "Internal server error",
+                    "data": None,
+                    "detail": None,
                 },
             )
 ```

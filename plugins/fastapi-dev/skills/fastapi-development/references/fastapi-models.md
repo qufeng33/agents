@@ -27,6 +27,8 @@ class BaseSchema(BaseModel):
 ### 请求/响应模型分离
 
 ```python
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -47,7 +49,7 @@ class UserUpdate(BaseModel):
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: UUID
     email: EmailStr
     username: str
     is_active: bool
@@ -212,19 +214,12 @@ async def list_items(params: QueryParams = Query()):
 ### 过滤敏感数据
 
 ```python
-@router.post("/users/", response_model=UserResponse)
-async def create_user(user: UserCreate, db: DBSession) -> UserResponse:
-    # 返回包含 hashed_password 的完整对象
-    # FastAPI 自动使用 UserResponse 过滤
-    db_user = User(
-        email=user.email,
-        username=user.username,
-        hashed_password=hash_password(user.password),
-    )
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user  # hashed_password 会被自动排除
+@router.post("/users/", response_model=ApiResponse[UserResponse])
+async def create_user(user: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
+    # service 内部完成持久化与密码处理
+    created = await service.create(user)
+    # UserResponse 排除敏感字段（如 hashed_password）
+    return ApiResponse(data=created)
 ```
 
 ### 排除默认值
@@ -238,7 +233,7 @@ class Item(BaseModel):
 
 
 @router.get("/items/{item_id}", response_model=Item, response_model_exclude_unset=True)
-async def get_item(item_id: int) -> Item:
+async def get_item(item_id: UUID) -> Item:
     return {"name": "Foo", "price": 50.2}
     # 响应只包含 name 和 price，不包含 description 和 tax
 ```

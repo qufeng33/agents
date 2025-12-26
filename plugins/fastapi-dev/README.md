@@ -46,4 +46,4 @@
 2. **分层架构** - Router → Service → Repository
 3. **异步优先** - I/O 操作使用 async/await
 4. **类型安全** - 全面使用类型注解
-5. **No backward compatibility** - 优先最佳实践，不为兼容性妥协
+5. **兼容性需确认** - 优先最佳实践，是否保持向后兼容需由用户/业务明确，必要时通过版本化实现

@@ -119,8 +119,10 @@ async def get_cached_or_fetch(
 
 ```python
 # 使用示例
+from uuid import UUID
+
 @router.get("/users/{user_id}")
-async def get_user(user_id: int, redis_client: RedisClient):
+async def get_user(user_id: UUID, redis_client: RedisClient):
     cache_key = f"user:{user_id}"
 
     async def fetch():
@@ -167,6 +169,7 @@ async_engine = create_async_engine(
 
 ```python
 from sqlalchemy import select
+from uuid import UUID
 from sqlalchemy.orm import selectinload, joinedload
 
 # 批量预加载
@@ -183,7 +186,7 @@ async def list_users(db: AsyncDBSession):
 
 # 关联预加载
 @router.get("/posts/{post_id}")
-async def get_post(post_id: int, db: AsyncDBSession):
+async def get_post(post_id: UUID, db: AsyncDBSession):
     result = await db.execute(
         select(Post)
         .where(Post.id == post_id)
@@ -286,19 +289,20 @@ async def compute(data: str):
 ### 任务队列（Celery）
 
 ```python
+from uuid import UUID
 from celery import Celery
 
 celery_app = Celery("tasks", broker="redis://localhost:6379/0")
 
 
 @celery_app.task
-def process_video(video_id: int):
+def process_video(video_id: UUID):
     # 耗时任务
     ...
 
 
 @router.post("/videos/{video_id}/process")
-async def start_processing(video_id: int):
+async def start_processing(video_id: UUID):
     task = process_video.delay(video_id)
     return {"task_id": task.id}
 

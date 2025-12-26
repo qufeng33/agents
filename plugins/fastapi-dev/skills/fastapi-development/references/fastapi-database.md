@@ -150,6 +150,8 @@ class Base(AsyncAttrs, DeclarativeBase):
 > - 比 UUIDv4 有序，索引性能更好
 > - 比自增 ID 更适合分布式系统
 > - 前 48 位是毫秒时间戳，天然可排序
+>
+> ⚠️ 迁移/重构项目可能仍沿用自增主键类型。此时请保持全项目 ID 类型一致，示例中的 UUIDv7 可替换为现有类型。
 
 ### 时间处理约定
 
@@ -188,6 +190,7 @@ def filter_active[T: Base](stmt: Select[tuple[T]]) -> Select[tuple[T]]:
 
 ```python
 # modules/user/repository.py
+from uuid import UUID
 from sqlalchemy import select
 
 from app.core.database import Base, filter_active
@@ -390,13 +393,15 @@ Router → Service → Repository → DBSession
 ### 模型定义
 
 ```python
+from uuid import UUID
+from uuid_utils import uuid7
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     name: Mapped[str]
 
     # lazy="raise" 防止异步环境下的意外懒加载
@@ -409,9 +414,9 @@ class User(Base):
 class Post(Base):
     __tablename__ = "posts"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     title: Mapped[str]
-    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    author_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
 
     author: Mapped["User"] = relationship(
         back_populates="posts",
@@ -422,12 +427,13 @@ class Post(Base):
 ### 查询时显式加载
 
 ```python
+from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload, joinedload
 
 
 # One-to-Many: 使用 selectinload
-async def get_user_with_posts(db: AsyncSession, user_id: int) -> User | None:
+async def get_user_with_posts(db: AsyncSession, user_id: UUID) -> User | None:
     stmt = (
         select(User)
         .where(User.id == user_id)
@@ -438,7 +444,7 @@ async def get_user_with_posts(db: AsyncSession, user_id: int) -> User | None:
 
 
 # Many-to-One: 使用 joinedload
-async def get_post_with_author(db: AsyncSession, post_id: int) -> Post | None:
+async def get_post_with_author(db: AsyncSession, post_id: UUID) -> Post | None:
     stmt = (
         select(Post)
         .where(Post.id == post_id)
@@ -449,7 +455,7 @@ async def get_post_with_author(db: AsyncSession, post_id: int) -> Post | None:
 
 
 # 嵌套关系: 链式加载
-async def get_user_with_posts_and_comments(db: AsyncSession, user_id: int):
+async def get_user_with_posts_and_comments(db: AsyncSession, user_id: UUID):
     stmt = (
         select(User)
         .where(User.id == user_id)
@@ -526,10 +532,12 @@ async def create_user_with_profile(self, data: UserCreate) -> User:
 
 ```python
 # Service 层
+from uuid import UUID
+
 async def transfer_with_notification(
     self,
-    from_id: int,
-    to_id: int,
+    from_id: UUID,
+    to_id: UUID,
     amount: float,
 ) -> None:
     # 主事务：转账（必须成功）
@@ -754,16 +762,17 @@ engine = create_async_engine(
 当必须使用同步库时，使用 `run_in_threadpool` 避免阻塞：
 
 ```python
+from uuid import UUID
 from fastapi.concurrency import run_in_threadpool
 
 
-def sync_operation(session, user_id: int):
+def sync_operation(session, user_id: UUID):
     """同步数据库操作"""
     return session.query(User).filter(User.id == user_id).first()
 
 
 @router.get("/users/{user_id}")
-async def get_user(user_id: int, db: SyncDBSession):
+async def get_user(user_id: UUID, db: SyncDBSession):
     user = await run_in_threadpool(sync_operation, db, user_id)
     return user
 ```
