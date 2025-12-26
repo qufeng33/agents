@@ -45,14 +45,19 @@ requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]>=0.127.0",
     "sqlalchemy>=2.0",
+    "asyncpg>=0.31.0",
+    "alembic>=1.17.0",
+    "loguru>=0.7.0",
     "pydantic-settings>=2.7.0",
+    "pwdlib[argon2]>=0.3.0",
 ]
 
-[tool.uv]
-dev-dependencies = [
-    "pytest>=8.0",
-    "pytest-asyncio>=0.24.0",
-    "ruff>=0.8.0",
+[dependency-groups]
+dev = [
+    "pytest>=9.0",
+    "pytest-asyncio>=1.0",
+    "httpx>=0.28.0",
+    "ruff>=0.14.0",
 ]
 
 [build-system]
