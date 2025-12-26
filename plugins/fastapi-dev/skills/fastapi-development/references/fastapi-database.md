@@ -170,6 +170,34 @@ now = datetime.utcnow()  # 已废弃，返回 naive
 
 ---
 
+## 审计字段设计
+
+审计字段用于记录“谁创建/更新了记录”。字段设计与约束在数据库层确定，自动填充逻辑见 [审计日志](./fastapi-audit.md)。
+
+```python
+# core/audit.py
+from uuid import UUID
+
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column
+
+
+class AuditMixin:
+    """审计字段 Mixin"""
+
+    created_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        default=None,
+    )
+    updated_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        default=None,
+        onupdate=None,  # 手动设置，见审计日志文档
+    )
+```
+
+---
+
 ## 软删除
 
 ### 查询封装

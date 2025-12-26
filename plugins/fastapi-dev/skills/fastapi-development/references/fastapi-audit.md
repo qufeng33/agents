@@ -17,39 +17,7 @@
 
 在业务表中增加 `created_by` / `updated_by` 字段，记录操作者。
 
-### AuditMixin
-
-```python
-# core/audit.py
-from datetime import datetime, timezone
-from uuid import UUID
-
-from sqlalchemy import DateTime, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
-
-
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-class AuditMixin:
-    """
-    审计字段 Mixin
-
-    提供 created_by / updated_by 字段，记录操作者。
-    需配合 UserContext 中间件使用。
-    """
-
-    created_by: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"),
-        default=None,
-    )
-    updated_by: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"),
-        default=None,
-        onupdate=None,  # 需要手动设置，见下文
-    )
-```
+> 审计字段的数据库设计（类型、外键、命名规范）请参考 [数据库集成](./fastapi-database.md)。
 
 ### 使用 contextvars 自动注入
 
@@ -140,6 +108,8 @@ def set_updated_by(mapper: Mapper, connection, target):
 ```
 
 ### 完整模型示例
+
+> AuditMixin 的字段定义见 [数据库集成](./fastapi-database.md)。
 
 ```python
 # modules/post/models.py
@@ -235,12 +205,13 @@ def get_changes(target) -> tuple[dict, dict, list[str]]:
     new_values = {}
     changed_fields = []
 
+    relationship_keys = {rel.key for rel in insp.mapper.relationships}
     for attr in insp.attrs:
         hist = attr.history
         if hist.has_changes():
             key = attr.key
             # 跳过关系和内部属性
-            if key.startswith("_") or attr.is_relationship:
+            if key.startswith("_") or key in relationship_keys:
                 continue
 
             old_val = hist.deleted[0] if hist.deleted else None
@@ -379,16 +350,37 @@ class AuditLogRepository:
 
     async def get_by_record(
         self,
-        table_name: str,
+        resource: str,
         record_id: UUID,
     ) -> list[AuditLog]:
         """获取某条记录的变更历史"""
         stmt = (
             select(AuditLog)
-            .where(AuditLog.table_name == table_name)
+            .where(AuditLog.table_name == resource)
             .where(AuditLog.record_id == str(record_id))
             .order_by(AuditLog.changed_at.desc())
         )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_by_time_range(
+        self,
+        start: datetime,
+        end: datetime,
+        resource: str | None = None,
+        user_id: UUID | None = None,
+    ) -> list[AuditLog]:
+        """获取时间范围内的变更"""
+        stmt = (
+            select(AuditLog)
+            .where(AuditLog.changed_at >= start)
+            .where(AuditLog.changed_at <= end)
+        )
+        if resource:
+            stmt = stmt.where(AuditLog.table_name == resource)
+        if user_id:
+            stmt = stmt.where(AuditLog.changed_by == user_id)
+        stmt = stmt.order_by(AuditLog.changed_at.desc())
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
@@ -406,30 +398,13 @@ class AuditLogRepository:
         )
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
-
-    async def get_by_time_range(
-        self,
-        start: datetime,
-        end: datetime,
-        table_name: str | None = None,
-    ) -> list[AuditLog]:
-        """获取时间范围内的变更"""
-        stmt = (
-            select(AuditLog)
-            .where(AuditLog.changed_at >= start)
-            .where(AuditLog.changed_at <= end)
-        )
-        if table_name:
-            stmt = stmt.where(AuditLog.table_name == table_name)
-        stmt = stmt.order_by(AuditLog.changed_at.desc())
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all())
 ```
 
 ### 审计日志 API
 
 ```python
 # modules/audit/router.py
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -443,31 +418,42 @@ router = APIRouter(prefix="/audit", tags=["audit"])
 
 
 @router.get(
-    "/records/{table_name}/{record_id}",
+    "/records",
+    response_model=ApiResponse[list[AuditLogResponse]],
+    dependencies=[Depends(require_admin)],
+)
+async def list_audit_records(
+    start: datetime,
+    end: datetime,
+    resource: str | None = None,
+    user_id: UUID | None = None,
+    repo: AuditLogRepository = Depends(),
+):
+    """按时间范围查询审计日志（主入口）"""
+    records = await repo.get_by_time_range(
+        start,
+        end,
+        resource=resource,
+        user_id=user_id,
+    )
+    return ApiResponse(data=records)
+
+# 说明：
+# resource 表示业务资源名（如 users、orders），建议用资源名到表名的映射表。
+
+
+@router.get(
+    "/records/{resource}/{record_id}",
     response_model=ApiResponse[list[AuditLogResponse]],
     dependencies=[Depends(require_admin)],
 )
 async def get_record_history(
-    table_name: str,
+    resource: str,
     record_id: UUID,
     repo: AuditLogRepository = Depends(),
 ):
-    """获取记录变更历史（仅管理员）"""
-    records = await repo.get_by_record(table_name, record_id)
-    return ApiResponse(data=records)
-
-
-@router.get(
-    "/users/{user_id}",
-    response_model=ApiResponse[list[AuditLogResponse]],
-    dependencies=[Depends(require_admin)],
-)
-async def get_user_activity(
-    user_id: UUID,
-    repo: AuditLogRepository = Depends(),
-):
-    """获取用户操作记录（仅管理员）"""
-    records = await repo.get_by_user(user_id)
+    """追溯单条记录的变更历史（管理员场景）"""
+    records = await repo.get_by_record(resource, record_id)
     return ApiResponse(data=records)
 ```
 
