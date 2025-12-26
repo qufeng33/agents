@@ -45,13 +45,14 @@ app = FastAPI(
 setup_exception_handlers(app)
 
 # 中间件（直接配置）
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if settings.cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # 路由（直接注册）
 app.include_router(users.router, prefix="/users", tags=["users"])

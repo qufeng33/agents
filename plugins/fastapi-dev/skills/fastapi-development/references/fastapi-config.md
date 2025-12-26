@@ -86,7 +86,7 @@ class Settings(BaseSettings):
     # ----------------------------------------------------------
     # 列表字段：支持逗号分隔或 JSON 格式
     # ----------------------------------------------------------
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = []
 
     # ----------------------------------------------------------
     # 嵌套配置
@@ -119,7 +119,7 @@ class Settings(BaseSettings):
     def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
         """支持逗号分隔的字符串"""
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
 
 

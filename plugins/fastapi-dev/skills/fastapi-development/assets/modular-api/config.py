@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     # Redis（可选）
     redis: RedisConfig = RedisConfig()
 
-    # CORS（空列表=全放开，生产环境配置具体域名以启用 credentials）
+    # CORS（空列表=不启用）
     cors_origins: list[str] = []
 
     @computed_field
@@ -80,6 +80,13 @@ class Settings(BaseSettings):
             msg = f"log_level 必须是 {allowed} 之一"
             raise ValueError(msg)
         return upper
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
 
 @lru_cache

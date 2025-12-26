@@ -128,9 +128,10 @@ class LoggingMiddleware:
 ```python
 from starlette.middleware.cors import CORSMiddleware
 
+# 有需要时再开启 CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # 或 ["*"]
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -156,13 +157,14 @@ class Settings(BaseSettings):
 def setup_middlewares(app: FastAPI) -> None:
     settings = get_settings()
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    if settings.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 ```
 
 ---
@@ -332,13 +334,14 @@ def setup_middlewares(app: FastAPI) -> None:
     settings = get_settings()
 
     # 4. CORS（最内层）
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    if settings.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     # 3. GZip 压缩
     app.add_middleware(GZipMiddleware, minimum_size=1000)

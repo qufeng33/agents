@@ -390,7 +390,7 @@ CORS（跨域资源共享）是 Web 安全的重要组成部分，控制哪些�
 
 | 参数 | 说明 |
 |------|------|
-| `allow_origins` | 允许的源列表（生产环境避免使用 `["*"]`） |
+| `allow_origins` | 允许的源列表（为空时不启用 CORS） |
 | `allow_credentials` | 是否允许携带 Cookie |
 | `allow_methods` | 允许的 HTTP 方法 |
 | `expose_headers` | 允许前端访问的响应头 |
