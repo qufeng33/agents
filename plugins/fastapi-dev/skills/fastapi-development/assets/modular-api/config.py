@@ -61,8 +61,8 @@ class Settings(BaseSettings):
     # Redis（可选）
     redis: RedisConfig = RedisConfig()
 
-    # CORS
-    cors_origins: list[str] = ["http://localhost:3000"]
+    # CORS（空列表=全放开，生产环境配置具体域名以启用 credentials）
+    cors_origins: list[str] = []
 
     @computed_field
     @property
@@ -76,15 +76,9 @@ class Settings(BaseSettings):
         allowed = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
         upper = v.upper()
         if upper not in allowed:
-            raise ValueError(f"log_level 必须是 {allowed} 之一")
+            msg = f"log_level 必须是 {allowed} 之一"
+            raise ValueError(msg)
         return upper
-
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
-        return v
 
 
 @lru_cache

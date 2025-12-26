@@ -12,10 +12,13 @@ settings = get_settings()
 def setup_middlewares(app: FastAPI) -> None:
     """注册中间件（注册顺序与执行顺序相反）"""
     app.add_middleware(GZipMiddleware, minimum_size=1000)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+
+    # CORS: 不配置=无限制，配置后启用限制+credentials
+    if settings.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
