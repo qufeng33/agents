@@ -151,25 +151,23 @@ class WorkerSettings:
 
 ```python
 # app/core/arq.py
-from arq import create_pool, ArqRedis
+from arq import ArqRedis, create_pool
 from arq.connections import RedisSettings
+from fastapi import FastAPI
 
 from app.config import get_settings
 
 settings = get_settings()
-arq_redis: ArqRedis | None = None
 
 
-async def init_arq() -> ArqRedis:
-    global arq_redis
-    arq_redis = await create_pool(
+async def init_arq(app: FastAPI) -> None:
+    app.state.arq_redis = await create_pool(
         RedisSettings(host=settings.redis.host, port=settings.redis.port)
     )
-    return arq_redis
 
 
-async def close_arq():
-    global arq_redis
+async def close_arq(app: FastAPI) -> None:
+    arq_redis: ArqRedis | None = getattr(app.state, "arq_redis", None)
     if arq_redis:
         await arq_redis.close()
 ```
@@ -181,26 +179,23 @@ from app.core.arq import init_arq, close_arq
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_arq()
+    await init_arq(app)
     yield
-    await close_arq()
+    await close_arq(app)
 ```
 
 ### 在路由中使用
 
 ```python
-from app.core.arq import arq_redis
-
-
 @router.post("/orders", status_code=201)
-async def create_order(order: OrderCreate, db: DBSession):
+async def create_order(order: OrderCreate, db: DBSession, arq: ArqPool):
     db_order = Order(**order.model_dump())
     db.add(db_order)
     await db.commit()
     await db.refresh(db_order)
 
     # 入队任务
-    job = await arq_redis.enqueue_job("process_order", db_order.id)
+    job = await arq.enqueue_job("process_order", db_order.id)
 
     return {"order_id": db_order.id, "job_id": job.job_id}
 ```
@@ -232,13 +227,13 @@ async def notify(email: str, arq: ArqPool):
 
 ```python
 # 延迟执行
-await arq_redis.enqueue_job("send_email", email, _defer_by=60)  # 60 秒后
+await arq.enqueue_job("send_email", email, _defer_by=60)  # 60 秒后
 
 # 指定执行时间
-await arq_redis.enqueue_job("send_email", email, _defer_until=datetime(2024, 1, 1))
+await arq.enqueue_job("send_email", email, _defer_until=datetime(2024, 1, 1))
 
 # 任务唯一性（防止重复）
-await arq_redis.enqueue_job("process_order", order_id, _job_id=f"order:{order_id}")
+await arq.enqueue_job("process_order", order_id, _job_id=f"order:{order_id}")
 ```
 
 ### 启动 Worker
