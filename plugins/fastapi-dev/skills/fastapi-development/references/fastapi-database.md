@@ -33,7 +33,7 @@ async_engine = create_async_engine(
 AsyncSessionLocal = async_sessionmaker(
     bind=async_engine,
     class_=AsyncSession,
-    expire_on_commit=False,  # 异步必须：避免 commit 后隐式查询
+    expire_on_commit=False,  # 推荐：避免 commit 后隐式查询
     autoflush=False,         # 显式控制 flush 时机
 )
 
@@ -186,11 +186,11 @@ class AuditMixin:
     """审计字段 Mixin"""
 
     created_by: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("user.id", ondelete="SET NULL"),
         default=None,
     )
     updated_by: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("user.id", ondelete="SET NULL"),
         default=None,
         onupdate=None,  # 手动设置，见审计日志文档
     )
@@ -272,14 +272,14 @@ from sqlalchemy import Index
 
 
 class User(Base):
-    __tablename__ = "users"
+    __tablename__ = "user"
 
     email: Mapped[str] = mapped_column(unique=False)  # 不用列级 unique
 
     __table_args__ = (
         # 只对未删除的记录强制唯一
         Index(
-            "uq_users_email_active",
+            "uq_user_email_active",
             "email",
             unique=True,
             postgresql_where=deleted_at.is_(None),  # type: ignore
@@ -295,15 +295,15 @@ from alembic import op
 
 def upgrade():
     op.create_index(
-        "uq_users_email_active",
-        "users",
+        "uq_user_email_active",
+        "user",
         ["email"],
         unique=True,
         postgresql_where="deleted_at IS NULL",
     )
 
 def downgrade():
-    op.drop_index("uq_users_email_active", table_name="users")
+    op.drop_index("uq_user_email_active", table_name="user")
 ```
 
 > **MySQL 不支持部分索引**，替代方案：软删除时将 email 改为 `email_deleted_{timestamp}`。
@@ -342,7 +342,7 @@ class SimpleBase(DeclarativeBase):
 
 class AuditLog(SimpleBase):
     """审计日志表：不需要软删除自己"""
-    __tablename__ = "audit_logs"
+    __tablename__ = "audit_log"
     # ...
 ```
 
@@ -427,7 +427,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class User(Base):
-    __tablename__ = "users"
+    __tablename__ = "user"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     name: Mapped[str]
@@ -440,11 +440,11 @@ class User(Base):
 
 
 class Post(Base):
-    __tablename__ = "posts"
+    __tablename__ = "post"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     title: Mapped[str]
-    author_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"))
+    author_id: Mapped[UUID] = mapped_column(ForeignKey("user.id"))
 
     author: Mapped["User"] = relationship(
         back_populates="posts",
@@ -701,7 +701,7 @@ def do_run_migrations(connection):
 
 ```bash
 # 创建迁移
-alembic revision --autogenerate -m "add users table"
+alembic revision --autogenerate -m "add user table"
 
 # 执行迁移
 alembic upgrade head
@@ -827,7 +827,7 @@ async def async_main():
 | 实践 | 说明 |
 |-----|------|
 | 异步驱动 | asyncpg / aiomysql / aiosqlite |
-| `expire_on_commit=False` | 异步 Session 必须，避免隐式查询 |
+| `expire_on_commit=False` | 推荐：避免 commit 后隐式查询；如需强制重新加载以避免陈旧数据，可设为 True |
 | `lazy="raise"` | 防止意外懒加载，强制显式 |
 | `selectinload` / `joinedload` | 显式预加载，避免 N+1 |
 | 依赖注入管理 Session | 自动关闭，请求隔离 |

@@ -130,6 +130,8 @@
 | 外键 | `{table}_id` | `user_id`, `order_id` |
 | 索引 | `ix_{table}_{columns}` | `ix_user_email` |
 
+推荐策略与数据库文档一致（单数表名 + UUIDv7）：见 [数据库设计](./fastapi-database.md)。
+
 ### 表设计模板
 
 ```markdown
@@ -139,10 +141,10 @@
 
 | 字段名 | 类型 | 约束 | 说明 |
 |--------|------|------|------|
-| id | BIGINT | PK, AUTO | 主键 |
+| id | UUIDv7 | PK | 主键 |
 | ... | ... | ... | ... |
-| created_at | TIMESTAMP | NOT NULL | 创建时间 |
-| updated_at | TIMESTAMP | NOT NULL | 更新时间 |
+| created_at | datetime (tz) | NOT NULL | 创建时间 |
+| updated_at | datetime (tz) | NOT NULL | 更新时间 |
 
 索引:
 - `ix_{table}_{field}` on `field` - 用于 xxx 查询

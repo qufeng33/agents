@@ -31,11 +31,11 @@ class AuditMixin:
     """
 
     created_by: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("user.id", ondelete="SET NULL"),
         default=None,
     )
     updated_by: Mapped[UUID | None] = mapped_column(
-        ForeignKey("users.id", ondelete="SET NULL"),
+        ForeignKey("user.id", ondelete="SET NULL"),
         default=None,
     )
 
@@ -75,7 +75,7 @@ class AuditLog(SimpleBase):
     记录所有实体的变更历史。
     """
 
-    __tablename__ = "audit_logs"
+    __tablename__ = "audit_log"
 
     # 变更信息
     table_name: Mapped[str] = mapped_column(String(100), index=True)

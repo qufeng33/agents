@@ -16,7 +16,7 @@ class User(Base):
     - deleted_at: 软删除
     """
 
-    __tablename__ = "users"
+    __tablename__ = "user"
 
     email: Mapped[str] = mapped_column(String(255), index=True)
     username: Mapped[str] = mapped_column(String(50))
@@ -26,7 +26,7 @@ class User(Base):
     __table_args__ = (
         # 部分唯一索引：只对未删除的记录强制唯一
         Index(
-            "uq_users_email_active",
+            "uq_user_email_active",
             "email",
             unique=True,
             postgresql_where=Base.deleted_at.is_(None),

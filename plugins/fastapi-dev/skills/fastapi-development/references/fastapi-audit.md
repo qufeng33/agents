@@ -118,7 +118,7 @@ from app.core.audit import AuditMixin
 
 
 class Post(AuditMixin, Base):
-    __tablename__ = "posts"
+    __tablename__ = "post"
 
     title: Mapped[str]
     content: Mapped[str]
@@ -162,7 +162,7 @@ class AuditLog(SimpleBase):
     记录所有实体的变更历史。
     """
 
-    __tablename__ = "audit_logs"
+    __tablename__ = "audit_log"
 
     # 变更信息
     table_name: Mapped[str] = mapped_column(String(100), index=True)
@@ -263,7 +263,7 @@ def create_audit_log(
 
 
 # 需要审计的表
-AUDITED_TABLES = {"users", "posts", "orders"}
+AUDITED_TABLES = {"user", "post", "order"}
 
 
 @event.listens_for(Session, "after_flush")
@@ -309,7 +309,7 @@ def audit_after_flush(session: Session, flush_context):
 
 ```python
 # 方式 1：全局配置
-AUDITED_TABLES = {"users", "posts", "orders"}
+AUDITED_TABLES = {"user", "post", "order"}
 
 # 方式 2：模型级标记
 class Auditable:
@@ -318,7 +318,7 @@ class Auditable:
 
 
 class Order(Auditable, Base):
-    __tablename__ = "orders"
+    __tablename__ = "order"
     # ...
 
 
@@ -439,7 +439,7 @@ async def list_audit_records(
     return ApiResponse(data=records)
 
 # 说明：
-# resource 表示业务资源名（如 users、orders），建议用资源名到表名的映射表。
+# resource 表示业务资源名（如 users、orders），建议用资源名到表名的映射表（users -> user, orders -> order）。
 
 
 @router.get(
@@ -501,7 +501,7 @@ def create_audit_log(...):
 
 ```python
 class User(Base):
-    __tablename__ = "users"
+    __tablename__ = "user"
     __audit_exclude__ = {"hashed_password", "reset_token"}  # 排除的字段
 
     email: Mapped[str]
@@ -582,7 +582,7 @@ def get_client_ip(request: Request) -> str:
 
 ```python
 class AuditLog(SimpleBase):
-    __tablename__ = "audit_logs"
+    __tablename__ = "audit_log"
     __table_args__ = (
         # 按记录查询
         Index("ix_audit_table_record", "table_name", "record_id"),
