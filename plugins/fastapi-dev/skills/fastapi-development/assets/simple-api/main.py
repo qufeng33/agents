@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.core.database import engine, Base
-from app.exceptions import setup_exception_handlers
+from app.core.exception_handlers import setup_exception_handlers
 from app.routers import users
 
 settings = get_settings()

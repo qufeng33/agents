@@ -286,7 +286,7 @@ async def test_create_user_validation(
 ```python
 import pytest
 from app.core.error_codes import ErrorCode
-from app.exceptions import UserNotFoundError
+from app.core.exceptions import UserNotFoundError
 
 
 @pytest.mark.asyncio

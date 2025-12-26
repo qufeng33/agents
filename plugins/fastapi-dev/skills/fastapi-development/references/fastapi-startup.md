@@ -24,7 +24,7 @@ from app.config import get_settings
 from app.core.database import close_database, init_database
 from app.core.middlewares import setup_middlewares
 from app.core.routers import setup_routers
-from app.exceptions import setup_exception_handlers
+from app.core.exception_handlers import setup_exception_handlers
 
 settings = get_settings()
 
@@ -77,7 +77,7 @@ app = create_app()
 | `init_database` / `close_database` | core/database.py | [数据库](./fastapi-database.md) |
 | `setup_middlewares` | core/middlewares.py | [中间件](./fastapi-middleware.md) |
 | `setup_routers` | core/routers.py | [API 设计](./fastapi-api-design.md) |
-| `setup_exception_handlers` | exceptions.py | [错误处理](./fastapi-errors.md) |
+| `setup_exception_handlers` | core/exception_handlers.py | [错误处理](./fastapi-errors.md) |
 
 ---
 

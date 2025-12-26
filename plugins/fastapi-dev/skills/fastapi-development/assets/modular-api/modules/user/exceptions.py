@@ -1,6 +1,6 @@
 """用户模块 - 异常"""
 
-from app.exceptions import NotFoundError, ConflictError
+from app.core.exceptions import NotFoundError, ConflictError
 from app.core.error_codes import ErrorCode
 
 

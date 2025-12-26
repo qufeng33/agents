@@ -428,10 +428,10 @@ if not settings.debug:
 
 ## 请求限流
 
-可在 `core/middleware.py` 的 `setup_middleware` 中配置：
+可在 `core/middlewares.py` 的 `setup_middlewares` 中配置：
 
 ```python
-# core/middleware.py
+# core/middlewares.py
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware

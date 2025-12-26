@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import filter_active
 from app.core.error_codes import ErrorCode
 from app.core.security import hash_password
-from app.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 

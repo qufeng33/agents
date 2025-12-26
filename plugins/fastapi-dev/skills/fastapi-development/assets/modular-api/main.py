@@ -18,7 +18,7 @@ from app.config import get_settings
 from app.core.database import close_database, init_database
 from app.core.middlewares import setup_middlewares
 from app.core.routers import setup_routers
-from app.exceptions import setup_exception_handlers
+from app.core.exception_handlers import setup_exception_handlers
 
 settings = get_settings()
 

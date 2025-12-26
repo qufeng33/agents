@@ -23,7 +23,6 @@ app/
 ├── main.py              # 应用入口
 ├── config.py            # 配置管理
 ├── dependencies.py      # 共享依赖
-├── exceptions.py        # 异常定义
 │
 ├── routers/             # 路由层（按资源划分）
 │   ├── __init__.py
@@ -48,7 +47,9 @@ app/
     ├── __init__.py
     ├── database.py
     ├── security.py
-    └── middleware.py
+    ├── exception_handlers.py
+    ├── exceptions.py
+    └── middlewares.py
 ```
 
 ### 优点
@@ -111,7 +112,6 @@ app/
 ├── main.py                 # 应用入口
 ├── config.py               # 全局配置
 ├── dependencies.py         # 全局共享依赖
-├── exceptions.py           # 全局异常基类
 │
 ├── api/                    # API 版本管理
 │   └── v1/
@@ -142,7 +142,9 @@ app/
     ├── database.py
     ├── security.py
     ├── cache.py
-    └── middleware.py
+    ├── exception_handlers.py
+    ├── exceptions.py
+    └── middlewares.py
 
 # tests/ 目录与 app/ 同级
 ```

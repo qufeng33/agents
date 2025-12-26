@@ -6,8 +6,6 @@ app/
 ├── main.py              # 应用入口（直接配置，无需工厂模式）
 ├── config.py            # 配置管理（pydantic-settings）
 ├── dependencies.py      # 共享依赖（DBSession 等类型别名）
-├── exceptions.py        # 异常定义
-│
 ├── routers/             # 路由层（按资源划分）
 │   ├── __init__.py
 │   └── users.py         # HTTP 处理，注入 Service
@@ -29,6 +27,8 @@ app/
     ├── __init__.py
     ├── database.py      # Base（UUIDv7+软删除+时间戳）、get_db()、filter_active()
     ├── error_codes.py   # 错误码定义
+    ├── exception_handlers.py  # 异常处理器注册
+    ├── exceptions.py    # 异常定义
     └── security.py      # 密码哈希
 
 # 与模块化结构的区别：

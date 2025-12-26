@@ -6,7 +6,6 @@ app/
 ├── main.py                 # 应用入口（create_app 工厂模式）
 ├── config.py               # 全局配置（pydantic-settings）
 ├── dependencies.py         # 全局共享依赖（DBSession 等）
-├── exceptions.py           # 全局异常 + setup_exception_handlers
 │
 ├── api/                    # API 版本管理
 │   ├── __init__.py
@@ -39,6 +38,8 @@ app/
 │   ├── database.py         # Base（UUIDv7+软删除+时间戳）、get_db()、filter_active()
 │   ├── context.py          # RequestContext（contextvars 用户上下文）
 │   ├── audit.py            # AuditMixin、AuditLog、事件监听
+│   ├── exception_handlers.py  # setup_exception_handlers
+│   ├── exceptions.py       # 全局异常定义
 │   ├── middlewares.py      # setup_middlewares（含 RequestContextMiddleware）
 │   ├── routers.py          # setup_routers
 │   └── security.py         # JWT、密码哈希

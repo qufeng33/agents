@@ -77,7 +77,7 @@ def set_current_user_id(user_id: UUID | None) -> None:
 ### 中间件注入
 
 ```python
-# core/middleware.py
+# core/middlewares.py
 from uuid import UUID
 
 from fastapi import Request
@@ -566,7 +566,7 @@ def set_request_context(ctx: RequestContext) -> None:
 ```
 
 ```python
-# core/middleware.py（扩展）
+# core/middlewares.py（扩展）
 class RequestContextMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         ctx = RequestContext(
