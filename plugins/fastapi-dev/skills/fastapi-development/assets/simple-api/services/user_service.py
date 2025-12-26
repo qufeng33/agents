@@ -1,19 +1,25 @@
 """用户服务"""
 
-from sqlalchemy import select, func
+from uuid import UUID
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import filter_active
 from app.core.error_codes import ErrorCode
 from app.core.security import hash_password
-from app.exceptions import NotFoundError, ConflictError
+from app.exceptions import ConflictError, NotFoundError
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse
 
 
 class UserService:
-    """用户业务逻辑层
+    """
+    用户业务逻辑层
 
-    注意：事务由 get_db() 依赖自动管理，Service 层不调用 commit
+    注意：
+    - 事务由 get_db() 依赖自动管理，Service 层不调用 commit
+    - 默认查询排除已软删除的记录
     """
 
     def __init__(self, db: AsyncSession) -> None:
@@ -24,31 +30,37 @@ class UserService:
         page: int = 0,
         page_size: int = 20,
     ) -> tuple[list[UserResponse], int]:
-        """分页查询用户列表（page 从 0 开始）"""
-        total = await self.db.scalar(select(func.count(User.id))) or 0
+        """分页查询用户列表（page 从 0 开始，排除已删除）"""
+        count_stmt = filter_active(select(func.count(User.id)))
+        total = await self.db.scalar(count_stmt) or 0
+
         offset = page * page_size
-        result = await self.db.execute(
-            select(User).offset(offset).limit(page_size).order_by(User.id)
+        stmt = filter_active(
+            select(User).order_by(User.created_at.desc()).offset(offset).limit(page_size)
         )
+        result = await self.db.execute(stmt)
         users = result.scalars().all()
         return [UserResponse.model_validate(u) for u in users], total
 
-    async def get(self, user_id: int) -> UserResponse:
-        """获取单个用户"""
-        user = await self.db.get(User, user_id)
+    async def get(self, user_id: UUID) -> UserResponse:
+        """获取单个用户（排除已删除）"""
+        stmt = filter_active(select(User).where(User.id == user_id))
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
+
         if not user:
             raise NotFoundError(
                 code=ErrorCode.USER_NOT_FOUND,
                 message="用户不存在",
-                detail={"user_id": user_id},
+                detail={"user_id": str(user_id)},
             )
         return UserResponse.model_validate(user)
 
     async def create(self, user_in: UserCreate) -> UserResponse:
         """创建用户"""
-        existing = await self.db.scalar(
-            select(User).where(User.email == user_in.email)
-        )
+        # 检查邮箱是否已存在（仅检查未删除的）
+        stmt = filter_active(select(User).where(User.email == user_in.email))
+        existing = await self.db.scalar(stmt)
         if existing:
             raise ConflictError(
                 code=ErrorCode.EMAIL_ALREADY_EXISTS,
@@ -66,14 +78,41 @@ class UserService:
         await self.db.refresh(user)
         return UserResponse.model_validate(user)
 
-    async def delete(self, user_id: int) -> None:
-        """删除用户"""
-        user = await self.db.get(User, user_id)
+    async def delete(self, user_id: UUID) -> None:
+        """软删除用户"""
+        stmt = filter_active(select(User).where(User.id == user_id))
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
+
         if not user:
             raise NotFoundError(
                 code=ErrorCode.USER_NOT_FOUND,
                 message="用户不存在",
-                detail={"user_id": user_id},
+                detail={"user_id": str(user_id)},
             )
-        await self.db.delete(user)
+
+        user.soft_delete()
         await self.db.flush()
+
+    async def restore(self, user_id: UUID) -> UserResponse:
+        """恢复软删除的用户"""
+        user = await self.db.get(User, user_id)
+
+        if not user:
+            raise NotFoundError(
+                code=ErrorCode.USER_NOT_FOUND,
+                message="用户不存在",
+                detail={"user_id": str(user_id)},
+            )
+
+        if not user.is_deleted:
+            raise ConflictError(
+                code=ErrorCode.USER_NOT_DELETED,
+                message="用户未被删除",
+                detail={"user_id": str(user_id)},
+            )
+
+        user.restore()
+        await self.db.flush()
+        await self.db.refresh(user)
+        return UserResponse.model_validate(user)

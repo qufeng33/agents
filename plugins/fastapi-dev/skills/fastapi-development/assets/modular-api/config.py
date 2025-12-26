@@ -54,6 +54,7 @@ class Settings(BaseSettings):
     app_name: str = "My API"
     debug: bool = False
     log_level: str = "INFO"
+    access_token_expire_minutes: int = Field(default=30, ge=1)
 
     # 数据库（嵌套配置）
     db: DatabaseConfig

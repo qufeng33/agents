@@ -8,6 +8,8 @@ description: |
   - 架构设计、需求分析、技术选型、数据库设计、表设计
   - 创建 FastAPI 端点、路由、REST API 设计
   - SQLAlchemy 2.0 异步数据库操作、事务管理、Alembic 迁移
+  - ORM 基类设计、UUIDv7 主键、软删除、时间戳字段
+  - 审计日志、操作追踪、变更历史、contextvars
   - Pydantic v2 模型验证、序列化、ConfigDict 配置
   - 中间件配置、CORS、请求日志、GZip 压缩
   - 认证授权、OAuth2、JWT、权限控制
@@ -19,7 +21,7 @@ description: |
   - Docker 部署、Kubernetes、生产配置
   - 性能优化、缓存、连接池
 
-  关键词：设计、架构、需求、技术选型、实现端点、创建 API、CRUD 操作、Pydantic schema、SQLAlchemy 模型、异步数据库、错误处理、编写测试、FastAPI 中间件、JWT 认证、部署配置、lifespan、依赖注入、后台任务、定时任务、任务队列
+  关键词：设计、架构、需求、技术选型、实现端点、创建 API、CRUD 操作、Pydantic schema、SQLAlchemy 模型、异步数据库、错误处理、编写测试、FastAPI 中间件、JWT 认证、部署配置、lifespan、依赖注入、后台任务、定时任务、任务队列、软删除、审计日志、UUIDv7、基类、Mixin
 ---
 
 # FastAPI 最佳实践
@@ -169,7 +171,8 @@ app/
 | | 错误处理 | [fastapi-errors.md](./references/fastapi-errors.md) | 自定义异常、统一响应 |
 | | 中间件 | [fastapi-middleware.md](./references/fastapi-middleware.md) | CORS、日志、执行顺序 |
 | | 项目结构 | [fastapi-project-structure.md](./references/fastapi-project-structure.md) | 简单/模块化布局 |
-| **数据** | 数据库 | [fastapi-database.md](./references/fastapi-database.md) | SQLAlchemy 2.0 异步、事务 |
+| **数据** | 数据库 | [fastapi-database.md](./references/fastapi-database.md) | SQLAlchemy 2.0 异步、事务、ORM 基类、软删除 |
+| | 审计日志 | [fastapi-audit.md](./references/fastapi-audit.md) | 操作追踪、变更历史、contextvars |
 | | 安全性 | [fastapi-security.md](./references/fastapi-security.md) | OAuth2、JWT、权限控制 |
 | **运维** | 后台任务 | [fastapi-tasks.md](./references/fastapi-tasks.md) | BackgroundTasks、ARQ、Celery、APScheduler |
 | | 日志 | [fastapi-logging.md](./references/fastapi-logging.md) | Loguru 两阶段初始化 |

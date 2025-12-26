@@ -21,8 +21,8 @@ app/
 │   │   ├── __init__.py
 │   │   ├── router.py       # HTTP 处理，注入 Service
 │   │   ├── schemas.py      # Pydantic 模型
-│   │   ├── models.py       # ORM 模型
-│   │   ├── repository.py   # 数据访问层（只用 flush/refresh）
+│   │   ├── models.py       # ORM 模型（继承 Base + AuditMixin）
+│   │   ├── repository.py   # 数据访问层（软删除查询）
 │   │   ├── service.py      # 业务逻辑层
 │   │   ├── dependencies.py # 模块依赖注入链
 │   │   └── exceptions.py   # 模块异常
@@ -30,12 +30,18 @@ app/
 │   └── item/
 │       └── ...
 │
+├── schemas/                # 共享 Schema
+│   ├── __init__.py
+│   └── response.py         # BaseSchema, ApiResponse, ApiPagedResponse
+│
 ├── core/                   # 核心基础设施
 │   ├── __init__.py
-│   ├── database.py         # get_db() + init/close_database
-│   ├── middlewares.py      # setup_middlewares
+│   ├── database.py         # Base（UUIDv7+软删除+时间戳）、get_db()、filter_active()
+│   ├── context.py          # RequestContext（contextvars 用户上下文）
+│   ├── audit.py            # AuditMixin、AuditLog、事件监听
+│   ├── middlewares.py      # setup_middlewares（含 RequestContextMiddleware）
 │   ├── routers.py          # setup_routers
-│   └── security.py         # 密码哈希等
+│   └── security.py         # JWT、密码哈希
 │
 └── tests/
     ├── conftest.py
@@ -51,19 +57,27 @@ app/
 #   ↓         ↓           ↓
 # HTTP处理  业务逻辑    数据访问（事务由 get_db() 自动管理）
 
+# ORM 基类特性（Base）：
+# - id: UUIDv7 主键（时间有序，分布式友好）
+# - created_at, updated_at: 时间戳（带时区，UTC）
+# - deleted_at: 软删除
+# - soft_delete(), restore(), is_deleted
+
+# 审计特性（AuditMixin）：
+# - created_by, updated_by: 操作者（自动注入）
+# - 通过 RequestContextMiddleware + contextvars 自动填充
+
 # 事务管理：
 # - get_db() 依赖自动 commit/rollback
 # - Repository 只用 flush/refresh，不调用 commit
 # - Service 层编排业务逻辑，一个方法 = 一个事务
 
+# 软删除查询：
+# - filter_active(stmt): 过滤已删除记录
+# - get_by_id(): 默认排除已删除
+# - get_by_id_including_deleted(): 包含已删除（管理员）
+
 # 命名约定：
 # - 模块目录使用单数（user, item, order）
 # - API 资源路径使用复数（/users, /items, /orders）
 # - 类名使用单数（User, UserService, UserRepository）
-
-# 特点：
-# - 每个模块完全自包含（router/schema/service/repository/model）
-# - 清晰的分层：Router → Service → Repository
-# - 便于测试：可以单独 mock Repository
-# - 修改一个功能只需改一个目录
-# - 便于团队分工，减少冲突
