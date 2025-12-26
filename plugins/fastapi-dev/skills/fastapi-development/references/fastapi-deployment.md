@@ -371,6 +371,8 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app.services.health_service import HealthServiceDep
+
 router = APIRouter()
 
 
@@ -380,10 +382,10 @@ async def health():
 
 
 @router.get("/health/ready")
-async def readiness(db: AsyncDBSession):
+async def readiness(service: HealthServiceDep):
     """就绪检查：验证依赖服务"""
     try:
-        await db.execute(text("SELECT 1"))
+        await service.check_database()
         return {"status": "ready", "database": "ok"}
     except Exception as e:
         return JSONResponse(
@@ -396,6 +398,17 @@ async def readiness(db: AsyncDBSession):
 async def liveness():
     """存活检查：应用是否运行"""
     return {"status": "alive"}
+```
+
+```python
+# services/health_service.py
+from app.core.dependencies import DBSession
+class HealthService:
+    def __init__(self, db: DBSession):
+        self.db = db
+
+    async def check_database(self) -> None:
+        await self.db.execute(text("SELECT 1"))
 ```
 
 ---

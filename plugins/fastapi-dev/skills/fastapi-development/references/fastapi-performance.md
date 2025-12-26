@@ -171,31 +171,68 @@ async_engine = create_async_engine(
 ### 预加载关联（避免 N+1）
 
 ```python
+# repository.py
 from sqlalchemy import select
-from uuid import UUID
 from sqlalchemy.orm import selectinload, joinedload
 
-# 批量预加载
-@router.get("/users/")
-async def list_users(db: AsyncDBSession):
-    result = await db.execute(
-        select(User).options(
-            selectinload(User.posts),
-            selectinload(User.comments),
+from app.core.dependencies import DBSession
+
+
+class UserRepository:
+    def __init__(self, db: DBSession):
+        self.db = db
+
+    async def list_with_relations(self) -> list[User]:
+        result = await self.db.execute(
+            select(User).options(
+                selectinload(User.posts),
+                selectinload(User.comments),
+            )
         )
-    )
-    return result.scalars().all()
+        return list(result.scalars().all())
 
 
-# 关联预加载
+class PostRepository:
+    def __init__(self, db: DBSession):
+        self.db = db
+
+    async def get_with_author(self, post_id: UUID) -> Post | None:
+        result = await self.db.execute(
+            select(Post)
+            .where(Post.id == post_id)
+            .options(joinedload(Post.author))
+        )
+        return result.scalar_one_or_none()
+```
+
+```python
+# service.py
+class UserService:
+    def __init__(self, repo: UserRepository):
+        self.repo = repo
+
+    async def list_users(self) -> list[User]:
+        return await self.repo.list_with_relations()
+
+
+class PostService:
+    def __init__(self, repo: PostRepository):
+        self.repo = repo
+
+    async def get_post(self, post_id: UUID) -> Post | None:
+        return await self.repo.get_with_author(post_id)
+```
+
+```python
+# router.py
+@router.get("/users/")
+async def list_users(service: UserServiceDep):
+    return await service.list_users()
+
+
 @router.get("/posts/{post_id}")
-async def get_post(post_id: UUID, db: AsyncDBSession):
-    result = await db.execute(
-        select(Post)
-        .where(Post.id == post_id)
-        .options(joinedload(Post.author))
-    )
-    return result.scalar_one_or_none()
+async def get_post(post_id: UUID, service: PostServiceDep):
+    return await service.get_post(post_id)
 ```
 
 ### 分页
@@ -207,20 +244,39 @@ from sqlalchemy import select, func
 
 @router.get("/items/", response_model=ApiPagedResponse[ItemResponse])
 async def list_items(
-    db: AsyncDBSession,
     page: int = Query(default=0, ge=0, description="页码（从 0 开始）"),
     page_size: int = Query(default=20, ge=1, le=100),
+    service: ItemServiceDep,
 ) -> ApiPagedResponse[ItemResponse]:
-    # 总数
-    total_result = await db.execute(select(func.count()).select_from(Item))
-    total = total_result.scalar_one()
-
-    # 分页数据（page 从 0 开始，直接相乘）
-    offset = page * page_size
-    result = await db.execute(select(Item).offset(offset).limit(page_size))
-    items = [ItemResponse.model_validate(i) for i in result.scalars().all()]
-
+    items, total = await service.list_items(page=page, page_size=page_size)
     return ApiPagedResponse(data=items, total=total, page=page, page_size=page_size)
+```
+
+```python
+# service.py
+class ItemService:
+    def __init__(self, repo: ItemRepository):
+        self.repo = repo
+
+    async def list_items(self, page: int, page_size: int) -> tuple[list[ItemResponse], int]:
+        items, total = await self.repo.list(page=page, page_size=page_size)
+        return [ItemResponse.model_validate(i) for i in items], total
+```
+
+```python
+# repository.py
+class ItemRepository:
+    def __init__(self, db: DBSession):
+        self.db = db
+
+    async def list(self, page: int, page_size: int) -> tuple[list[Item], int]:
+        total_result = await self.db.execute(select(func.count()).select_from(Item))
+        total = total_result.scalar_one()
+
+        offset = page * page_size
+        result = await self.db.execute(select(Item).offset(offset).limit(page_size))
+        items = list(result.scalars().all())
+        return items, total
 ```
 
 ---
