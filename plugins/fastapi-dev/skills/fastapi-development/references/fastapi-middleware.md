@@ -221,6 +221,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import get_settings
+from app.core.error_codes import ErrorCode
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
@@ -239,7 +240,12 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         if api_key != settings.api_key.get_secret_value():
             return JSONResponse(
                 status_code=401,
-                content={"code": "UNAUTHORIZED", "message": "Invalid API key"},
+                content={
+                    "code": ErrorCode.UNAUTHORIZED,
+                    "message": "Invalid API key",
+                    "data": None,
+                    "detail": None,
+                },
             )
 
         return await call_next(request)

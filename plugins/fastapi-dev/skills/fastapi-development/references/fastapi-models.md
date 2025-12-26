@@ -329,6 +329,8 @@ from fastapi import Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.core.error_codes import ErrorCode
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(
@@ -345,7 +347,12 @@ async def validation_exception_handler(
 
     return JSONResponse(
         status_code=422,
-        content={"code": "VALIDATION_ERROR", "errors": errors},
+        content={
+            "code": ErrorCode.INVALID_PARAMETER,
+            "message": "Validation failed",
+            "data": None,
+            "detail": {"errors": errors},
+        },
     )
 ```
 

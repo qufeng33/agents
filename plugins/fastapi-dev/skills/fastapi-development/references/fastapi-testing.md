@@ -285,6 +285,7 @@ async def test_create_user_validation(
 
 ```python
 import pytest
+from app.core.error_codes import ErrorCode
 from app.exceptions import UserNotFoundError
 
 
@@ -292,7 +293,7 @@ from app.exceptions import UserNotFoundError
 async def test_get_nonexistent_user(client: AsyncClient):
     response = await client.get("/users/999")
     assert response.status_code == 404
-    assert response.json()["code"] == "NOT_FOUND"
+    assert response.json()["code"] == ErrorCode.USER_NOT_FOUND
 
 
 @pytest.mark.asyncio
