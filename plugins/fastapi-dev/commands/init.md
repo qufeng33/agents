@@ -2,18 +2,18 @@
 name: init
 description: 交互式初始化 FastAPI 项目，支持简单结构和模块化结构
 argument-hint: "[project-name]"
-allowed-tools: Bash(pwd:*), Bash(ls:*), Bash(test:*), Bash(basename:*)
 ---
 
 # FastAPI 项目初始化
 
 ## 当前环境检测
 
-- 当前目录: !`pwd`
-- 目录名称: !`basename "$(pwd)"`
-- 是否为空目录: !`[ -z "$(ls -A 2>/dev/null)" ] && echo "yes" || echo "no"`
-- 是否存在 pyproject.toml: !`test -f pyproject.toml && echo "yes" || echo "no"`
-- 是否已有 FastAPI: !`test -f pyproject.toml && grep -q 'fastapi' pyproject.toml 2>/dev/null && echo "yes" || echo "no"`
+执行以下检测（使用 Bash 工具）：
+
+1. 获取当前目录路径和名称
+2. 检查目录是否为空
+3. 检查是否存在 pyproject.toml
+4. 如存在 pyproject.toml，检查是否已包含 fastapi 依赖
 
 ## 参数
 
