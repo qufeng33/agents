@@ -17,7 +17,7 @@ gunicorn app.main:app \
     --bind 0.0.0.0:8000 \
     --timeout 120 \
     --keep-alive 5 \
-    --access-logfile - \
+    --no-access-log \
     --error-logfile -
 ```
 
