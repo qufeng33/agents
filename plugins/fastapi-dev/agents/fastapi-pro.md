@@ -16,7 +16,19 @@ description: |
   <example>Optimize database queries causing N+1 problems</example>
   <example>Write async integration tests for payment service</example>
   <example>Review my fastapi code</example>
+capabilities:
+  - Project structure and architecture design
+  - API design and implementation
+  - Pydantic data validation and serialization
+  - Async database operations (SQLAlchemy 2.0, PostgreSQL, MongoDB)
+  - Dependency injection and middleware
+  - Authentication and authorization (OAuth2, JWT, RBAC)
+  - Error handling and exception design
+  - Testing (pytest-asyncio, httpx)
+  - Code refactoring and optimization
+  - Deployment (Docker, Kubernetes)
 model: opus
+skills: fastapi-development
 color: green
 ---
 

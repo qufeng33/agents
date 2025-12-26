@@ -363,3 +363,14 @@ async def validation_exception_handler(
 4. **自定义类型复用** - 创建领域特定类型
 5. **严格模式** - 对外部输入使用 `extra="forbid"`
 6. **response_model** - 始终指定，确保类型安全
+
+---
+
+## 代码模板
+
+完整可运行示例见 `assets/` 目录：
+
+| 结构 | ORM 模型 | Pydantic Schema |
+|------|----------|-----------------|
+| 简单结构 | `assets/simple-api/models/` | `assets/simple-api/schemas/` |
+| 模块化结构 | `assets/modular-api/modules/user/models.py` | `assets/modular-api/modules/user/schemas.py` |

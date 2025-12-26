@@ -21,31 +21,17 @@ argument-hint: "<scope>"
 
 ### Step 1: 收集待审查的文件
 
-```bash
-# 获取未提交的更改
-git diff --name-only
-
-# 获取未暂存的更改
-git diff --name-only HEAD
-
-# 或者审查指定范围
-```
+获取未提交的更改：`git diff --name-only HEAD`
 
 ### Step 2: 分类文件
 
-按类型分类：
-- 模型文件 (models/)
-- Schema 文件 (schemas/)
-- 服务文件 (services/)
-- 路由文件 (routers/ 或 modules/*/router.py)
-- 测试文件 (tests/)
-- 配置文件
+按类型分类：模型、Schema、服务、路由、测试、配置
 
 ### Step 3: 执行审查
 
 对每个文件执行以下检查：
 
-#### 3.1 代码规范 (所有文件)
+#### 3.1 代码规范
 
 | 检查项 | 标准 |
 |--------|------|
@@ -53,7 +39,8 @@ git diff --name-only HEAD
 | 命名规范 | snake_case 函数/变量，PascalCase 类 |
 | 行长度 | <= 100 字符 |
 | 导入顺序 | stdlib > third-party > local |
-| Docstring | 公共函数和类 |
+
+> 参考 **fastapi-development** skill 的 `references/fastapi-tooling.md`
 
 #### 3.2 架构一致性
 
@@ -64,6 +51,8 @@ git diff --name-only HEAD
 | 职责分离 | Service 处理 HTTP？ |
 | 循环导入 | 模块间循环依赖？ |
 
+> 参考 **fastapi-development** skill 的 `references/fastapi-patterns.md`
+
 #### 3.3 性能检查
 
 | 检查项 | 问题描述 |
@@ -72,6 +61,8 @@ git diff --name-only HEAD
 | 缺少索引 | WHERE/ORDER BY 字段无索引？ |
 | 同步阻塞 | 异步函数中使用同步 IO？ |
 | 缺少分页 | 列表查询无限制？ |
+
+> 参考 **fastapi-development** skill 的 `references/fastapi-performance.md`
 
 #### 3.4 安全检查
 
@@ -82,6 +73,8 @@ git diff --name-only HEAD
 | 认证检查 | 端点缺少认证？ |
 | 输入验证 | 用户输入未验证？ |
 
+> 参考 **fastapi-development** skill 的 `references/fastapi-security.md`
+
 #### 3.5 测试覆盖
 
 | 检查项 | 标准 |
@@ -90,75 +83,26 @@ git diff --name-only HEAD
 | 边界条件 | 测试了边界情况？ |
 | 错误路径 | 测试了错误处理？ |
 
-### Step 4: 生成报告
+> 参考 **fastapi-development** skill 的 `references/fastapi-testing.md`
 
-```markdown
-# 代码审查报告
+### Step 4: 自动化检查
 
-## 概要
-- 审查文件数：X
-- 发现问题数：Y
-- 严重程度分布：Critical(Z), High(A), Medium(B), Low(C)
+运行工具并将输出纳入审查：
+- `ruff check .`
+- `pytest --cov=app`
 
-## Critical 问题 (必须修复)
+### Step 5: 生成报告
 
-### [文件:行号] 问题描述
-**问题**：具体描述
-**影响**：安全隐患/数据损坏风险
-**建议**：如何修复
-
-## High 问题 (强烈建议修复)
-
-### [文件:行号] 问题描述
-**问题**：具体描述
-**影响**：性能问题/架构违规
-**建议**：如何修复
-
-## Medium 问题 (建议修复)
-
-### [文件:行号] 问题描述
-**问题**：具体描述
-**建议**：如何改进
-
-## Low 问题 (可选改进)
-
-### [文件:行号] 问题描述
-**建议**：如何改进
-
-## 亮点
-
-列出代码中的优秀实践，鼓励良好的编码习惯。
-
-## 总结
-
-整体评价和下一步建议。
-```
-
-## 严重程度定义
+按严重程度分类输出：
 
 | 级别 | 定义 | 示例 |
 |------|------|------|
-| Critical | 安全漏洞、数据损坏风险 | SQL 注入、密码明文存储 |
-| High | 性能问题、架构违规 | N+1 查询、层级边界违规 |
-| Medium | 代码质量问题 | 缺少类型提示、复杂度过高 |
-| Low | 风格问题 | 命名不规范、缺少注释 |
+| P0 | 阻塞发布 | 安全漏洞、数据损坏 |
+| P1 | 必须修复 | N+1 查询、架构违规 |
+| P2 | 应该修复 | 缺少类型提示、复杂度过高 |
+| P3 | 可选改进 | 命名不规范 |
 
-## 自动化检查
-
-在审查前运行：
-
-```bash
-# Lint 检查
-ruff check .
-
-# 类型检查
-ty check app
-
-# 测试覆盖率
-pytest --cov=app --cov-report=term-missing
-```
-
-将自动化工具的输出纳入审查报告。
+报告应包含：问题描述、影响、修复建议、代码亮点。
 
 ## 关键点
 

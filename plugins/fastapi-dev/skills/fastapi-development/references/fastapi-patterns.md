@@ -445,3 +445,14 @@ async def get_users(user_ids: list[int]):
 5. **类型提示** - 始终提供返回类型
 6. **优先 async** - 简单逻辑使用 async 依赖，避免线程池开销
 7. **lifespan 管理资源** - 启动时初始化，关闭时清理
+
+---
+
+## 代码模板
+
+完整可运行示例见 `assets/` 目录：
+
+| 结构 | 模板目录 | 特点 |
+|------|----------|------|
+| 简单结构 | `assets/simple-api/services/` | Service 直接操作 AsyncSession |
+| 模块化结构 | `assets/modular-api/modules/user/` | 完整三层架构（含 Repository）|

@@ -41,7 +41,7 @@ allowed-tools: Bash(pwd:*), Bash(ls:*), Bash(test:*), Bash(basename:*)
 3. **认证方式**: JWT 认证 / 无认证
 4. **Docker 支持**: 是否需要
 
-> 结构选择标准见 **fastapi-development** skill
+> 参考 **fastapi-development** skill 的 `references/fastapi-project-structure.md`
 
 ## Step 2: 初始化项目
 
@@ -54,12 +54,12 @@ allowed-tools: Bash(pwd:*), Bash(ls:*), Bash(test:*), Bash(basename:*)
 
 根据用户选择的结构类型生成目录和文件：
 
-| 结构 | 模板 | 特点 |
-|------|------|------|
-| 简单 | `assets/simple-api/` | 无 Repository 层，main.py 直接配置 |
-| 模块化 | `assets/modular-api/` | 有 Repository 层，create_app 工厂模式 |
+| 结构 | 特点 |
+|------|------|
+| 简单 | 无 Repository 层，main.py 直接配置 |
+| 模块化 | 有 Repository 层，create_app 工厂模式 |
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-project-structure.md` 和 `assets/` 模板
+> 参考 **fastapi-development** skill 的 `references/fastapi-project-structure.md`
 
 ## Step 4: 配置工具
 
@@ -69,14 +69,14 @@ allowed-tools: Bash(pwd:*), Bash(ls:*), Bash(test:*), Bash(basename:*)
 
 ## Step 5: 生成代码文件
 
-根据选择的结构类型，从 `assets/` 模板生成核心文件：
+根据选择的结构类型生成核心文件：
 
 - `app/main.py` - 应用入口（lifespan 模式）
 - `app/config.py` - 配置管理
 - `app/core/database.py` - 数据库连接
 - `app/core/security.py` - 认证模块（如需要）
 
-> 参考 **fastapi-development** skill 的 `assets/simple-api/` 或 `assets/modular-api/`
+> 参考 **fastapi-development** skill 的 `references/fastapi-startup.md`
 
 ## Step 6: 完成设置
 
@@ -97,5 +97,3 @@ allowed-tools: Bash(pwd:*), Bash(ls:*), Bash(test:*), Bash(basename:*)
 > 项目初始化完成！后续开发中，你可以直接描述需求（如"添加用户注册接口"），**fastapi-pro** agent 会自动介入处理。
 
 **重要**：如果用户继续提出 FastAPI 相关的开发需求，**必须**主动使用 **fastapi-pro** agent 来处理。
-
-

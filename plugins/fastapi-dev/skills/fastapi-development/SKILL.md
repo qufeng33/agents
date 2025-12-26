@@ -1,9 +1,11 @@
 ---
 name: fastapi-development
+version: 1.0.0
 description: |
-  FastAPI 开发最佳实践。包含分层架构、项目结构、异步模式、依赖注入、数据验证、数据库集成、错误处理、测试、部署等完整开发周期。
+  FastAPI 开发最佳实践。包含架构设计、分层架构、项目结构、异步模式、依赖注入、数据验证、数据库集成、错误处理、测试、部署等完整开发周期。
 
   触发场景：
+  - 架构设计、需求分析、技术选型、数据库设计、表设计
   - 创建 FastAPI 端点、路由、REST API 设计
   - SQLAlchemy 2.0 异步数据库操作、事务管理、Alembic 迁移
   - Pydantic v2 模型验证、序列化、ConfigDict 配置
@@ -17,7 +19,7 @@ description: |
   - Docker 部署、Kubernetes、生产配置
   - 性能优化、缓存、连接池
 
-  关键词：实现端点、创建 API、CRUD 操作、Pydantic schema、SQLAlchemy 模型、异步数据库、错误处理、编写测试、FastAPI 中间件、JWT 认证、部署配置、lifespan、依赖注入、后台任务、定时任务、任务队列
+  关键词：设计、架构、需求、技术选型、实现端点、创建 API、CRUD 操作、Pydantic schema、SQLAlchemy 模型、异步数据库、错误处理、编写测试、FastAPI 中间件、JWT 认证、部署配置、lifespan、依赖注入、后台任务、定时任务、任务队列
 ---
 
 # FastAPI 最佳实践
@@ -157,7 +159,8 @@ app/
 
 | 分类 | 主题 | 文档 | 说明 |
 |------|------|------|------|
-| **核心** | 分层架构 | [fastapi-patterns.md](./references/fastapi-patterns.md) | Repository/Service、依赖注入 |
+| **核心** | 架构设计 | [fastapi-architecture.md](./references/fastapi-architecture.md) | 需求分析、技术选型、数据库设计 |
+| | 分层架构 | [fastapi-patterns.md](./references/fastapi-patterns.md) | Repository/Service、依赖注入 |
 | | 应用启动 | [fastapi-startup.md](./references/fastapi-startup.md) | lifespan、init/setup 模式 |
 | | 配置管理 | [fastapi-config.md](./references/fastapi-config.md) | pydantic-settings、嵌套配置 |
 | | 数据模型 | [fastapi-models.md](./references/fastapi-models.md) | Pydantic 验证、分离模型 |
@@ -172,6 +175,7 @@ app/
 | | 部署 | [fastapi-deployment.md](./references/fastapi-deployment.md) | Docker、Kubernetes |
 | | 性能 | [fastapi-performance.md](./references/fastapi-performance.md) | 缓存、连接池、并发 |
 | **工具** | 开发工具 | [fastapi-tooling.md](./references/fastapi-tooling.md) | uv、Ruff、ty |
+| | 代码重构 | [fastapi-refactoring.md](./references/fastapi-refactoring.md) | 重构模式、代码坏味道 |
 | | API 设计 | [fastapi-api-design.md](./references/fastapi-api-design.md) | REST 规范、分页 |
 | | HTTP 客户端 | [fastapi-httpx.md](./references/fastapi-httpx.md) | httpx AsyncClient |
 
