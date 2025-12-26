@@ -152,9 +152,12 @@ async def get_static_data(response: Response):
 
 ```python
 from sqlalchemy.ext.asyncio import create_async_engine
+from app.config import get_settings
+
+settings = get_settings()
 
 async_engine = create_async_engine(
-    database_url,            # postgresql+asyncpg://...
+    settings.db.url,         # postgresql+asyncpg://...
     pool_size=20,            # 常驻连接数
     max_overflow=10,         # 溢出连接数
     pool_timeout=30,         # 获取超时（秒）

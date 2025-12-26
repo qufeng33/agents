@@ -730,8 +730,12 @@ async def get_stats(db: AsyncSession):
 ### 生产环境推荐
 
 ```python
+from app.config import get_settings
+
+settings = get_settings()
+
 async_engine = create_async_engine(
-    DATABASE_URL,
+    settings.db.url,
     pool_size=20,        # 常驻连接数
     max_overflow=10,     # 溢出连接数
     pool_timeout=30,     # 获取超时（秒）
@@ -744,9 +748,12 @@ async_engine = create_async_engine(
 
 ```python
 from sqlalchemy.pool import NullPool, StaticPool
+from app.config import get_settings
+
+settings = get_settings()
 
 # 外部连接池（如 PgBouncer）
-engine = create_async_engine(DATABASE_URL, poolclass=NullPool)
+engine = create_async_engine(settings.db.url, poolclass=NullPool)
 
 # 内存数据库测试
 engine = create_async_engine(

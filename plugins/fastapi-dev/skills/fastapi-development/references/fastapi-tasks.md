@@ -140,8 +140,8 @@ class WorkerSettings:
     """ARQ Worker 配置"""
     functions = [send_email, process_order]
     redis_settings = RedisSettings(
-        host=settings.redis_host,
-        port=settings.redis_port,
+        host=settings.redis.host,
+        port=settings.redis.port,
     )
     max_jobs = 10
     job_timeout = 300  # 5 分钟
@@ -163,7 +163,7 @@ arq_redis: ArqRedis | None = None
 async def init_arq() -> ArqRedis:
     global arq_redis
     arq_redis = await create_pool(
-        RedisSettings(host=settings.redis_host, port=settings.redis_port)
+        RedisSettings(host=settings.redis.host, port=settings.redis.port)
     )
     return arq_redis
 
@@ -271,8 +271,8 @@ settings = get_settings()
 
 celery_app = Celery(
     "tasks",
-    broker=f"redis://{settings.redis_host}:{settings.redis_port}/0",
-    backend=f"redis://{settings.redis_host}:{settings.redis_port}/1",
+    broker=f"redis://{settings.redis.host}:{settings.redis.port}/0",
+    backend=f"redis://{settings.redis.host}:{settings.redis.port}/1",
 )
 
 celery_app.conf.update(

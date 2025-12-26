@@ -136,7 +136,14 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://user:pass@db:5432/mydb
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=mydb
+      - DB_USER=user
+      - DB_PASSWORD=pass
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
       - SECRET_KEY=${SECRET_KEY}
     depends_on:
       db:
@@ -198,11 +205,46 @@ spec:
           ports:
             - containerPort: 8000
           env:
-            - name: DATABASE_URL
+            - name: DB_HOST
               valueFrom:
                 secretKeyRef:
                   name: app-secrets
-                  key: database-url
+                  key: db-host
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: db-port
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: db-name
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: db-user
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: db-password
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: redis-host
+            - name: REDIS_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: redis-port
+            - name: REDIS_DB
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: redis-db
           resources:
             requests:
               memory: "256Mi"
@@ -364,18 +406,34 @@ async def liveness():
 
 ```python
 # config.py
+from pydantic import SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.config import DatabaseConfig, RedisConfig
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env")
 
     debug: bool = False
-    database_url: str
-    secret_key: str
+    secret_key: SecretStr
+    db: DatabaseConfig
+    redis: RedisConfig = RedisConfig()
 
 
 # .env（开发）
 DEBUG=true
-DATABASE_URL=postgresql://user:pass@localhost:5432/dev_db
 SECRET_KEY=dev-secret-key
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=dev_db
+DB_USER=user
+DB_PASSWORD=pass
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_DB=0
 ```
 
 ### 生产环境
@@ -383,8 +441,17 @@ SECRET_KEY=dev-secret-key
 ```bash
 # 环境变量（不使用 .env 文件）
 export DEBUG=false
-export DATABASE_URL=postgresql://user:pass@db-host:5432/prod_db
 export SECRET_KEY=super-secure-production-key
+
+export DB_HOST=db-host
+export DB_PORT=5432
+export DB_NAME=prod_db
+export DB_USER=user
+export DB_PASSWORD=pass
+
+export REDIS_HOST=redis-host
+export REDIS_PORT=6379
+export REDIS_DB=0
 ```
 
 ### 禁用 OpenAPI 文档
