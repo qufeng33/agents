@@ -313,7 +313,7 @@ Repository 封装数据访问逻辑，提供领域友好的查询接口。
 |------|--------|------|
 | `get_by_id(id)` | `Model \| None` | 主键查询 |
 | `get_by_xxx(field)` | `Model \| None` | 唯一字段查询 |
-| `list(skip, limit)` | `list[Model]` | 分页列表 |
+| `list(page, page_size)` | `tuple[list[Model], int]` | 分页列表，返回 (items, total) |
 | `create(model)` | `Model` | 创建，使用 `flush()` + `refresh()` |
 | `update(model, data)` | `Model` | 更新，使用 `flush()` + `refresh()` |
 | `delete(model)` | `None` | 删除 |

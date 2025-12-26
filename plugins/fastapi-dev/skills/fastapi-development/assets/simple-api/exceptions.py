@@ -2,51 +2,158 @@
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from app.core.error_codes import ErrorCode
 
 
-class AppException(Exception):
-    """应用基础异常"""
+class ApiError(Exception):
+    """业务异常基类"""
 
-    def __init__(self, code: str, message: str, status_code: int = 400) -> None:
+    def __init__(
+        self,
+        code: ErrorCode,
+        message: str | None = None,
+        status_code: int = 400,
+        detail: dict | None = None,
+    ) -> None:
         self.code = code
-        self.message = message
+        self.message = message or code.name.replace("_", " ").title()
         self.status_code = status_code
-        super().__init__(message)
+        self.detail = detail
+        super().__init__(self.message)
 
 
-class NotFoundError(AppException):
+class NotFoundError(ApiError):
     """资源不存在"""
 
-    def __init__(self, resource: str, resource_id: str) -> None:
-        super().__init__(
-            code="NOT_FOUND",
-            message=f"{resource} with id '{resource_id}' not found",
-            status_code=404,
-        )
+    def __init__(
+        self,
+        code: ErrorCode = ErrorCode.RESOURCE_NOT_FOUND,
+        message: str = "Resource not found",
+        detail: dict | None = None,
+    ) -> None:
+        super().__init__(code, message, status_code=404, detail=detail)
 
 
-class ValidationError(AppException):
+class ValidationError(ApiError):
     """业务验证失败"""
 
-    def __init__(self, message: str) -> None:
-        super().__init__(code="VALIDATION_ERROR", message=message, status_code=422)
+    def __init__(
+        self,
+        code: ErrorCode = ErrorCode.INVALID_PARAMETER,
+        message: str = "Validation failed",
+        detail: dict | None = None,
+    ) -> None:
+        super().__init__(code, message, status_code=400, detail=detail)
 
 
-class ConflictError(AppException):
+class ConflictError(ApiError):
     """资源冲突"""
 
-    def __init__(self, message: str) -> None:
-        super().__init__(code="CONFLICT", message=message, status_code=409)
+    def __init__(
+        self,
+        code: ErrorCode = ErrorCode.DUPLICATE_ENTRY,
+        message: str = "Resource conflict",
+        detail: dict | None = None,
+    ) -> None:
+        super().__init__(code, message, status_code=409, detail=detail)
 
 
-async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
-    """业务异常处理器"""
+class UnauthorizedError(ApiError):
+    """认证失败"""
+
+    def __init__(
+        self,
+        code: ErrorCode = ErrorCode.UNAUTHORIZED,
+        message: str = "Unauthorized",
+        detail: dict | None = None,
+    ) -> None:
+        super().__init__(code, message, status_code=401, detail=detail)
+
+
+# --- 异常处理器 ---
+
+
+async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
+    """业务异常处理"""
     return JSONResponse(
         status_code=exc.status_code,
-        content={"code": exc.code, "message": exc.message},
+        content={
+            "code": exc.code,
+            "message": exc.message,
+            "data": None,
+            "detail": exc.detail,
+        },
+    )
+
+
+async def validation_error_handler(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    """请求验证异常处理"""
+    errors = []
+    for error in exc.errors():
+        errors.append({
+            "field": ".".join(str(loc) for loc in error["loc"][1:]),
+            "message": error["msg"],
+            "type": error["type"],
+        })
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": ErrorCode.INVALID_PARAMETER,
+            "message": "Validation failed",
+            "data": None,
+            "detail": {"errors": errors},
+        },
+    )
+
+
+async def http_error_handler(
+    request: Request,
+    exc: StarletteHTTPException,
+) -> JSONResponse:
+    """HTTP 异常处理"""
+    code_map = {
+        400: ErrorCode.INVALID_REQUEST,
+        401: ErrorCode.UNAUTHORIZED,
+        403: ErrorCode.FORBIDDEN,
+        404: ErrorCode.RESOURCE_NOT_FOUND,
+        500: ErrorCode.SYSTEM_ERROR,
+    }
+    code = code_map.get(exc.status_code, ErrorCode.SYSTEM_ERROR)
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "code": code,
+            "message": str(exc.detail),
+            "data": None,
+            "detail": None,
+        },
+    )
+
+
+async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """未捕获异常处理"""
+    return JSONResponse(
+        status_code=500,
+        content={
+            "code": ErrorCode.SYSTEM_ERROR,
+            "message": "Internal server error",
+            "data": None,
+            "detail": None,
+        },
     )
 
 
 def setup_exception_handlers(app: FastAPI) -> None:
     """注册全局异常处理器"""
-    app.add_exception_handler(AppException, app_exception_handler)
+    app.add_exception_handler(ApiError, api_error_handler)
+    app.add_exception_handler(RequestValidationError, validation_error_handler)
+    app.add_exception_handler(StarletteHTTPException, http_error_handler)
+    app.add_exception_handler(Exception, unhandled_error_handler)

@@ -20,13 +20,10 @@ class UserUpdate(BaseModel):
 
 
 class UserResponse(UserBase):
+    """用户响应模型"""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     is_active: bool
     created_at: datetime
-
-
-class UserList(BaseModel):
-    items: list[UserResponse]
-    total: int

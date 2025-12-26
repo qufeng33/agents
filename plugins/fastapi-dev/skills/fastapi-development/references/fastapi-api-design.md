@@ -42,18 +42,28 @@ GET    /api/getUserById        # ❌ 动词
 ```python
 from fastapi import status
 
-@router.get("/users/{user_id}")
-async def get_user(user_id: int):
-    return user  # 200 OK（默认）
+from app.schemas.response import ApiResponse
 
-@router.post("/users", status_code=status.HTTP_201_CREATED)
-async def create_user(user: UserCreate):
-    return new_user  # 201 Created
 
-@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: int):
-    return None  # 204 No Content
+@router.get("/users/{user_id}", response_model=ApiResponse[UserResponse])
+async def get_user(user_id: int, service: UserServiceDep) -> ApiResponse[UserResponse]:
+    user = await service.get(user_id)
+    return ApiResponse(data=user)  # 200 OK（默认）
+
+
+@router.post("/users", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
+async def create_user(user_in: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
+    user = await service.create(user_in)
+    return ApiResponse(data=user)  # 201 Created
+
+
+@router.delete("/users/{user_id}", response_model=ApiResponse[None], status_code=status.HTTP_200_OK)
+async def delete_user(user_id: int, service: UserServiceDep) -> ApiResponse[None]:
+    await service.delete(user_id)
+    return ApiResponse(data=None, message="User deleted")  # 200 OK
 ```
+
+> **重要**：路由函数必须标注返回类型，确保与实际返回值和 `response_model` 匹配。使用 `ApiResponse[T]` 统一包装响应。
 
 ### 错误响应
 
@@ -71,82 +81,74 @@ async def delete_user(user_id: int):
 
 ## 分页设计
 
+### 分页参数约定
+
+| 参数 | 说明 | 默认值 | 约束 |
+|------|------|--------|------|
+| `page` | 页码，**从 0 开始** | 0 | `ge=0` |
+| `page_size` | 每页数量 | 20 | `ge=1, le=100` |
+
+> **注意**：`page` 从 0 开始，与数组索引一致。`offset = page * page_size`。
+
 ### 请求参数
 
 ```python
 from typing import Annotated
 from fastapi import Query
 
+from app.schemas.response import ApiPagedResponse
 
-@router.get("/users", response_model=PaginatedResponse[UserResponse])
+
+@router.get("/users", response_model=ApiPagedResponse[UserResponse])
 async def list_users(
-    page: Annotated[int, Query(ge=1, description="页码")] = 1,
+    service: UserServiceDep,
+    page: Annotated[int, Query(ge=0, description="页码（从 0 开始）")] = 0,
     page_size: Annotated[int, Query(ge=1, le=100, description="每页数量")] = 20,
-    sort_by: Annotated[str | None, Query(description="排序字段")] = None,
-    order: Annotated[str, Query(pattern="^(asc|desc)$")] = "desc",
-):
-    ...
+) -> ApiPagedResponse[UserResponse]:
+    users, total = await service.list(page=page, page_size=page_size)
+    return ApiPagedResponse(data=users, total=total, page=page, page_size=page_size)
 ```
 
 ### 响应模型
 
+使用统一的 `ApiPagedResponse[T]`（定义在 `app/schemas/response.py`）：
+
 ```python
 from typing import Generic, TypeVar
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel
 
 T = TypeVar("T")
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
-    """统一分页响应"""
-    items: list[T]
+class ApiPagedResponse(BaseModel, Generic[T]):
+    """分页列表响应"""
+
+    code: int = 0
+    message: str = "success"
+    data: list[T]
     total: int
-    page: int
+    page: int        # 当前页码（从 0 开始）
     page_size: int
-    pages: int
-
-    @computed_field
-    @property
-    def has_next(self) -> bool:
-        return self.page < self.pages
-
-    @computed_field
-    @property
-    def has_prev(self) -> bool:
-        return self.page > 1
-
-
-# 使用
-class UserList(PaginatedResponse[UserResponse]):
-    pass
 ```
 
-### 分页实现
+### 分页实现（Repository 层）
 
 ```python
-async def paginate(
-    query,
-    page: int,
-    page_size: int,
-    db: AsyncSession,
-) -> dict:
+async def list(self, page: int = 0, page_size: int = 20) -> tuple[list[User], int]:
+    """分页查询（page 从 0 开始）"""
     # 计算总数
-    total = await db.scalar(select(func.count()).select_from(query.subquery()))
+    total = await self.db.scalar(select(func.count(User.id))) or 0
 
-    # 计算偏移
-    offset = (page - 1) * page_size
+    # 计算偏移（page 从 0 开始，直接相乘）
+    offset = page * page_size
 
     # 获取数据
-    result = await db.execute(query.offset(offset).limit(page_size))
-    items = result.scalars().all()
+    result = await self.db.execute(
+        select(User).offset(offset).limit(page_size).order_by(User.id)
+    )
+    items = list(result.scalars().all())
 
-    return {
-        "items": items,
-        "total": total or 0,
-        "page": page,
-        "page_size": page_size,
-        "pages": (total + page_size - 1) // page_size if total else 0,
-    }
+    return items, total
 ```
 
 ---
@@ -158,6 +160,8 @@ async def paginate(
 ```python
 from enum import Enum
 
+from app.schemas.response import ApiPagedResponse
+
 
 class UserStatus(str, Enum):
     ACTIVE = "active"
@@ -165,50 +169,59 @@ class UserStatus(str, Enum):
     SUSPENDED = "suspended"
 
 
-@router.get("/users")
+@router.get("/users", response_model=ApiPagedResponse[UserResponse])
 async def list_users(
+    service: UserServiceDep,
+    page: int = Query(default=0, ge=0, description="页码（从 0 开始）"),
+    page_size: int = Query(default=20, ge=1, le=100),
     status: UserStatus | None = Query(None, description="用户状态"),
     is_verified: bool | None = Query(None, description="是否已验证"),
     created_after: datetime | None = Query(None, description="创建时间起始"),
     created_before: datetime | None = Query(None, description="创建时间截止"),
     search: str | None = Query(None, min_length=2, description="搜索关键词"),
-):
-    query = select(User)
-
-    if status:
-        query = query.where(User.status == status)
-    if is_verified is not None:
-        query = query.where(User.is_verified == is_verified)
-    if created_after:
-        query = query.where(User.created_at >= created_after)
-    if created_before:
-        query = query.where(User.created_at <= created_before)
-    if search:
-        query = query.where(
-            User.name.ilike(f"%{search}%") | User.email.ilike(f"%{search}%")
-        )
-
-    return await paginate(query, page, page_size, db)
+) -> ApiPagedResponse[UserResponse]:
+    users, total = await service.list(
+        page=page,
+        page_size=page_size,
+        status=status,
+        is_verified=is_verified,
+        created_after=created_after,
+        created_before=created_before,
+        search=search,
+    )
+    return ApiPagedResponse(data=users, total=total, page=page, page_size=page_size)
 ```
 
 ---
 
 ## 错误响应格式
 
-统一错误响应格式：`code` + `message` + `details` 三元组。
+统一错误响应格式：`code` + `message` + `data` + `detail` 四元组。
 
 ```json
 {
-    "code": "VALIDATION_ERROR",
-    "message": "Request validation failed",
-    "details": [
-        {"field": "email", "message": "Invalid email format"},
-        {"field": "password", "message": "Must be at least 8 characters"}
-    ]
+    "code": 40001,
+    "message": "Validation failed",
+    "data": null,
+    "detail": {
+        "errors": [
+            {"field": "email", "message": "Invalid email format", "type": "value_error"},
+            {"field": "password", "message": "Must be at least 8 characters", "type": "string_too_short"}
+        ]
+    }
 }
 ```
 
-> 完整的异常体系、异常类定义、全局异常处理器详见 [错误处理](./fastapi-errors.md)
+**错误码分段**：
+
+| 范围 | 类别 | 说明 |
+|------|------|------|
+| 0 | 成功 | 正常响应 |
+| 10000-19999 | 系统级错误 | 数据库、缓存等内部错误 |
+| 30000-39999 | 业务校验错误 | 资源不存在、重复等 |
+| 40000-49999 | 客户端请求错误 | 参数错误、认证失败 |
+
+> 完整的异常体系、错误码枚举、全局异常处理器详见 [错误处理与统一响应](./fastapi-errors.md)
 
 ---
 

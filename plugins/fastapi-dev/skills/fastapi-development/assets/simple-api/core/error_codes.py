@@ -1,0 +1,42 @@
+"""错误码枚举"""
+
+from enum import IntEnum
+
+
+class ErrorCode(IntEnum):
+    """业务错误码
+
+    分段规则:
+    - 0: 成功
+    - 10000-19999: 系统级错误
+    - 20000-29999: 服务级错误
+    - 30000-39999: 业务校验错误
+    - 40000-49999: 客户端请求错误
+    - 50000-59999: 外部依赖错误
+    """
+
+    SUCCESS = 0
+
+    # 10000-19999: 系统级错误
+    SYSTEM_ERROR = 10000
+    DATABASE_ERROR = 10001
+    CACHE_ERROR = 10002
+
+    # 20000-29999: 服务级错误
+    SERVICE_UNAVAILABLE = 20000
+    SERVICE_TIMEOUT = 20001
+
+    # 30000-39999: 业务校验错误
+    RESOURCE_NOT_FOUND = 30000
+    USER_NOT_FOUND = 30001
+    DUPLICATE_ENTRY = 30100
+    EMAIL_ALREADY_EXISTS = 30101
+
+    # 40000-49999: 客户端请求错误
+    INVALID_REQUEST = 40000
+    INVALID_PARAMETER = 40001
+    UNAUTHORIZED = 40100
+    FORBIDDEN = 40200
+
+    # 50000-59999: 外部依赖错误
+    EXTERNAL_API_ERROR = 50000

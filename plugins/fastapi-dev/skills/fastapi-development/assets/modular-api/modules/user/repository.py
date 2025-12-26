@@ -12,7 +12,7 @@ class UserRepository:
     注意：事务由 get_db() 依赖自动管理，Repository 只用 flush/refresh
     """
 
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
     async def get_by_id(self, user_id: int) -> User | None:
@@ -22,10 +22,12 @@ class UserRepository:
         result = await self.db.scalar(select(User).where(User.email == email))
         return result
 
-    async def list(self, skip: int = 0, limit: int = 20) -> tuple[list[User], int]:
+    async def list(self, page: int = 0, page_size: int = 20) -> tuple[list[User], int]:
+        """分页查询用户列表（page 从 0 开始）"""
         total = await self.db.scalar(select(func.count(User.id))) or 0
+        offset = page * page_size
         result = await self.db.execute(
-            select(User).offset(skip).limit(limit).order_by(User.id)
+            select(User).offset(offset).limit(page_size).order_by(User.id)
         )
         items = list(result.scalars().all())
         return items, total

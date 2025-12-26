@@ -87,14 +87,16 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 from fastapi import APIRouter, status
 
 from app.dependencies import UserServiceDep
+from app.schemas.response import ApiResponse
 from app.schemas.user import UserCreate, UserResponse
 
 router = APIRouter()
 
 
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(user_in: UserCreate, service: UserServiceDep):
-    return await service.create(user_in)
+@router.post("/", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
+async def create_user(user_in: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
+    user = await service.create(user_in)
+    return ApiResponse(data=user)
 ```
 
 ---
@@ -188,15 +190,17 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 # modules/user/router.py（只导入依赖，不定义）
 from fastapi import APIRouter, status
 
+from app.schemas.response import ApiResponse
 from .schemas import UserCreate, UserResponse
 from .dependencies import UserServiceDep
 
 router = APIRouter()
 
 
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(user_in: UserCreate, service: UserServiceDep):
-    return await service.create(user_in)
+@router.post("/", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
+async def create_user(user_in: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
+    user = await service.create(user_in)
+    return ApiResponse(data=user)
 ```
 
 ```python

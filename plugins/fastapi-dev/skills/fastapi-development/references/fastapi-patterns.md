@@ -44,8 +44,9 @@ class UserRepository:
 ```python
 # modules/user/service.py
 from app.modules.user.repository import UserRepository
-from app.modules.user.schemas import UserCreate
+from app.modules.user.schemas import UserCreate, UserResponse
 from app.modules.user.models import User
+from app.modules.user.exceptions import UserNotFoundError, EmailAlreadyExistsError
 from app.core.security import hash_password
 
 
@@ -53,13 +54,16 @@ class UserService:
     def __init__(self, repo: UserRepository):
         self.repo = repo
 
-    async def get_by_id(self, user_id: int) -> User | None:
-        return await self.repo.get_by_id(user_id)
+    async def get_by_id(self, user_id: int) -> UserResponse:
+        user = await self.repo.get_by_id(user_id)
+        if not user:
+            raise UserNotFoundError(user_id)
+        return UserResponse.model_validate(user)
 
-    async def create(self, data: UserCreate) -> User:
+    async def create(self, data: UserCreate) -> UserResponse:
         # 业务逻辑：检查邮箱唯一性
         if await self.repo.get_by_email(data.email):
-            raise ValueError("Email already registered")
+            raise EmailAlreadyExistsError(data.email)
 
         # 业务逻辑：密码哈希
         user = User(
@@ -67,7 +71,8 @@ class UserService:
             name=data.name,
             hashed_password=hash_password(data.password),
         )
-        return await self.repo.create(user)
+        user = await self.repo.create(user)
+        return UserResponse.model_validate(user)
 ```
 
 ```python
@@ -95,28 +100,25 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 
 ```python
 # modules/user/router.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, status
 
+from app.schemas.response import ApiResponse
 from app.modules.user.dependencies import UserServiceDep
 from app.modules.user.schemas import UserCreate, UserResponse
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.get("/{user_id}")
-async def get_user(user_id: int, service: UserServiceDep) -> UserResponse:
-    user = await service.get_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
+@router.get("/{user_id}", response_model=ApiResponse[UserResponse])
+async def get_user(user_id: int, service: UserServiceDep) -> ApiResponse[UserResponse]:
+    user = await service.get_by_id(user_id)  # 不存在时抛出 UserNotFoundError
+    return ApiResponse(data=user)
 
 
-@router.post("/", status_code=201)
-async def create_user(data: UserCreate, service: UserServiceDep) -> UserResponse:
-    try:
-        return await service.create(data)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+@router.post("/", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
+async def create_user(data: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
+    user = await service.create(data)  # 邮箱重复时抛出 EmailAlreadyExistsError
+    return ApiResponse(data=user)
 ```
 
 ### 分层好处
@@ -191,37 +193,44 @@ router = APIRouter()
 
 
 def pagination(
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, le=100),
+    page: int = Query(default=0, ge=0, description="页码（从 0 开始）"),
+    page_size: int = Query(default=20, ge=1, le=100),
 ) -> dict:
-    return {"skip": skip, "limit": limit}
+    return {"page": page, "page_size": page_size}
 
 Pagination = Annotated[dict, Depends(pagination)]
 
 @router.get("/items/")
 async def list_items(params: Pagination):
-    return params
+    return params  # {"page": 0, "page_size": 20}
 ```
 
 ### 依赖链
 
 ```python
+from app.core.exceptions import UnauthorizedError
+from app.core.error_codes import ErrorCode
+
+
 async def get_token(authorization: str = Header()) -> str:
     if not authorization.startswith("Bearer "):
-        raise HTTPException(401, "Invalid format")
+        raise UnauthorizedError(message="Invalid authorization format")
     return authorization[7:]
+
 
 async def get_current_user(token: Annotated[str, Depends(get_token)]) -> User:
     user = await decode_token(token)
     if not user:
-        raise HTTPException(401, "Invalid token")
+        raise UnauthorizedError(code=ErrorCode.TOKEN_INVALID, message="Invalid token")
     return user
+
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
-@router.get("/me")
-async def get_me(user: CurrentUser):
-    return user
+
+@router.get("/me", response_model=ApiResponse[UserResponse])
+async def get_me(user: CurrentUser) -> ApiResponse[UserResponse]:
+    return ApiResponse(data=UserResponse.model_validate(user))
 ```
 
 ### 依赖放置位置
@@ -294,6 +303,10 @@ async def get_resource() -> AsyncGenerator[Resource, None]:
 ### 类作为依赖
 
 ```python
+from app.core.exceptions import ForbiddenError
+from app.core.error_codes import ErrorCode
+
+
 class PermissionChecker:
     def __init__(self, permissions: list[str]):
         self.permissions = permissions
@@ -301,14 +314,24 @@ class PermissionChecker:
     def __call__(self, user: CurrentUser) -> User:
         for p in self.permissions:
             if p not in user.permissions:
-                raise HTTPException(403, f"Missing: {p}")
+                raise ForbiddenError(
+                    code=ErrorCode.INSUFFICIENT_PERMISSIONS,
+                    message=f"Missing permission: {p}",
+                )
         return user
+
 
 require_admin = PermissionChecker(["admin"])
 
-@router.delete("/users/{user_id}")
-async def delete_user(admin: Annotated[User, Depends(require_admin)]):
-    ...
+
+@router.delete("/users/{user_id}", response_model=ApiResponse[None])
+async def delete_user(
+    user_id: int,
+    admin: Annotated[User, Depends(require_admin)],
+    service: UserServiceDep,
+) -> ApiResponse[None]:
+    await service.delete(user_id)
+    return ApiResponse(data=None, message="User deleted")
 ```
 
 ### 依赖缓存
@@ -333,14 +356,15 @@ app = FastAPI(dependencies=[Depends(log_request)])
 
 ## 资源存在性验证
 
-通过 Service 层进行资源验证，保持分层一致性。
+通过依赖注入进行资源验证，不存在时抛出模块级异常。
 
 ```python
 # modules/item/dependencies.py
 from typing import Annotated
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 
 from .service import ItemService
+from .exceptions import ItemNotFoundError
 
 
 def get_item_service(
@@ -355,7 +379,7 @@ async def get_item_or_404(
 ) -> Item:
     item = await service.get_by_id(item_id)
     if not item:
-        raise HTTPException(404, "Item not found")
+        raise ItemNotFoundError(item_id)
     return item
 
 
@@ -364,14 +388,23 @@ ValidItem = Annotated[Item, Depends(get_item_or_404)]
 
 ```python
 # modules/item/router.py
-@router.get("/{item_id}")
-async def read_item(item: ValidItem):
-    return item  # 保证存在
+from app.schemas.response import ApiResponse
+from .schemas import ItemResponse, ItemUpdate
 
 
-@router.put("/{item_id}")
-async def update_item(item: ValidItem, data: ItemUpdate, service: ItemServiceDep):
-    return await service.update(item, data)
+@router.get("/{item_id}", response_model=ApiResponse[ItemResponse])
+async def read_item(item: ValidItem) -> ApiResponse[ItemResponse]:
+    return ApiResponse(data=ItemResponse.model_validate(item))
+
+
+@router.put("/{item_id}", response_model=ApiResponse[ItemResponse])
+async def update_item(
+    item: ValidItem,
+    data: ItemUpdate,
+    service: ItemServiceDep,
+) -> ApiResponse[ItemResponse]:
+    updated = await service.update(item, data)
+    return ApiResponse(data=updated)
 ```
 
 ---

@@ -195,14 +195,14 @@ router = APIRouter()
 class QueryParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    skip: int = 0
-    limit: int = 100
+    page: int = 0  # 从 0 开始
+    page_size: int = 20
 
 
 @router.get("/items/")
 async def list_items(params: QueryParams = Query()):
     # 额外的查询参数会返回 422 错误
-    return {"skip": params.skip, "limit": params.limit}
+    return {"page": params.page, "page_size": params.page_size}
 ```
 
 ---
@@ -213,7 +213,7 @@ async def list_items(params: QueryParams = Query()):
 
 ```python
 @router.post("/users/", response_model=UserResponse)
-async def create_user(user: UserCreate, db: DBSession):
+async def create_user(user: UserCreate, db: DBSession) -> UserResponse:
     # 返回包含 hashed_password 的完整对象
     # FastAPI 自动使用 UserResponse 过滤
     db_user = User(
@@ -238,7 +238,7 @@ class Item(BaseModel):
 
 
 @router.get("/items/{item_id}", response_model=Item, response_model_exclude_unset=True)
-async def get_item(item_id: int):
+async def get_item(item_id: int) -> Item:
     return {"name": "Foo", "price": 50.2}
     # 响应只包含 name 和 price，不包含 description 和 tax
 ```

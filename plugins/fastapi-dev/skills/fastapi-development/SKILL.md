@@ -124,6 +124,7 @@ app/
 - 使用 `Annotated[T, Depends(...)]` 声明依赖
 - 依赖链：Router → Service → Repository → Database
 - 类型别名简化重复声明：`DBSession = Annotated[Session, Depends(get_db)]`
+- **返回类型必须标注**：`async def get_user(...) -> UserResponse:`
 
 详见 [核心模式 - 依赖注入](./references/fastapi-patterns.md#依赖注入)
 
@@ -135,13 +136,14 @@ app/
 
 详见 [数据模型](./references/fastapi-models.md)
 
-### 错误处理
+### 错误处理与统一响应
 
-- 自定义异常基类：包含 `code`, `message`, `status_code`
-- 全局异常处理器：统一响应格式
-- 业务异常：继承基类，定义具体错误
+- **统一响应格式**：`ApiResponse[T]` / `ApiPagedResponse[T]` / `ErrorResponse`
+- **5 位业务错误码**：分段管理（系统/服务/业务/客户端/外部）
+- **异常体系**：`ApiError` 基类 + 派生异常类
+- **全局处理器**：统一错误响应格式
 
-详见 [错误处理](./references/fastapi-errors.md)
+详见 [错误处理与统一响应](./references/fastapi-errors.md)
 
 ### 数据库
 

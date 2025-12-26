@@ -199,26 +199,22 @@ from fastapi import Query
 from sqlalchemy import select, func
 
 
-@router.get("/items/")
+@router.get("/items/", response_model=ApiPagedResponse[ItemResponse])
 async def list_items(
     db: AsyncDBSession,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
-):
+    page: int = Query(default=0, ge=0, description="页码（从 0 开始）"),
+    page_size: int = Query(default=20, ge=1, le=100),
+) -> ApiPagedResponse[ItemResponse]:
     # 总数
     total_result = await db.execute(select(func.count()).select_from(Item))
     total = total_result.scalar_one()
 
-    # 分页数据
-    result = await db.execute(select(Item).offset(skip).limit(limit))
-    items = result.scalars().all()
+    # 分页数据（page 从 0 开始，直接相乘）
+    offset = page * page_size
+    result = await db.execute(select(Item).offset(offset).limit(page_size))
+    items = [ItemResponse.model_validate(i) for i in result.scalars().all()]
 
-    return {
-        "items": items,
-        "total": total,
-        "skip": skip,
-        "limit": limit,
-    }
+    return ApiPagedResponse(data=items, total=total, page=page, page_size=page_size)
 ```
 
 ---
