@@ -6,6 +6,10 @@
 
 使用 orjson 替代标准 json，大型响应性能提升显著。
 
+```bash
+uv add orjson
+```
+
 ```python
 from fastapi import APIRouter, FastAPI
 from fastapi.responses import ORJSONResponse
