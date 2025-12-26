@@ -170,7 +170,7 @@ executor = ProcessPoolExecutor(max_workers=4)
 
 @router.post("/compute")
 async def compute(data: str):
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     return await loop.run_in_executor(executor, heavy_task, data)
 ```
 
