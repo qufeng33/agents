@@ -187,14 +187,21 @@ async def lifespan(app: FastAPI):
 ### 在路由中使用
 
 ```python
-@router.post("/orders", status_code=201)
-async def create_order(order: OrderCreate, service: OrderServiceDep, arq: ArqPool):
+from app.schemas.response import ApiResponse
+
+
+@router.post("/orders", status_code=201, response_model=ApiResponse[dict[str, str]])
+async def create_order(
+    order: OrderCreate,
+    service: OrderServiceDep,
+    arq: ArqPool,
+) -> ApiResponse[dict[str, str]]:
     db_order = await service.create(order)
 
     # 入队任务
     job = await arq.enqueue_job("process_order", db_order.id)
 
-    return {"order_id": db_order.id, "job_id": job.job_id}
+    return ApiResponse(data={"order_id": db_order.id, "job_id": job.job_id})
 ```
 
 ### 依赖注入模式
@@ -214,10 +221,13 @@ ArqPool = Annotated[ArqRedis, Depends(get_arq)]
 
 
 # 路由中使用
-@router.post("/notify")
-async def notify(email: str, arq: ArqPool):
+from app.schemas.response import ApiResponse
+
+
+@router.post("/notify", response_model=ApiResponse[dict[str, str]])
+async def notify(email: str, arq: ArqPool) -> ApiResponse[dict[str, str]]:
     await arq.enqueue_job("send_email", email, "Hello")
-    return {"status": "queued"}
+    return ApiResponse(data={"status": "queued"})
 ```
 
 ### 任务选项
@@ -340,27 +350,36 @@ def process_order_v2(data: OrderData) -> OrderResult:
 from app.tasks.orders import process_order
 
 
-@router.post("/orders", status_code=201)
-async def create_order(order: OrderCreate, service: OrderServiceDep):
+from typing import Any
+from app.schemas.response import ApiResponse
+
+
+@router.post("/orders", status_code=201, response_model=ApiResponse[dict[str, str]])
+async def create_order(
+    order: OrderCreate,
+    service: OrderServiceDep,
+) -> ApiResponse[dict[str, str]]:
     db_order = await service.create(order)
 
     # 异步调用 Celery 任务
     task = process_order.delay(db_order.id)
 
-    return {"order_id": db_order.id, "task_id": task.id}
+    return ApiResponse(data={"order_id": db_order.id, "task_id": task.id})
 
 
-@router.get("/tasks/{task_id}")
-async def get_task_status(task_id: str):
+@router.get("/tasks/{task_id}", response_model=ApiResponse[dict[str, Any]])
+async def get_task_status(task_id: str) -> ApiResponse[dict[str, Any]]:
     """查询任务状态"""
     from celery.result import AsyncResult
 
     result = AsyncResult(task_id)
-    return {
-        "task_id": task_id,
-        "status": result.status,
-        "result": result.result if result.ready() else None,
-    }
+    return ApiResponse(
+        data={
+            "task_id": task_id,
+            "status": result.status,
+            "result": result.result if result.ready() else None,
+        }
+    )
 ```
 
 ### 任务链
@@ -396,31 +415,30 @@ celery -A app.core.celery worker --loglevel=info
 ## APScheduler（定时任务）
 
 支持多种触发器的任务调度器，可与 FastAPI 深度集成。
+示例基于 APScheduler 3.11.2。
 
 ### 安装
 
 ```bash
 uv add apscheduler
 # 可选：持久化
-uv add sqlalchemy asyncpg  # PostgreSQL
+uv add sqlalchemy psycopg  # PostgreSQL（同步驱动）
 ```
 
 ### FastAPI 集成
 
 ```python
 # app/core/scheduler.py
-from apscheduler import AsyncScheduler
-from apscheduler.datastores.sqlalchemy import SQLAlchemyDataStore
-from apscheduler.eventbrokers.asyncpg import AsyncpgEventBroker
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime, timezone
-from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.config import get_settings
 
 settings = get_settings()
-scheduler: AsyncScheduler | None = None
+scheduler: AsyncIOScheduler | None = None
 
 
 async def cleanup_expired_sessions():
@@ -438,35 +456,36 @@ async def generate_daily_report():
     pass
 
 
-async def init_scheduler() -> AsyncScheduler:
+def init_scheduler() -> AsyncIOScheduler:
     global scheduler
 
-    engine = create_async_engine(settings.db.url)
-    data_store = SQLAlchemyDataStore(engine)
-    event_broker = AsyncpgEventBroker.from_async_sqla_engine(engine)
-
-    scheduler = AsyncScheduler(data_store, event_broker)
+    # 持久化（可选）：SQLAlchemyJobStore 需要同步驱动
+    jobstores = {
+        # PostgreSQL 示例：postgresql+psycopg://user:pass@host/db
+        "default": SQLAlchemyJobStore(url="sqlite:///./scheduler.db"),
+    }
+    scheduler = AsyncIOScheduler(jobstores=jobstores, timezone="UTC")
 
     # 添加定时任务
-    await scheduler.add_schedule(
+    scheduler.add_job(
         cleanup_expired_sessions,
         IntervalTrigger(hours=1),
         id="cleanup_sessions",
     )
-    await scheduler.add_schedule(
+    scheduler.add_job(
         generate_daily_report,
         CronTrigger(hour=6, minute=0),  # 每天 6:00
         id="daily_report",
     )
 
-    await scheduler.start_in_background()
+    scheduler.start()
     return scheduler
 
 
-async def close_scheduler():
+def close_scheduler():
     global scheduler
     if scheduler:
-        await scheduler.stop()
+        scheduler.shutdown(wait=False)
 ```
 
 ```python
@@ -476,9 +495,9 @@ from app.core.scheduler import init_scheduler, close_scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await init_scheduler()
+    init_scheduler()
     yield
-    await close_scheduler()
+    close_scheduler()
 ```
 
 ### 触发器类型
@@ -512,35 +531,42 @@ CalendarIntervalTrigger(days=1)  # 每天（比 IntervalTrigger 更精确）
 from app.core.scheduler import scheduler
 
 
-@router.post("/schedules")
-async def create_schedule(cron: str, task_name: str):
+from app.schemas.response import ApiResponse
+
+
+@router.post("/schedules", response_model=ApiResponse[dict[str, str]])
+async def create_schedule(
+    cron: str,
+    task_name: str,
+) -> ApiResponse[dict[str, str]]:
     """动态创建定时任务"""
-    await scheduler.add_schedule(
+    job = scheduler.add_job(
         my_task,
         CronTrigger.from_crontab(cron),
         id=f"user_schedule_{task_name}",
     )
-    return {"status": "created"}
+    return ApiResponse(data={"status": "created", "job_id": job.id})
 
 
-@router.delete("/schedules/{schedule_id}")
-async def delete_schedule(schedule_id: str):
+@router.delete("/schedules/{schedule_id}", response_model=ApiResponse[dict[str, str]])
+async def delete_schedule(schedule_id: str) -> ApiResponse[dict[str, str]]:
     """删除定时任务"""
-    await scheduler.remove_schedule(schedule_id)
-    return {"status": "deleted"}
+    scheduler.remove_job(schedule_id)
+    return ApiResponse(data={"status": "deleted"})
 ```
 
 ### 任务装饰器
 
 ```python
-from datetime import timedelta
-from apscheduler import task
+from apscheduler.triggers.interval import IntervalTrigger
+from app.core.scheduler import scheduler
 
 
-@task(
+@scheduler.scheduled_job(
+    IntervalTrigger(minutes=5),
     id="my_cleanup_task",
-    max_running_jobs=1,              # 最多同时运行 1 个
-    misfire_grace_time=timedelta(minutes=5),  # 错过后 5 分钟内仍执行
+    max_instances=1,            # 最多同时运行 1 个
+    misfire_grace_time=300,     # 错过后 5 分钟内仍执行
 )
 async def cleanup_task():
     pass
@@ -609,41 +635,49 @@ def handle_failed_task(self, task_id: str, error: str):
 ### ARQ 任务状态
 
 ```python
+from typing import Any
 from arq.jobs import Job
+from app.schemas.response import ApiResponse
 
 
-@router.get("/jobs/{job_id}")
-async def get_job_status(job_id: str, arq: ArqPool):
+@router.get("/jobs/{job_id}", response_model=ApiResponse[dict[str, Any]])
+async def get_job_status(job_id: str, arq: ArqPool) -> ApiResponse[dict[str, Any]]:
     job = Job(job_id, arq)
     info = await job.info()
 
     if info is None:
         raise HTTPException(404, "Job not found")
 
-    return {
-        "job_id": job_id,
-        "status": info.status,
-        "result": info.result,
-        "start_time": info.start_time,
-        "finish_time": info.finish_time,
-    }
+    return ApiResponse(
+        data={
+            "job_id": job_id,
+            "status": info.status,
+            "result": info.result,
+            "start_time": info.start_time,
+            "finish_time": info.finish_time,
+        }
+    )
 ```
 
 ### Celery 任务状态
 
 ```python
+from typing import Any
 from celery.result import AsyncResult
+from app.schemas.response import ApiResponse
 
 
-@router.get("/tasks/{task_id}")
-async def get_task_status(task_id: str):
+@router.get("/tasks/{task_id}", response_model=ApiResponse[dict[str, Any]])
+async def get_task_status(task_id: str) -> ApiResponse[dict[str, Any]]:
     result = AsyncResult(task_id)
-    return {
-        "task_id": task_id,
-        "status": result.status,  # PENDING, STARTED, SUCCESS, FAILURE, RETRY
-        "result": result.result if result.ready() else None,
-        "traceback": result.traceback if result.failed() else None,
-    }
+    return ApiResponse(
+        data={
+            "task_id": task_id,
+            "status": result.status,  # PENDING, STARTED, SUCCESS, FAILURE, RETRY
+            "result": result.result if result.ready() else None,
+            "traceback": result.traceback if result.failed() else None,
+        }
+    )
 ```
 
 ---
