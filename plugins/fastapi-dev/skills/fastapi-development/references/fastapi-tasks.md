@@ -188,11 +188,8 @@ async def lifespan(app: FastAPI):
 
 ```python
 @router.post("/orders", status_code=201)
-async def create_order(order: OrderCreate, db: DBSession, arq: ArqPool):
-    db_order = Order(**order.model_dump())
-    db.add(db_order)
-    await db.commit()
-    await db.refresh(db_order)
+async def create_order(order: OrderCreate, service: OrderServiceDep, arq: ArqPool):
+    db_order = await service.create(order)
 
     # 入队任务
     job = await arq.enqueue_job("process_order", db_order.id)
@@ -344,11 +341,8 @@ from app.tasks.orders import process_order
 
 
 @router.post("/orders", status_code=201)
-async def create_order(order: OrderCreate, db: DBSession):
-    db_order = Order(**order.model_dump())
-    db.add(db_order)
-    await db.commit()
-    await db.refresh(db_order)
+async def create_order(order: OrderCreate, service: OrderServiceDep):
+    db_order = await service.create(order)
 
     # 异步调用 Celery 任务
     task = process_order.delay(db_order.id)
