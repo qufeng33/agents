@@ -28,7 +28,7 @@ class AuditMixin:
     审计字段 Mixin
 
     提供 created_by / updated_by 字段，记录操作者。
-    需配合 UserContextMiddleware 使用。
+    需配合 RequestContextMiddleware 使用。
     """
 
     created_by: Mapped[UUID | None] = mapped_column(
