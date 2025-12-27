@@ -136,17 +136,49 @@ class ApiPagedResponse(BaseModel, Generic[T]):
 ### 分页实现（Repository 层）
 
 ```python
-async def list(self, page: int = 0, page_size: int = 20) -> tuple[list[User], int]:
+from datetime import datetime
+from sqlalchemy import or_, select, func
+
+
+async def list(
+    self,
+    page: int = 0,
+    page_size: int = 20,
+    status: UserStatus | None = None,
+    is_verified: bool | None = None,
+    created_after: datetime | None = None,
+    created_before: datetime | None = None,
+    search: str | None = None,
+) -> tuple[list[User], int]:
     """分页查询（page 从 0 开始）"""
-    # 计算总数
-    total = await self.db.scalar(select(func.count(User.id))) or 0
+    filters = []
+    if status is not None:
+        filters.append(User.status == status)
+    if is_verified is not None:
+        filters.append(User.is_verified == is_verified)
+    if created_after:
+        filters.append(User.created_at >= created_after)
+    if created_before:
+        filters.append(User.created_at <= created_before)
+    if search:
+        pattern = f"%{search}%"
+        filters.append(or_(User.email.ilike(pattern), User.username.ilike(pattern)))
+
+    # 计算总数（包含过滤条件）
+    total = await self.db.scalar(
+        select(func.count(User.id)).where(*filters)
+    ) or 0
 
     # 计算偏移（page 从 0 开始，直接相乘）
     offset = page * page_size
 
     # 获取数据
     result = await self.db.execute(
-        select(User).offset(offset).limit(page_size).order_by(User.id)
+        select(User)
+        .where(*filters)
+        .order_by(User.id)
+        .offset(offset)
+        .limit(page_size)
     )
     items = list(result.scalars().all())
 
