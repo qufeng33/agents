@@ -37,6 +37,8 @@ asyncio_default_test_loop_scope = "function"
 
 ### 同步测试（TestClient）
 
+> 本项目响应统一使用 `ApiResponse` 包装，测试断言需要从 `data` 字段取值。
+
 ```python
 from fastapi.testclient import TestClient
 from app.main import app
@@ -97,7 +99,7 @@ async def test_create_user(client: AsyncClient):
         json={"email": "test@example.com", "password": "password123"},
     )
     assert response.status_code == 201
-    assert response.json()["email"] == "test@example.com"
+    assert response.json()["data"]["email"] == "test@example.com"
 ```
 
 ### 处理 Lifespan 事件
@@ -221,7 +223,7 @@ async def authenticated_client(client: AsyncClient):
 async def test_protected_route(authenticated_client: AsyncClient):
     response = await authenticated_client.get("/users/me")
     assert response.status_code == 200
-    assert response.json()["email"] == "test@example.com"
+    assert response.json()["data"]["email"] == "test@example.com"
 ```
 
 ### 覆盖外部服务
