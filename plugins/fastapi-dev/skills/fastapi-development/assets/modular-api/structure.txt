@@ -40,7 +40,7 @@ app/
 │   ├── audit.py            # AuditMixin、AuditLog、事件监听
 │   ├── exception_handlers.py  # setup_exception_handlers
 │   ├── exceptions.py       # 全局异常定义
-│   ├── middlewares.py      # setup_middlewares（含 RequestContextMiddleware）
+│   ├── middlewares.py      # RequestContextMiddleware / LoggingMiddleware / ExceptionMiddleware
 │   ├── routers.py          # setup_routers
 │   └── security.py         # JWT、密码哈希
 │

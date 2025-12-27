@@ -179,7 +179,7 @@ async_engine = create_async_engine(
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload, joinedload
 
-from app.core.dependencies import DBSession
+from app.dependencies import DBSession
 
 
 class UserRepository:

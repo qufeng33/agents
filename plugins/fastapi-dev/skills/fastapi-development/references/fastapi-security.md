@@ -68,7 +68,7 @@ def decode_access_token(token: str) -> UUID | None:
 ```
 
 ```python
-# core/dependencies.py
+# app/dependencies.py
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -326,7 +326,7 @@ def decode_access_token_with_scopes(token: str) -> tuple[UUID, list[str]] | None
 ```
 
 ```python
-# core/dependencies.py
+# app/dependencies.py
 from fastapi import Security
 from fastapi.security import SecurityScopes
 
@@ -440,7 +440,7 @@ from slowapi.middleware import SlowAPIMiddleware
 limiter = Limiter(key_func=get_remote_address)
 
 
-def setup_middleware(app: FastAPI) -> None:
+def setup_middlewares(app: FastAPI) -> None:
     # 限流配置（slowapi 要求挂载到 app.state）
     app.state.limiter = limiter
     app.add_middleware(SlowAPIMiddleware)
@@ -451,7 +451,7 @@ def setup_middleware(app: FastAPI) -> None:
 # 在路由中使用
 from fastapi import APIRouter
 
-from app.core.middleware import limiter
+from app.core.middlewares import limiter
 
 router = APIRouter()
 

@@ -85,7 +85,7 @@ class UserService:
 from typing import Annotated
 from fastapi import Depends
 
-from app.core.dependencies import DBSession
+from app.dependencies import DBSession
 from app.modules.user.repository import UserRepository
 from app.modules.user.service import UserService
 

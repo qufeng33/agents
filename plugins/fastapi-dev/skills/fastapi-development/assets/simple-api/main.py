@@ -12,11 +12,10 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
 from app.config import get_settings
 from app.core.database import engine, Base
 from app.core.exception_handlers import setup_exception_handlers
+from app.core.middlewares import setup_middlewares
 from app.routers import users
 
 settings = get_settings()
@@ -44,15 +43,8 @@ app = FastAPI(
 # 异常处理
 setup_exception_handlers(app)
 
-# 中间件（直接配置）
-if settings.cors_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# 中间件
+setup_middlewares(app)
 
 # 路由（直接注册）
 app.include_router(users.router, prefix="/users", tags=["users"])

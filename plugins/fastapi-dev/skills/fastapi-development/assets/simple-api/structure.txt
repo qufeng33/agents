@@ -25,10 +25,12 @@ app/
 │
 └── core/                # 核心基础设施
     ├── __init__.py
+    ├── context.py       # RequestContext（contextvars 用户上下文）
     ├── database.py      # Base（UUIDv7+软删除+时间戳）、get_db()、filter_active()
     ├── error_codes.py   # 错误码定义
     ├── exception_handlers.py  # 异常处理器注册
     ├── exceptions.py    # 异常定义
+    ├── middlewares.py   # RequestContextMiddleware / LoggingMiddleware / ExceptionMiddleware
     └── security.py      # 密码哈希
 
 # 与模块化结构的区别：

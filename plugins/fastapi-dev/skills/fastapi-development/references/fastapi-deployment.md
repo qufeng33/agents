@@ -402,7 +402,7 @@ async def liveness():
 
 ```python
 # services/health_service.py
-from app.core.dependencies import DBSession
+from app.dependencies import DBSession
 class HealthService:
     def __init__(self, db: DBSession):
         self.db = db

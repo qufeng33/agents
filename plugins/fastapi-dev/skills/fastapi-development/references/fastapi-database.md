@@ -374,7 +374,7 @@ async def close_database() -> None:
 ### Session 依赖
 
 ```python
-# core/dependencies.py
+# app/dependencies.py
 from typing import Annotated
 from collections.abc import AsyncGenerator
 

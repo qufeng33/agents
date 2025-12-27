@@ -55,7 +55,7 @@ from app.core.context import set_current_user_id
 from app.core.security import decode_access_token
 
 
-class UserContextMiddleware(BaseHTTPMiddleware):
+class RequestContextMiddleware(BaseHTTPMiddleware):
     """从 JWT 中提取用户 ID 并注入到上下文"""
 
     async def dispatch(self, request: Request, call_next):
@@ -75,9 +75,9 @@ class UserContextMiddleware(BaseHTTPMiddleware):
 
 ```python
 # main.py
-from app.core.middleware import UserContextMiddleware
+from app.core.middlewares import RequestContextMiddleware
 
-app.add_middleware(UserContextMiddleware)
+app.add_middleware(RequestContextMiddleware)
 ```
 
 ### 自动填充审计字段
@@ -409,7 +409,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from app.core.dependencies import require_admin
+from app.dependencies import require_admin
 from app.schemas.response import ApiResponse
 from app.modules.audit.repository import AuditLogRepository
 from app.modules.audit.schemas import AuditLogResponse
