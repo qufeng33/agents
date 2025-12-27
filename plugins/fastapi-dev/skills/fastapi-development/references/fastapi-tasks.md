@@ -54,14 +54,14 @@ async def notify(email: str, bg: BackgroundTasks) -> ApiResponse[dict[str, str]]
 ```python
 from uuid import UUID
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session as SyncSession
 
 from app.core.database import sync_engine  # 同步引擎，专用于后台任务
 
 
 def process_order(order_id: UUID):
     """后台任务：使用同步 session（运行在线程池）"""
-    with Session(sync_engine) as db:
+    with SyncSession(sync_engine) as db:
         order = db.scalar(select(Order).where(Order.id == order_id))
         if order:
             order.status = "processed"
@@ -445,7 +445,7 @@ async def cleanup_expired_sessions():
     """定时清理过期会话"""
     async with AsyncSessionLocal() as db:
         await db.execute(
-            delete(Session).where(Session.expires_at < datetime.now(timezone.utc))
+            delete(UserSession).where(UserSession.expires_at < datetime.now(timezone.utc))
         )
         await db.commit()
 

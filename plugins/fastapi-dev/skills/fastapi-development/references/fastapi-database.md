@@ -801,7 +801,14 @@ engine = create_async_engine(
 
 ```python
 from uuid import UUID
+from typing import Annotated
+
+from fastapi import Depends
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
+from app.config import get_settings
 
 
 def sync_operation(session, user_id: UUID):
@@ -809,10 +816,36 @@ def sync_operation(session, user_id: UUID):
     return session.query(User).filter(User.id == user_id).first()
 
 
+settings = get_settings()
+sync_engine = create_engine(settings.db.sync_url)
+
+
+def get_sync_db() -> Session:
+    with Session(sync_engine) as session:
+        yield session
+
+
+SyncDBSession = Annotated[Session, Depends(get_sync_db)]
+
+
+class UserService:
+    def __init__(self, db: Session):
+        self.db = db
+
+    async def get_by_id(self, user_id: UUID) -> User | None:
+        return await run_in_threadpool(sync_operation, self.db, user_id)
+
+
+def get_user_service(db: SyncDBSession) -> UserService:
+    return UserService(db)
+
+
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+
+
 @router.get("/users/{user_id}")
-async def get_user(user_id: UUID, db: SyncDBSession):
-    user = await run_in_threadpool(sync_operation, db, user_id)
-    return user
+async def get_user(user_id: UUID, service: UserServiceDep):
+    return await service.get_by_id(user_id)
 ```
 
 或在异步 Session 中运行同步代码：
