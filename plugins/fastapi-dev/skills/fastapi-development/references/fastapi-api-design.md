@@ -276,16 +276,16 @@ class UserDetailResponse(UserResponse):
 # app/api/v1/router.py
 from fastapi import APIRouter
 
-v1_router = APIRouter(prefix="/api/v1")
+v1_router = APIRouter()
 v1_router.include_router(users_router, prefix="/users")
 
 # app/api/v2/router.py
-v2_router = APIRouter(prefix="/api/v2")
+v2_router = APIRouter()
 v2_router.include_router(users_v2_router, prefix="/users")
 
 # main.py
-app.include_router(v1_router)
-app.include_router(v2_router)
+app.include_router(v1_router, prefix="/api/v1")
+app.include_router(v2_router, prefix="/api/v2")
 ```
 
 ### 版本共存策略
