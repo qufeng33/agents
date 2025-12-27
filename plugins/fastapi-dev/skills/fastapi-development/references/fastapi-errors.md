@@ -409,6 +409,8 @@ class InvalidCredentialsError(UnauthorizedError):
 from app.schemas.response import ApiResponse
 from app.schemas.user import UserCreate, UserResponse
 from .exceptions import UserNotFoundError, EmailAlreadyExistsError
+from .models import User
+from app.core.security import hash_password
 
 
 class UserService:
@@ -424,7 +426,12 @@ class UserService:
     async def create(self, data: UserCreate) -> UserResponse:
         if await self.repo.get_by_email(data.email):
             raise EmailAlreadyExistsError(data.email)
-        user = await self.repo.create(data)
+        user = User(
+            email=data.email,
+            username=data.username,
+            hashed_password=hash_password(data.password),
+        )
+        user = await self.repo.create(user)
         return UserResponse.model_validate(user)
 ```
 

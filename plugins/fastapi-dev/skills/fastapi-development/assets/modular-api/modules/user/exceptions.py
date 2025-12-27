@@ -1,5 +1,7 @@
 """用户模块 - 异常"""
 
+from uuid import UUID
+
 from app.core.exceptions import NotFoundError, ConflictError
 from app.core.error_codes import ErrorCode
 
@@ -7,11 +9,11 @@ from app.core.error_codes import ErrorCode
 class UserNotFoundError(NotFoundError):
     """用户不存在"""
 
-    def __init__(self, user_id: int) -> None:
+    def __init__(self, user_id: UUID) -> None:
         super().__init__(
             code=ErrorCode.USER_NOT_FOUND,
             message="用户不存在",
-            detail={"user_id": user_id},
+            detail={"user_id": str(user_id)},
         )
 
 

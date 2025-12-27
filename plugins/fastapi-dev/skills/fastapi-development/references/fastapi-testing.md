@@ -201,6 +201,8 @@ async def db_session():
 ### 覆盖认证依赖
 
 ```python
+from uuid import uuid4
+
 from app.dependencies import get_current_user
 from app.models import User
 
@@ -208,7 +210,7 @@ from app.models import User
 @pytest_asyncio.fixture
 async def authenticated_client(client: AsyncClient):
     """模拟已认证用户"""
-    mock_user = User(id=1, email="test@example.com", is_active=True)
+    mock_user = User(id=uuid4(), email="test@example.com", is_active=True)
 
     app.dependency_overrides[get_current_user] = lambda: mock_user
     yield client
@@ -285,13 +287,15 @@ async def test_create_user_validation(
 
 ```python
 import pytest
+from uuid import uuid4
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import UserNotFoundError
 
 
 @pytest.mark.asyncio
 async def test_get_nonexistent_user(client: AsyncClient):
-    response = await client.get("/users/999")
+    user_id = uuid4()
+    response = await client.get(f"/users/{user_id}")
     assert response.status_code == 404
     assert response.json()["code"] == ErrorCode.USER_NOT_FOUND
 
@@ -299,7 +303,7 @@ async def test_get_nonexistent_user(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_service_raises_exception():
     with pytest.raises(UserNotFoundError):
-        await user_service.get(999)
+        await user_service.get(uuid4())
 ```
 
 ---

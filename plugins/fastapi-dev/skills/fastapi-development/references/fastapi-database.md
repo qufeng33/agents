@@ -212,6 +212,9 @@ def filter_active[T: Base](stmt: Select[tuple[T]]) -> Select[tuple[T]]:
     # 获取查询的主实体
     entity = stmt.column_descriptions[0]["entity"]
     return stmt.where(entity.deleted_at.is_(None))
+
+> **注意**：`filter_active()` 只适用于返回实体的查询（如 `select(User)`）。
+> 聚合查询（如 `count()`）请显式使用 `where(User.deleted_at.is_(None))`。
 ```
 
 ### Repository 集成
@@ -268,7 +271,7 @@ class UserRepository:
 **解决方案：部分唯一索引**（PostgreSQL）
 
 ```python
-from sqlalchemy import Index
+from sqlalchemy import Index, text
 
 
 class User(Base):
@@ -282,7 +285,7 @@ class User(Base):
             "uq_user_email_active",
             "email",
             unique=True,
-            postgresql_where=deleted_at.is_(None),  # type: ignore
+            postgresql_where=text("deleted_at IS NULL"),
         ),
     )
 ```
@@ -625,7 +628,7 @@ Repository 封装数据访问逻辑，提供领域友好的查询接口。
 | `list(page, page_size)` | `tuple[list[Model], int]` | 分页列表，返回 (items, total) |
 | `create(model)` | `Model` | 创建，使用 `flush()` + `refresh()` |
 | `update(model, data)` | `Model` | 更新，使用 `flush()` + `refresh()` |
-| `delete(model)` | `None` | 删除 |
+| `delete(model)` | `None` | 删除（默认软删除） |
 | `count()` | `int` | 统计数量 |
 
 ### 关键操作说明

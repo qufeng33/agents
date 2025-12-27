@@ -118,6 +118,7 @@ class Settings(BaseSettings):
 
     # 生成方式: openssl rand -hex 32
     secret_key: SecretStr
+    api_key: SecretStr
     access_token_expire_minutes: int = 30
 ```
 
@@ -244,7 +245,7 @@ async def get_api_key(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="API key required",
         )
-    if api_key != settings.api_key:
+    if api_key != settings.api_key.get_secret_value():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid API key",

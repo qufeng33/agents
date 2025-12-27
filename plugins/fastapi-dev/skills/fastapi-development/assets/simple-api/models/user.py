@@ -1,6 +1,6 @@
 """用户模型"""
 
-from sqlalchemy import Boolean, Index, String
+from sqlalchemy import Boolean, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -29,6 +29,6 @@ class User(Base):
             "uq_user_email_active",
             "email",
             unique=True,
-            postgresql_where=Base.deleted_at.is_(None),
+            postgresql_where=text("deleted_at IS NULL"),
         ),
     )

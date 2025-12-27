@@ -462,8 +462,10 @@ HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]
 ## 并发请求
 
 ```python
+from uuid import UUID
+
 @router.get("/users/batch")
-async def get_users(user_ids: list[int]):
+async def get_users(user_ids: list[UUID]):
     tasks = [fetch_user(uid) for uid in user_ids]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 

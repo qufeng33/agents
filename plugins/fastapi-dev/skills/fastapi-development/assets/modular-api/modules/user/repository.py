@@ -41,7 +41,7 @@ class UserRepository:
     async def list(self, page: int = 0, page_size: int = 20) -> tuple[list[User], int]:
         """分页查询用户列表（page 从 0 开始，排除已删除）"""
         # 统计总数
-        count_stmt = filter_active(select(func.count(User.id)))
+        count_stmt = select(func.count(User.id)).where(User.deleted_at.is_(None))
         total = await self.db.scalar(count_stmt) or 0
 
         # 分页查询
@@ -103,6 +103,10 @@ class UserRepository:
         """软删除用户"""
         user.soft_delete()
         await self.db.flush()
+
+    async def delete(self, user: User) -> None:
+        """删除用户（默认软删除）"""
+        await self.soft_delete(user)
 
     async def restore(self, user: User) -> None:
         """恢复软删除的用户"""

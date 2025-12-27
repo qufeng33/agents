@@ -1,5 +1,7 @@
 """用户模块 - 业务逻辑层"""
 
+from uuid import UUID
+
 from .models import User
 from .repository import UserRepository
 from .schemas import UserCreate, UserResponse
@@ -20,7 +22,7 @@ class UserService:
         users, total = await self.repository.list(page=page, page_size=page_size)
         return [UserResponse.model_validate(u) for u in users], total
 
-    async def get(self, user_id: int) -> UserResponse:
+    async def get(self, user_id: UUID) -> UserResponse:
         """获取单个用户"""
         user = await self.repository.get_by_id(user_id)
         if not user:
@@ -41,7 +43,7 @@ class UserService:
         user = await self.repository.create(user)
         return UserResponse.model_validate(user)
 
-    async def delete(self, user_id: int) -> None:
+    async def delete(self, user_id: UUID) -> None:
         """删除用户"""
         user = await self.repository.get_by_id(user_id)
         if not user:

@@ -1,5 +1,7 @@
 """用户模块 - 路由"""
 
+from uuid import UUID
+
 from fastapi import APIRouter, Query, status
 
 from app.schemas.response import ApiResponse, ApiPagedResponse
@@ -32,7 +34,7 @@ async def create_user(
 
 @router.get("/{user_id}", response_model=ApiResponse[UserResponse])
 async def get_user(
-    user_id: int,
+    user_id: UUID,
     service: UserServiceDep,
 ) -> ApiResponse[UserResponse]:
     """获取单个用户"""
@@ -42,7 +44,7 @@ async def get_user(
 
 @router.delete("/{user_id}", response_model=ApiResponse[None], status_code=status.HTTP_200_OK)
 async def delete_user(
-    user_id: int,
+    user_id: UUID,
     service: UserServiceDep,
 ) -> ApiResponse[None]:
     """删除用户"""
