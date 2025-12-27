@@ -434,8 +434,11 @@ from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime, timezone
+from sqlalchemy import delete
 
 from app.config import get_settings
+from app.core.database import AsyncSessionLocal
+from app.modules.session.models import UserSession
 
 settings = get_settings()
 scheduler: AsyncIOScheduler | None = None
@@ -459,7 +462,7 @@ async def generate_daily_report():
 def init_scheduler() -> AsyncIOScheduler:
     global scheduler
 
-    # 持久化（可选）：SQLAlchemyJobStore 需要同步驱动
+    # 持久化（可选）：SQLAlchemyJobStore 仅支持同步驱动
     jobstores = {
         # PostgreSQL 示例：postgresql+psycopg://user:pass@host/db
         "default": SQLAlchemyJobStore(url="sqlite:///./scheduler.db"),

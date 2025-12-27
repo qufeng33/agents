@@ -729,7 +729,7 @@ CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0"]
 数据库处理聚合比 Python 更快更高效。
 
 ```python
-# ❌ Python 侧聚合 - 加载全部数据到内存
+# ❌ Python 侧聚合 - 加载全部数据到内存（示例用途，生产环境禁止，可能导致 OOM）
 async def get_stats_slow(db: AsyncSession):
     result = await db.execute(select(Post))
     posts = result.scalars().all()
