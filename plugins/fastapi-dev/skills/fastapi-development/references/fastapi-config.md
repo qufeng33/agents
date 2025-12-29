@@ -98,13 +98,13 @@ class Settings(BaseSettings):
     # ----------------------------------------------------------
     # 列表字段：支持逗号分隔或 JSON 格式
     # ----------------------------------------------------------
-    cors_origins: list[str] = []
+    cors_origins: list[str] = Field(default_factory=list)
 
     # ----------------------------------------------------------
     # 嵌套配置
     # ----------------------------------------------------------
     db: DatabaseConfig
-    redis: RedisConfig = RedisConfig()  # 可选嵌套，有默认值
+    redis: RedisConfig = Field(default_factory=RedisConfig)  # 可选嵌套，有默认值
 
     # ----------------------------------------------------------
     # 计算属性（供 SQLAlchemy 等使用）

@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     db: DatabaseConfig
 
     # CORS
-    cors_origins: list[str] = []
+    cors_origins: list[str] = Field(default_factory=list)
 
     @computed_field
     @property

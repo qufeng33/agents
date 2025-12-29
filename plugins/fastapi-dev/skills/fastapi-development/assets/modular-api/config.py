@@ -71,10 +71,10 @@ class Settings(BaseSettings):
     db: DatabaseConfig
 
     # Redis（可选）
-    redis: RedisConfig = RedisConfig()
+    redis: RedisConfig = Field(default_factory=RedisConfig)
 
     # CORS（空列表=不启用）
-    cors_origins: list[str] = []
+    cors_origins: list[str] = Field(default_factory=list)
 
     @computed_field
     @property
