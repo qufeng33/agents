@@ -51,7 +51,7 @@ argument-hint: "<scope>"
 | 职责分离 | Service 处理 HTTP？ |
 | 循环导入 | 模块间循环依赖？ |
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-patterns.md`
+> 参考 **fastapi-development** skill 的 `references/fastapi-layered-architecture.md`
 
 #### 3.3 性能检查
 
@@ -73,7 +73,7 @@ argument-hint: "<scope>"
 | 认证检查 | 端点缺少认证？ |
 | 输入验证 | 用户输入未验证？ |
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-security.md`
+> 参考 **fastapi-development** skill 的 `references/fastapi-authentication.md`
 
 #### 3.5 测试覆盖
 

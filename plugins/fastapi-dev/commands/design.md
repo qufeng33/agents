@@ -23,7 +23,7 @@ argument-hint: "<feature_description>"
 3. **确定优先级** - P0（必须）/ P1（应该）/ P2（可选）
 4. **确认兼容性要求** - 是否已有客户端？是否需要向后兼容？
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-architecture.md`
+> 参考 **fastapi-development** skill 的 `references/fastapi-project-planning.md`
 
 ### Phase 2: 技术选型
 
@@ -38,7 +38,7 @@ argument-hint: "<feature_description>"
 
 **原则**：不需要就不引入，保持简单。
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-architecture.md`
+> 参考 **fastapi-development** skill 的 `references/fastapi-project-planning.md`
 
 ### Phase 3: 数据库设计
 
@@ -47,7 +47,7 @@ argument-hint: "<feature_description>"
 3. **设计表结构** - 使用表设计模板
 4. **规划索引** - 根据查询模式
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-architecture.md`（表设计模板）
+> 参考 **fastapi-development** skill 的 `references/fastapi-database-orm.md`（表设计模板）
 
 ### Phase 4: API 设计
 
@@ -71,7 +71,7 @@ argument-hint: "<feature_description>"
 ## 5. 风险和依赖
 ```
 
-> 模板详见 **fastapi-development** skill 的 `references/fastapi-architecture.md`
+> 模板详见 **fastapi-development** skill 的 `references/fastapi-project-planning.md`
 
 ## 与 /feature 的关系
 

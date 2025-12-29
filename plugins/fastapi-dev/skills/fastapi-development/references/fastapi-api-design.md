@@ -371,7 +371,7 @@ api_router.include_router(user_router, prefix="/users", tags=["users"])
 api_router.include_router(item_router, prefix="/items", tags=["items"])
 ```
 
-> **在 main.py 中调用** 详见 [应用启动与初始化](./fastapi-startup.md)
+> **在 main.py 中调用** 详见 [应用生命周期](./fastapi-app-lifecycle.md)
 
 ---
 

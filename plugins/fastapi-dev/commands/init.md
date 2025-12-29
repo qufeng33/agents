@@ -83,7 +83,7 @@ argument-hint: "[project-name]"
 - `app/core/database.py` - 数据库连接
 - `app/core/security.py` - 认证模块（如需要）
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-startup.md`
+> 参考 **fastapi-development** skill 的 `references/fastapi-app-lifecycle.md`
 
 ## Step 6: 完成设置
 

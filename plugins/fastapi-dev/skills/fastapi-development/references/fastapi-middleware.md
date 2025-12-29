@@ -415,7 +415,7 @@ def setup_middlewares(app: FastAPI) -> None:
     app.add_middleware(LoggingMiddleware)
 ```
 
-> **在 main.py 中调用** 详见 [应用启动与初始化](./fastapi-startup.md)
+> **在 main.py 中调用** 详见 [应用生命周期](./fastapi-app-lifecycle.md)
 
 ---
 

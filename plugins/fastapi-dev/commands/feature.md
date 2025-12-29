@@ -32,7 +32,7 @@ argument-hint: "<feature_description>"
 
 > 如需完整设计文档，使用 `/design` 命令
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-architecture.md`
+> 参考 **fastapi-development** skill 的 `references/fastapi-project-planning.md`
 
 ### Phase 2: 确认开发模式
 
@@ -52,7 +52,7 @@ argument-hint: "<feature_description>"
 > 参考 **fastapi-development** skill：
 > - `references/fastapi-models.md` - Pydantic 模型设计
 > - `references/fastapi-api-design.md` - REST API 设计规范
-> - `references/fastapi-patterns.md` - 分层架构模式
+> - `references/fastapi-layered-architecture.md` - 分层架构模式
 
 ### Phase 4: 实现
 
@@ -68,7 +68,7 @@ argument-hint: "<feature_description>"
 2. **补充测试** - 为已实现的功能编写测试
 
 > 参考 **fastapi-development** skill：
-> - `references/fastapi-patterns.md` - Service/Repository 实现
+> - `references/fastapi-layered-architecture.md` - Service/Repository 实现
 > - `references/fastapi-testing.md` - 测试编写指南
 
 ### Phase 5: 集成
@@ -78,7 +78,7 @@ argument-hint: "<feature_description>"
 3. 更新 API 文档
 
 > 参考 **fastapi-development** skill：
-> - `references/fastapi-database.md` - 数据库迁移
+> - `references/fastapi-database-migrations.md` - 数据库迁移
 
 ### Phase 6: 验证
 

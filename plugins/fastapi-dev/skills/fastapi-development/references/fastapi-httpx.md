@@ -50,7 +50,7 @@ async def get_http_client(request: Request) -> httpx.AsyncClient:
 HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]
 ```
 
-在 lifespan 中初始化（完整启动流程详见 [应用启动与初始化](./fastapi-startup.md)）：
+在 lifespan 中初始化（完整启动流程详见 [应用生命周期](./fastapi-app-lifecycle.md)）：
 
 ```python
 @asynccontextmanager

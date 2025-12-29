@@ -199,7 +199,7 @@ def get_settings() -> Settings:
 
 > 完整配置管理详见 [配置管理](./fastapi-config.md)
 
-> 完整应用启动流程详见 [应用启动与初始化](./fastapi-startup.md)
+> 完整应用启动流程详见 [应用生命周期](./fastapi-app-lifecycle.md)
 >
 > 请求日志中间件详见 [中间件](./fastapi-middleware.md)
 

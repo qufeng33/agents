@@ -17,7 +17,7 @@
 
 在业务表中增加 `created_by` / `updated_by` 字段，记录操作者。
 
-> 审计字段的数据库设计（类型、外键、命名规范）请参考 [数据库集成](./fastapi-database.md)。
+> 审计字段的数据库设计（类型、外键、命名规范）请参考 [ORM 基类](./fastapi-database-orm.md)。
 
 ### 使用 contextvars 自动注入
 
@@ -109,7 +109,7 @@ def set_updated_by(mapper: Mapper, connection, target):
 
 ### 完整模型示例
 
-> AuditMixin 的字段定义见 [数据库集成](./fastapi-database.md)。
+> AuditMixin 的字段定义见 [ORM 基类](./fastapi-database-orm.md)。
 
 ```python
 # modules/post/models.py

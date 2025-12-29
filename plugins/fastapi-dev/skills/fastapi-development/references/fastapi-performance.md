@@ -215,7 +215,7 @@ async_engine = create_async_engine(
 )
 ```
 
-> 完整的异步引擎配置、Session 管理详见 [数据库集成](./fastapi-database.md)
+> 完整的异步引擎配置、Session 管理详见 [数据库配置](./fastapi-database-setup.md)
 
 ### 预加载关联（避免 N+1）
 

@@ -154,7 +154,7 @@ app/
 - Repository 模式封装数据访问
 - 事务管理在 Service 层
 
-详见 [数据库集成](./references/fastapi-database.md)
+详见 [数据库配置](./references/fastapi-database-setup.md) | [ORM 基类](./references/fastapi-database-orm.md) | [Repository 模式](./references/fastapi-database-patterns.md)
 
 ---
 
@@ -169,18 +169,17 @@ app/
 
 > 选型建议：简单通知 → BackgroundTasks | 异步优先 → ARQ | 复杂工作流 → Celery | 定时任务 → APScheduler
 
-详见 [后台任务](./references/fastapi-tasks.md)
+详见 [BackgroundTasks](./references/fastapi-tasks-background.md) | [ARQ](./references/fastapi-tasks-arq.md) | [Celery](./references/fastapi-tasks-celery.md) | [APScheduler](./references/fastapi-tasks-scheduler.md)
 
 ---
 
 ## 参考文档
 
-按主题分类的详细文档。索引文档（如 database.md）提供概览和导航。
+按主题分类的详细文档：
 
 | 分类 | 主题 | 文档 | 说明 |
 |------|------|------|------|
 | **核心** | 项目规划 | [fastapi-project-planning.md](./references/fastapi-project-planning.md) | 需求分析、技术选型、设计文档模板 |
-| | 核心模式 | [fastapi-patterns.md](./references/fastapi-patterns.md) | 模式索引 |
 | | 分层架构 | [fastapi-layered-architecture.md](./references/fastapi-layered-architecture.md) | Router/Service/Repository 分层 |
 | | 依赖注入 | [fastapi-dependency-injection.md](./references/fastapi-dependency-injection.md) | Annotated、依赖链、类依赖 |
 | | 应用生命周期 | [fastapi-app-lifecycle.md](./references/fastapi-app-lifecycle.md) | lifespan、init/setup/close 模式 |
@@ -189,17 +188,14 @@ app/
 | | 错误处理 | [fastapi-errors.md](./references/fastapi-errors.md) | 异常体系、统一响应、错误码 |
 | | 中间件 | [fastapi-middleware.md](./references/fastapi-middleware.md) | CORS、日志、限流、安全响应头 |
 | | 项目结构 | [fastapi-project-structure.md](./references/fastapi-project-structure.md) | 简单/模块化布局 |
-| **数据** | 数据库 | [fastapi-database.md](./references/fastapi-database.md) | 数据库索引 |
-| | 数据库配置 | [fastapi-database-setup.md](./references/fastapi-database-setup.md) | 连接池、Session、get_db |
+| **数据** | 数据库配置 | [fastapi-database-setup.md](./references/fastapi-database-setup.md) | 连接池、Session、get_db |
 | | ORM 基类 | [fastapi-database-orm.md](./references/fastapi-database-orm.md) | UUIDv7、软删除、时间戳 |
 | | Repository | [fastapi-database-patterns.md](./references/fastapi-database-patterns.md) | 事务、关联加载、分页 |
 | | 迁移 | [fastapi-database-migrations.md](./references/fastapi-database-migrations.md) | Alembic 配置、同步兼容 |
 | | 审计日志 | [fastapi-audit.md](./references/fastapi-audit.md) | 操作追踪、变更历史 |
-| **安全** | 安全索引 | [fastapi-security.md](./references/fastapi-security.md) | 安全索引 |
-| | 认证 | [fastapi-authentication.md](./references/fastapi-authentication.md) | OAuth2、JWT、API Key |
+| **安全** | 认证 | [fastapi-authentication.md](./references/fastapi-authentication.md) | OAuth2、JWT、API Key |
 | | 权限 | [fastapi-permissions.md](./references/fastapi-permissions.md) | 角色、Scopes、敏感数据 |
-| **运维** | 后台任务 | [fastapi-tasks.md](./references/fastapi-tasks.md) | 任务索引 |
-| | 内置任务 | [fastapi-tasks-background.md](./references/fastapi-tasks-background.md) | BackgroundTasks |
+| **运维** | 内置任务 | [fastapi-tasks-background.md](./references/fastapi-tasks-background.md) | BackgroundTasks |
 | | ARQ | [fastapi-tasks-arq.md](./references/fastapi-tasks-arq.md) | 异步任务队列 |
 | | Celery | [fastapi-tasks-celery.md](./references/fastapi-tasks-celery.md) | 企业级任务系统 |
 | | 定时任务 | [fastapi-tasks-scheduler.md](./references/fastapi-tasks-scheduler.md) | APScheduler |

@@ -130,7 +130,7 @@
 | 外键 | `{table}_id` | `user_id`, `order_id` |
 | 索引 | `ix_{table}_{columns}` | `ix_user_email` |
 
-推荐策略与数据库文档一致（单数表名 + UUIDv7）：见 [数据库设计](./fastapi-database.md)。
+推荐策略与数据库文档一致（单数表名 + UUIDv7）：见 [ORM 基类](./fastapi-database-orm.md)。
 
 ### 表设计模板
 

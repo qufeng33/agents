@@ -359,7 +359,7 @@ def setup_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(Exception, unhandled_error_handler)
 ```
 
-> **完整 main.py 示例** 详见 [应用启动与初始化](./fastapi-startup.md)
+> **完整 main.py 示例** 详见 [应用生命周期](./fastapi-app-lifecycle.md)
 
 ---
 
@@ -554,7 +554,7 @@ async def get_item(item_id: UUID, service: ItemServiceDep) -> ApiResponse[ItemRe
 
 - **日志记录** - 详见 [日志](./fastapi-logging.md)
 - **请求追踪** - 详见 [中间件](./fastapi-middleware.md)
-- **应用启动** - 详见 [应用启动与初始化](./fastapi-startup.md)
+- **应用启动** - 详见 [应用生命周期](./fastapi-app-lifecycle.md)
 
 ---
 

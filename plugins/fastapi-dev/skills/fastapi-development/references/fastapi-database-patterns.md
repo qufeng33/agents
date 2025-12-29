@@ -36,7 +36,7 @@ DBSession 不应直接注入到 Router，而是通过分层架构访问：
 Router → Service → Repository → DBSession
 ```
 
-完整的分层模式详见 [核心模式 - 分层架构](./fastapi-patterns.md#分层架构)。
+完整的分层模式详见 [分层架构](./fastapi-layered-architecture.md)。
 
 ---
 
@@ -267,4 +267,4 @@ async def get_stats(db: AsyncSession):
 - [数据库配置](./fastapi-database-setup.md)
 - [ORM 基类与软删除](./fastapi-database-orm.md)
 - [数据库迁移](./fastapi-database-migrations.md)
-- [核心模式](./fastapi-patterns.md)
+- [分层架构](./fastapi-layered-architecture.md)

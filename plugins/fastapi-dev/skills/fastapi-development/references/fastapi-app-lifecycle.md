@@ -152,5 +152,6 @@ async def call_external(client: HttpClient):
 ## 相关文档
 
 - [项目结构](./fastapi-project-structure.md) - 目录布局
-- [核心模式](./fastapi-patterns.md) - 依赖注入、分层架构
+- [分层架构](./fastapi-layered-architecture.md) - Router/Service/Repository
+- [依赖注入](./fastapi-dependency-injection.md) - Annotated、依赖链
 - [中间件](./fastapi-middleware.md) - CORS、GZip 等配置

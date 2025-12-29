@@ -258,4 +258,4 @@ async def update_item(
 ## 相关文档
 
 - [分层架构](./fastapi-layered-architecture.md) - Router/Service/Repository 分层
-- [核心模式](./fastapi-patterns.md) - async def vs def、并发请求
+- [性能优化](./fastapi-performance.md) - async def vs def、并发请求
