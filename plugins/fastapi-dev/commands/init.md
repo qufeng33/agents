@@ -71,6 +71,7 @@ argument-hint: "[project-name]"
    packages = ["app"]
    ```
 2. pytest / ruff / ty 配置
+3. ty 安装与执行：`uv tool install ty` 或 `uvx ty check`
 
 > 参考 **fastapi-development** skill 的 `references/fastapi-tooling.md`
 
