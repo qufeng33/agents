@@ -107,7 +107,7 @@ ruff format .         # 格式化
 [tool.ruff]
 target-version = "py313"
 line-length = 100
-exclude = [".venv", "migrations"]
+exclude = [".venv", "alembic"]
 
 [tool.ruff.lint]
 select = [
@@ -169,7 +169,7 @@ unresolved-attribute = "warn"
 possibly-unbound = "warn"
 
 [tool.ty.src]
-exclude = ["migrations/**", ".venv/**"]
+exclude = ["alembic/**", ".venv/**"]
 ```
 
 ---

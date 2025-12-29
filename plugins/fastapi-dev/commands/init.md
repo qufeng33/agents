@@ -90,7 +90,7 @@ argument-hint: "[project-name]"
 ## Step 6: 完成设置
 
 1. `git init`（如尚未初始化）
-2. `alembic init alembic`
+2. `alembic init -t async alembic`
 3. 生成 `.env.example` 和 `.gitignore`
    - **注意**：`uv.lock` 应提交到版本控制，不要加入 .gitignore
 

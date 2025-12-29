@@ -5,13 +5,13 @@
 ### 异步初始化
 
 ```bash
-alembic init -t async migrations
+alembic init -t async alembic
 ```
 
 ### 配置 env.py
 
 ```python
-# migrations/env.py
+# alembic/env.py
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.config import get_settings

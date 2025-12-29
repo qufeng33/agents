@@ -410,7 +410,7 @@ branch = true
 omit = [
     "*/tests/*",
     "*/__init__.py",
-    "*/migrations/*",
+    "*/alembic/*",
 ]
 
 [tool.coverage.report]
