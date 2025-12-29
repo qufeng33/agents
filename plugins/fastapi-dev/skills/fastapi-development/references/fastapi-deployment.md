@@ -367,13 +367,9 @@ server {
 ## 健康检查端点
 
 ```python
-from fastapi import APIRouter, status
-from fastapi.responses import JSONResponse
-from sqlalchemy import text
+from fastapi import APIRouter
 
-from app.core.error_codes import ErrorCode
-from app.schemas.response import ApiResponse, ErrorResponse
-from app.services.health_service import HealthServiceDep
+from app.schemas.response import ApiResponse
 
 router = APIRouter()
 
@@ -381,40 +377,6 @@ router = APIRouter()
 @router.get("/health", response_model=ApiResponse[dict[str, str]])
 async def health() -> ApiResponse[dict[str, str]]:
     return ApiResponse(data={"status": "ok"})
-
-
-@router.get("/health/ready", response_model=ApiResponse[dict[str, str]])
-async def readiness(service: HealthServiceDep) -> ApiResponse[dict[str, str]]:
-    """就绪检查：验证依赖服务"""
-    try:
-        await service.check_database()
-        return ApiResponse(data={"status": "ready", "database": "ok"})
-    except Exception as e:
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content=ErrorResponse(
-                code=ErrorCode.SERVICE_UNAVAILABLE,
-                message="Service unavailable",
-                detail={"database": str(e)},
-            ).model_dump(),
-        )
-
-
-@router.get("/health/live", response_model=ApiResponse[dict[str, str]])
-async def liveness() -> ApiResponse[dict[str, str]]:
-    """存活检查：应用是否运行"""
-    return ApiResponse(data={"status": "alive"})
-```
-
-```python
-# services/health_service.py
-from app.dependencies import DBSession
-class HealthService:
-    def __init__(self, db: DBSession):
-        self.db = db
-
-    async def check_database(self) -> None:
-        await self.db.execute(text("SELECT 1"))
 ```
 
 ---
