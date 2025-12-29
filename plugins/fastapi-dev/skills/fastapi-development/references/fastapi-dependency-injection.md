@@ -1,4 +1,6 @@
 # FastAPI 依赖注入
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+
 
 ## 基本用法（Annotated 推荐）
 
@@ -93,7 +95,7 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 ```
 
 ```python
-# routers/users.py（只导入依赖，不定义）
+# routers/app_users.py（只导入依赖，不定义）
 from uuid import UUID
 
 from app.dependencies import UserServiceDep
@@ -163,7 +165,7 @@ class PermissionChecker:
 require_admin = PermissionChecker(["admin"])
 
 
-@router.delete("/users/{user_id}", response_model=ApiResponse[None])
+@router.delete("/app_users/{user_id}", response_model=ApiResponse[None])
 async def delete_user(
     user_id: UUID,
     admin: Annotated[User, Depends(require_admin)],

@@ -1,4 +1,6 @@
 # FastAPI 审计日志
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+
 
 记录谁、在什么时候、对什么数据、做了什么操作。用于合规、问题追溯、数据恢复。
 
@@ -501,7 +503,7 @@ def create_audit_log(...):
 
 ```python
 class User(Base):
-    __tablename__ = "user"
+    __tablename__ = "app_user"
     __audit_exclude__ = {"hashed_password", "reset_token"}  # 排除的字段
 
     email: Mapped[str]

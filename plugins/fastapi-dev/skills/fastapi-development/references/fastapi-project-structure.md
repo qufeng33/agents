@@ -1,4 +1,6 @@
 # FastAPI 项目结构
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+
 
 ## 如何选择结构
 
@@ -26,7 +28,7 @@ app/
 │
 ├── routers/             # 路由层（按资源划分）
 │   ├── __init__.py
-│   ├── users.py
+│   ├── app_users.py
 │   └── items.py
 │
 ├── schemas/             # Pydantic 模型
@@ -84,7 +86,7 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 ```
 
 ```python
-# routers/users.py（只导入依赖，不定义）
+# routers/app_users.py（只导入依赖，不定义）
 from fastapi import APIRouter, status
 
 from app.dependencies import UserServiceDep
@@ -213,7 +215,7 @@ from app.modules.user.router import router as user_router
 
 api_router = APIRouter()
 
-api_router.include_router(user_router, prefix="/users", tags=["users"])
+api_router.include_router(user_router, prefix="/app_users", tags=["app_users"])
 # 添加其他模块路由：
 # from app.modules.item.router import router as item_router
 # api_router.include_router(item_router, prefix="/items", tags=["items"])
@@ -251,7 +253,7 @@ HTTP处理  业务逻辑    数据访问
 | 元素 | 命名方式 | 示例 |
 |------|----------|------|
 | 模块目录 | 单数 | `modules/user/`, `modules/order/` |
-| API 路径 | 复数 | `/api/v1/users`, `/api/v1/orders` |
+| API 路径 | 复数 | `/api/v1/app_users`, `/api/v1/orders` |
 | 类名 | 单数 | `User`, `UserService`, `UserRepository` |
 | 测试文件 | 单数 | `test_user.py`, `test_order.py` |
 

@@ -1,4 +1,6 @@
 # FastAPI 权限控制
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+
 
 ## 基于角色
 
@@ -30,7 +32,7 @@ allow_admin = RoleChecker([Role.ADMIN])
 allow_moderator = RoleChecker([Role.ADMIN, Role.MODERATOR])
 
 
-@router.delete("/users/{user_id}")
+@router.delete("/app_users/{user_id}")
 async def delete_user(
     user_id: UUID,
     admin: Annotated[User, Depends(allow_admin)],

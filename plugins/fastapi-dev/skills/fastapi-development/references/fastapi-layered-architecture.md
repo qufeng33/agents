@@ -1,4 +1,6 @@
 # FastAPI 分层架构
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+
 
 ## 概述
 
@@ -98,7 +100,7 @@ from app.schemas.response import ApiResponse
 from app.modules.user.dependencies import UserServiceDep
 from app.modules.user.schemas import UserCreate, UserResponse
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(prefix="/app_users", tags=["app_users"])
 
 
 @router.get("/{user_id}", response_model=ApiResponse[UserResponse])

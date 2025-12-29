@@ -1,4 +1,6 @@
 # FastAPI 架构设计
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+
 
 专注于**设计和规划**，输出设计文档而非代码。
 
@@ -170,12 +172,12 @@
 
 | 操作 | HTTP 方法 | 路径示例 |
 |------|-----------|----------|
-| 列表 | GET | /users |
-| 详情 | GET | /users/{id} |
-| 创建 | POST | /users |
-| 全量更新 | PUT | /users/{id} |
-| 部分更新 | PATCH | /users/{id} |
-| 删除 | DELETE | /users/{id} |
+| 列表 | GET | /app_users |
+| 详情 | GET | /app_users/{id} |
+| 创建 | POST | /app_users |
+| 全量更新 | PUT | /app_users/{id} |
+| 部分更新 | PATCH | /app_users/{id} |
+| 删除 | DELETE | /app_users/{id} |
 
 ### API 设计模板
 

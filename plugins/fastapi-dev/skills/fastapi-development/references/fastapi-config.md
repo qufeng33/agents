@@ -1,4 +1,5 @@
 # FastAPI 配置管理
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
 
 > pydantic-settings 最佳实践
 

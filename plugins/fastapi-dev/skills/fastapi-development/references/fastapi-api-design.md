@@ -1,4 +1,6 @@
 # FastAPI API 设计原则
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+
 
 ## RESTful 设计规范
 
@@ -6,20 +8,20 @@
 
 ```python
 # 资源用名词复数，不用动词
-GET    /api/users              # 获取用户列表
-POST   /api/users              # 创建用户
-GET    /api/users/{id}         # 获取单个用户
-PUT    /api/users/{id}         # 完整更新用户
-PATCH  /api/users/{id}         # 部分更新用户
-DELETE /api/users/{id}         # 删除用户
+GET    /api/app_users              # 获取用户列表
+POST   /api/app_users              # 创建用户
+GET    /api/app_users/{id}         # 获取单个用户
+PUT    /api/app_users/{id}         # 完整更新用户
+PATCH  /api/app_users/{id}         # 部分更新用户
+DELETE /api/app_users/{id}         # 删除用户
 
 # 嵌套资源（表示从属关系）
-GET    /api/users/{id}/orders  # 获取用户的订单
-POST   /api/users/{id}/orders  # 为用户创建订单
+GET    /api/app_users/{id}/orders  # 获取用户的订单
+POST   /api/app_users/{id}/orders  # 为用户创建订单
 
 # 避免（反模式）
 POST   /api/createUser         # ❌ 动词
-POST   /api/user/create        # ❌ 动词
+POST   /api/app_users/create   # ❌ 动词
 GET    /api/getUserById        # ❌ 动词
 ```
 
@@ -47,19 +49,19 @@ from fastapi import status
 from app.schemas.response import ApiResponse
 
 
-@router.get("/users/{user_id}", response_model=ApiResponse[UserResponse])
+@router.get("/app_users/{user_id}", response_model=ApiResponse[UserResponse])
 async def get_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[UserResponse]:
     user = await service.get(user_id)
     return ApiResponse(data=user)  # 200 OK（默认）
 
 
-@router.post("/users", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
+@router.post("/app_users", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
 async def create_user(user_in: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
     user = await service.create(user_in)
     return ApiResponse(data=user)  # 201 Created
 
 
-@router.delete("/users/{user_id}", response_model=ApiResponse[None], status_code=status.HTTP_200_OK)
+@router.delete("/app_users/{user_id}", response_model=ApiResponse[None], status_code=status.HTTP_200_OK)
 async def delete_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[None]:
     await service.delete(user_id)
     return ApiResponse(data=None, message="User deleted")  # 200 OK
@@ -101,7 +103,7 @@ from fastapi import Query
 from app.schemas.response import ApiPagedResponse
 
 
-@router.get("/users", response_model=ApiPagedResponse[UserResponse])
+@router.get("/app_users", response_model=ApiPagedResponse[UserResponse])
 async def list_users(
     service: UserServiceDep,
     page: Annotated[int, Query(ge=0, description="页码（从 0 开始）")] = 0,
@@ -203,7 +205,7 @@ class UserStatus(str, Enum):
     SUSPENDED = "suspended"
 
 
-@router.get("/users", response_model=ApiPagedResponse[UserResponse])
+@router.get("/app_users", response_model=ApiPagedResponse[UserResponse])
 async def list_users(
     service: UserServiceDep,
     page: int = Query(default=0, ge=0, description="页码（从 0 开始）"),
@@ -309,11 +311,11 @@ class UserDetailResponse(UserResponse):
 from fastapi import APIRouter
 
 v1_router = APIRouter()
-v1_router.include_router(users_router, prefix="/users")
+v1_router.include_router(app_users_router, prefix="/app_users")
 
 # app/api/v2/router.py
 v2_router = APIRouter()
-v2_router.include_router(users_v2_router, prefix="/users")
+v2_router.include_router(app_users_v2_router, prefix="/app_users")
 
 # main.py
 app.include_router(v1_router, prefix="/api/v1")
@@ -326,8 +328,8 @@ app.include_router(v2_router, prefix="/api/v2")
 
 ```python
 # 需要兼容：新版本添加新功能
-# v1: GET /api/v1/users → UserResponse
-# v2: GET /api/v2/users → UserResponseV2（添加新字段）
+# v1: GET /api/v1/app_users → UserResponse
+# v2: GET /api/v2/app_users → UserResponseV2（添加新字段）
 
 class UserResponseV2(UserResponse):
     """V2 新增字段"""
@@ -367,7 +369,7 @@ from app.modules.item.router import router as item_router
 
 api_router = APIRouter()
 
-api_router.include_router(user_router, prefix="/users", tags=["users"])
+api_router.include_router(user_router, prefix="/app_users", tags=["app_users"])
 api_router.include_router(item_router, prefix="/items", tags=["items"])
 ```
 

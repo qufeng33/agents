@@ -1,4 +1,6 @@
 # FastAPI 错误处理与统一响应
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+
 
 ## 设计原则
 
@@ -521,7 +523,7 @@ async def get_user_or_404(user_id: UUID, db: DBSession) -> User:
 ValidUser = Annotated[User, Depends(get_user_or_404)]
 
 
-@router.get("/users/{user_id}")
+@router.get("/app_users/{user_id}")
 async def get_user(user: ValidUser) -> ApiResponse[UserResponse]:
     return ApiResponse(data=UserResponse.model_validate(user))
 ```

@@ -1,4 +1,6 @@
 # FastAPI Repository 与事务
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+
 
 ## 依赖注入
 
@@ -60,7 +62,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class User(Base):
-    __tablename__ = "user"
+    __tablename__ = "app_user"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     name: Mapped[str]
@@ -77,7 +79,7 @@ class Post(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
     title: Mapped[str]
-    author_id: Mapped[UUID] = mapped_column(ForeignKey("user.id"))
+    author_id: Mapped[UUID] = mapped_column(ForeignKey("app_user.id"))
 
     author: Mapped["User"] = relationship(
         back_populates="posts",

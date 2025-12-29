@@ -1,4 +1,6 @@
 # FastAPI ORM 基类与软删除
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+
 
 ## ORM 基类增强
 
@@ -140,11 +142,11 @@ class AuditMixin:
     """审计字段 Mixin"""
 
     created_by: Mapped[UUID | None] = mapped_column(
-        ForeignKey("user.id", ondelete="SET NULL"),
+        ForeignKey("app_user.id", ondelete="SET NULL"),
         default=None,
     )
     updated_by: Mapped[UUID | None] = mapped_column(
-        ForeignKey("user.id", ondelete="SET NULL"),
+        ForeignKey("app_user.id", ondelete="SET NULL"),
         default=None,
         onupdate=None,  # 手动设置，见审计日志文档
     )
@@ -209,14 +211,14 @@ from sqlalchemy import Index, text
 
 
 class User(Base):
-    __tablename__ = "user"
+    __tablename__ = "app_user"
 
     email: Mapped[str] = mapped_column(unique=False)  # 不用列级 unique
 
     __table_args__ = (
         # 只对未删除的记录强制唯一
         Index(
-            "uq_user_email_active",
+            "uq_app_user_email_active",
             "email",
             unique=True,
             postgresql_where=text("deleted_at IS NULL"),

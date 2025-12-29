@@ -1,4 +1,6 @@
 # FastAPI 测试
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+
 
 ## 概述
 
@@ -95,7 +97,7 @@ async def client() -> AsyncClient:
 @pytest.mark.asyncio
 async def test_create_user(client: AsyncClient):
     response = await client.post(
-        "/users/",
+        "/app_users/",
         json={"email": "test@example.com", "password": "password123"},
     )
     assert response.status_code == 201
@@ -221,7 +223,7 @@ async def authenticated_client(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_protected_route(authenticated_client: AsyncClient):
-    response = await authenticated_client.get("/users/me")
+    response = await authenticated_client.get("/app_users/me")
     assert response.status_code == 200
     assert response.json()["data"]["email"] == "test@example.com"
 ```
@@ -277,7 +279,7 @@ async def test_create_user_validation(
     expected_status: int,
 ):
     response = await client.post(
-        "/users/",
+        "/app_users/",
         json={"email": email, "password": password},
     )
     assert response.status_code == expected_status
@@ -297,7 +299,7 @@ from app.core.exceptions import UserNotFoundError
 @pytest.mark.asyncio
 async def test_get_nonexistent_user(client: AsyncClient):
     user_id = uuid4()
-    response = await client.get(f"/users/{user_id}")
+    response = await client.get(f"/app_users/{user_id}")
     assert response.status_code == 404
     assert response.json()["code"] == ErrorCode.USER_NOT_FOUND
 

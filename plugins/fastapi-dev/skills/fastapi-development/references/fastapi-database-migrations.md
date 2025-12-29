@@ -1,4 +1,5 @@
 # FastAPI 数据库迁移
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
 
 ## Alembic 配置
 
@@ -80,7 +81,7 @@ else:
 
 ```bash
 # 创建迁移
-alembic revision --autogenerate -m "add user table"
+alembic revision --autogenerate -m "add app_user table"
 
 # 执行迁移
 alembic upgrade head

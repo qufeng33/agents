@@ -1,4 +1,5 @@
 # FastAPI 开发工具
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
 
 ## uv 包管理
 
@@ -240,7 +241,7 @@ uv 与 Docker 配合使用的要点：
 | 类型 | 规范 | 示例 |
 |------|------|------|
 | 模块 | `lowercase` | `users`, `auth` |
-| 路由文件 | `router.py` 或 `{resource}.py` | `users.py` |
+| 路由文件 | `router.py` 或 `{resource}.py` | `app_users.py` |
 | 服务文件 | `service.py` 或 `{resource}_service.py` | `user_service.py` |
 
 ### 代码元素

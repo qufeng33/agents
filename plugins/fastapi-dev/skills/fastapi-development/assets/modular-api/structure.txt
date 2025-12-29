@@ -86,5 +86,6 @@ app/
 
 # 命名约定：
 # - 模块目录使用单数（user, item, order）
-# - API 资源路径使用复数（/users, /items, /orders）
+# - API 资源路径使用复数（/app_users, /items, /orders）
+# - user 为保留字，表名使用 app_user
 # - 类名使用单数（User, UserService, UserRepository）

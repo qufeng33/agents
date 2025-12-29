@@ -32,11 +32,11 @@ class AuditMixin:
     """
 
     created_by: Mapped[UUID | None] = mapped_column(
-        ForeignKey("user.id", ondelete="SET NULL"),
+        ForeignKey("app_user.id", ondelete="SET NULL"),
         default=None,
     )
     updated_by: Mapped[UUID | None] = mapped_column(
-        ForeignKey("user.id", ondelete="SET NULL"),
+        ForeignKey("app_user.id", ondelete="SET NULL"),
         default=None,
     )
 
