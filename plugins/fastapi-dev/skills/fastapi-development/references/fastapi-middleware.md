@@ -261,13 +261,19 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 # app/dependencies.py
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header
+from app.core.error_codes import ErrorCode
+from app.core.exceptions import UnauthorizedError
 
 
 async def verify_api_key(x_api_key: str = Header()) -> str:
     settings = get_settings()
     if x_api_key != settings.api_key.get_secret_value():
-        raise HTTPException(401, "Invalid API key")
+        raise UnauthorizedError(
+            code=ErrorCode.UNAUTHORIZED,
+            message="Invalid API key",
+            detail=None,
+        )
     return x_api_key
 
 

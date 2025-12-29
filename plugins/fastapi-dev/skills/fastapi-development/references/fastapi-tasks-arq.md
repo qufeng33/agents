@@ -171,6 +171,8 @@ async def unreliable_task(ctx: dict, data: str):
 from typing import Any
 from arq.jobs import Job
 from app.schemas.response import ApiResponse
+from app.core.error_codes import ErrorCode
+from app.core.exceptions import NotFoundError
 
 
 @router.get("/jobs/{job_id}", response_model=ApiResponse[dict[str, Any]])
@@ -179,7 +181,11 @@ async def get_job_status(job_id: str, arq: ArqPool) -> ApiResponse[dict[str, Any
     info = await job.info()
 
     if info is None:
-        raise HTTPException(404, "Job not found")
+        raise NotFoundError(
+            code=ErrorCode.RESOURCE_NOT_FOUND,
+            message="Job not found",
+            detail={"job_id": job_id},
+        )
 
     return ApiResponse(
         data={

@@ -32,7 +32,7 @@ FastAPI 全流程开发支持。
 |------|------|
 | Commands | `init`, `design`, `feature`, `review`, `test`, `refactor` |
 | Agent | `fastapi-pro` (Opus) |
-| Skill | `fastapi-development` (19 份参考文档) |
+| Skill | `fastapi-development` (25 份参考文档) |
 
 技术栈：FastAPI ≥0.120.0 / Pydantic v2 / SQLAlchemy 2.0 (async) / pytest-asyncio / uv + ruff + ty
 

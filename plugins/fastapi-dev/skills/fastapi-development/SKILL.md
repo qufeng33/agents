@@ -214,11 +214,16 @@ app/
 
 ## 获取更多文档
 
-使用 context7 获取最新官方文档：
+使用 context7 获取最新官方文档（先解析库 ID）：
+
+```
+mcp__context7__resolve-library-id
+  libraryName: fastapi
+```
 
 ```
 mcp__context7__get-library-docs
-  context7CompatibleLibraryID: /fastapi/fastapi
+  context7CompatibleLibraryID: <resolve 返回的 ID>
   topic: <相关主题>
   mode: code (API/示例) 或 info (概念)
 ```

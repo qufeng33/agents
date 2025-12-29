@@ -38,7 +38,7 @@
 
 ### Skill
 
-- `fastapi-development` - 架构设计 + 代码实现最佳实践，含 19 份参考文档
+- `fastapi-development` - 架构设计 + 代码实现最佳实践，含 25 份参考文档
 
 ## 核心原则
 

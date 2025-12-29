@@ -27,6 +27,7 @@
 # core/context.py
 from contextvars import ContextVar
 from uuid import UUID
+from uuid_utils import uuid7
 
 # 当前用户上下文
 current_user_id: ContextVar[UUID | None] = ContextVar("current_user_id", default=None)

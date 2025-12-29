@@ -27,7 +27,7 @@ class User(AuditMixin, Base):
     hashed_password: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    # 软删除时不排除审计字段
+    # 审计日志中排除敏感字段
     __audit_exclude__ = {"hashed_password"}
 
     __table_args__ = (
