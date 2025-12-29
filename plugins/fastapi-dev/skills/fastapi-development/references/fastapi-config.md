@@ -11,6 +11,7 @@
 4. **类型验证用 Field** - 利用 `ge`、`le` 等参数约束
 5. **全局单例** - 配置类实例化一次（`@lru_cache`）
 6. **使用 SettingsConfigDict** - 替代旧的 `class Config`
+7. **可变默认值用 default_factory** - 列表/字典/对象避免共享默认实例
 
 ---
 
