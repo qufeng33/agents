@@ -16,7 +16,11 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.config import get_settings
 from app.core.database import Base
-from app.models import *  # noqa: F401, F403 - 导入所有模型
+from app.models import *  # noqa: F401, F403 - 简单结构：导入所有模型
+
+# 模块化结构：显式导入各模块模型，确保 metadata 完整
+# from app.modules.user import models as user_models  # noqa: F401
+# from app.modules.order import models as order_models  # noqa: F401
 
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.db.url)
@@ -76,6 +80,10 @@ CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0"]
 ## 同步兼容
 
 当必须使用同步库时，使用 `run_in_threadpool` 避免阻塞：
+
+```bash
+uv add psycopg
+```
 
 ```python
 from fastapi.concurrency import run_in_threadpool
