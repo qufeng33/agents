@@ -21,7 +21,7 @@ argument-hint: "<scope>"
 
 ### Step 1: 收集待审查的文件
 
-获取未提交的更改：`git diff --name-only HEAD`
+获取未提交的更改：`git diff --name-only`（如无输出则用 `git status --porcelain`）
 
 ### Step 2: 分类文件
 
