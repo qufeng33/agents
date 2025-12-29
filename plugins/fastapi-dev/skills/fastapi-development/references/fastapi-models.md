@@ -1,5 +1,5 @@
 # FastAPI 数据模型
-> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/users`。
 
 
 ## Pydantic v2 基础
@@ -217,7 +217,7 @@ async def list_items(params: QueryParams = Query()) -> ApiResponse[dict[str, int
 ### 过滤敏感数据
 
 ```python
-@router.post("/app_users/", response_model=ApiResponse[UserResponse])
+@router.post("/users/", response_model=ApiResponse[UserResponse])
 async def create_user(user: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
     # service 内部完成持久化与密码处理
     created = await service.create(user)

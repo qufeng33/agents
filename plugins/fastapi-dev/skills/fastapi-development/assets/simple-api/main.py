@@ -16,7 +16,7 @@ from app.config import get_settings
 from app.core.database import Base, close_sync_engine, engine
 from app.core.exception_handlers import setup_exception_handlers
 from app.core.middlewares import setup_middlewares
-from app.routers import app_users
+from app.routers import users
 
 settings = get_settings()
 
@@ -48,7 +48,7 @@ setup_exception_handlers(app)
 setup_middlewares(app)
 
 # 路由（直接注册）
-app.include_router(app_users.router, prefix="/app_users", tags=["app_users"])
+app.include_router(users.router, prefix="/users", tags=["users"])
 
 
 @app.get("/health")

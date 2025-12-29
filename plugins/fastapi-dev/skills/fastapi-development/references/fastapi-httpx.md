@@ -1,5 +1,5 @@
 # FastAPI HTTP 客户端（httpx）
-> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/users`。
 
 
 ## 概述
@@ -74,9 +74,9 @@ from app.core.http import HttpClient
 router = APIRouter()
 
 
-@router.get("/app_users/{user_id}")
+@router.get("/users/{user_id}")
 async def get_user(user_id: UUID, client: HttpClient):
-    response = await client.get(f"https://api.example.com/app_users/{user_id}")
+    response = await client.get(f"https://api.example.com/users/{user_id}")
     response.raise_for_status()
     return response.json()
 ```

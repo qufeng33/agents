@@ -1,5 +1,5 @@
 # FastAPI 性能优化
-> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/users`。
 
 
 ## async def vs def 选择
@@ -172,7 +172,7 @@ async def get_cached_or_fetch(
 # 使用示例
 from uuid import UUID
 
-@router.get("/app_users/{user_id}")
+@router.get("/users/{user_id}")
 async def get_user(user_id: UUID, redis_client: RedisClient):
     cache_key = f"user:{user_id}"
 
@@ -276,7 +276,7 @@ class PostService:
 
 ```python
 # router.py
-@router.get("/app_users/")
+@router.get("/users/")
 async def list_users(service: UserServiceDep):
     return await service.list_users()
 

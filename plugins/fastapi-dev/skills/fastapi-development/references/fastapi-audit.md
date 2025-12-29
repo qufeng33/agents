@@ -1,5 +1,5 @@
 # FastAPI 审计日志
-> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/users`。
 
 
 记录谁、在什么时候、对什么数据、做了什么操作。用于合规、问题追溯、数据恢复。
@@ -442,7 +442,7 @@ async def list_audit_records(
     return ApiResponse(data=records)
 
 # 说明：
-# resource 表示业务资源名（如 app_users、orders），建议用资源名到表名的映射表（app_users -> app_user, orders -> order）。
+# resource 表示业务资源名（如 users、orders），建议用资源名到表名的映射表（users -> app_user, orders -> order）。
 
 
 @router.get(

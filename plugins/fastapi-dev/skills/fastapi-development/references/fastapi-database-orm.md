@@ -1,5 +1,5 @@
 # FastAPI ORM 基类与软删除
-> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/users`。
 
 
 ## ORM 基类增强

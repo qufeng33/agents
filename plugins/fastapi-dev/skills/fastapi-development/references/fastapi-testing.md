@@ -1,5 +1,5 @@
 # FastAPI 测试
-> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/app_users`。
+> 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/users`。
 
 
 ## 概述
@@ -97,7 +97,7 @@ async def client() -> AsyncClient:
 @pytest.mark.asyncio
 async def test_create_user(client: AsyncClient):
     response = await client.post(
-        "/app_users/",
+        "/users/",
         json={"email": "test@example.com", "password": "password123"},
     )
     assert response.status_code == 201
@@ -208,13 +208,19 @@ async def db_session():
 from uuid import uuid4
 
 from app.dependencies import get_current_user
-from app.models import User
+from app.models.user import User  # 模块化结构改为 app.modules.user.models
 
 
 @pytest_asyncio.fixture
 async def authenticated_client(client: AsyncClient):
     """模拟已认证用户"""
-    mock_user = User(id=uuid4(), email="test@example.com", is_active=True)
+    mock_user = User(
+        id=uuid4(),
+        email="test@example.com",
+        username="tester",
+        hashed_password="fakehash",
+        is_active=True,
+    )
 
     app.dependency_overrides[get_current_user] = lambda: mock_user
     yield client
@@ -223,7 +229,7 @@ async def authenticated_client(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_protected_route(authenticated_client: AsyncClient):
-    response = await authenticated_client.get("/app_users/me")
+    response = await authenticated_client.get("/users/me")
     assert response.status_code == 200
     assert response.json()["data"]["email"] == "test@example.com"
 ```
@@ -279,7 +285,7 @@ async def test_create_user_validation(
     expected_status: int,
 ):
     response = await client.post(
-        "/app_users/",
+        "/users/",
         json={"email": email, "password": password},
     )
     assert response.status_code == expected_status
@@ -299,7 +305,7 @@ from app.core.exceptions import UserNotFoundError
 @pytest.mark.asyncio
 async def test_get_nonexistent_user(client: AsyncClient):
     user_id = uuid4()
-    response = await client.get(f"/app_users/{user_id}")
+    response = await client.get(f"/users/{user_id}")
     assert response.status_code == 404
     assert response.json()["code"] == ErrorCode.USER_NOT_FOUND
 
