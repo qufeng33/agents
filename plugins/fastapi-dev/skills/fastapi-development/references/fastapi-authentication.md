@@ -116,7 +116,6 @@ class Settings(BaseSettings):
 
     # 生成方式: openssl rand -hex 32
     secret_key: SecretStr
-    api_key: SecretStr
     access_token_expire_minutes: int = 30
 ```
 
@@ -203,43 +202,6 @@ async def login(
 ):
     token = await auth_service.authenticate(form_data.username, form_data.password)
     return ApiResponse(data=token)
-```
-
----
-
-## API Key 认证
-
-```python
-from fastapi import Depends, Security
-from fastapi.security import APIKeyHeader, APIKeyQuery
-
-from app.core.exceptions import UnauthorizedError, ForbiddenError
-
-# Header 方式
-api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
-
-# Query 方式
-api_key_query = APIKeyQuery(name="api_key", auto_error=False)
-
-
-async def get_api_key(
-    api_key_header: str | None = Security(api_key_header),
-    api_key_query: str | None = Security(api_key_query),
-) -> str:
-    api_key = api_key_header or api_key_query
-    if not api_key:
-        raise UnauthorizedError(message="API key required")
-    if api_key != settings.api_key.get_secret_value():
-        raise ForbiddenError(message="Invalid API key")
-    return api_key
-
-
-ValidAPIKey = Annotated[str, Depends(get_api_key)]
-
-
-@router.get("/protected")
-async def protected_route(api_key: ValidAPIKey):
-    return {"message": "Access granted"}
 ```
 
 ---

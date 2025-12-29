@@ -474,7 +474,6 @@ SENSITIVE_FIELDS = {
     "access_token",
     "refresh_token",
     "secret_key",
-    "api_key",
 }
 
 

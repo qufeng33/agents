@@ -181,8 +181,8 @@ async def items(val: Annotated[str, Depends(get_random, use_cache=False)]):
 ## 路由级依赖
 
 ```python
-router = APIRouter(dependencies=[Depends(verify_api_key)])
-app = FastAPI(dependencies=[Depends(log_request)])
+router = APIRouter(dependencies=[Depends(get_current_user)])
+app = FastAPI(dependencies=[Depends(get_current_user)])
 ```
 
 ---

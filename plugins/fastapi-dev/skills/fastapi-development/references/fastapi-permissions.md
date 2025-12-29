@@ -141,7 +141,7 @@ async def get_user(user_id: UUID, service: UserServiceDep):
 ```python
 def sanitize_log(data: dict) -> dict:
     """移除敏感字段"""
-    sensitive_keys = {"password", "token", "secret", "api_key"}
+    sensitive_keys = {"password", "token", "secret"}
     return {
         k: "***" if k.lower() in sensitive_keys else v
         for k, v in data.items()
@@ -164,5 +164,5 @@ def sanitize_log(data: dict) -> dict:
 
 ## 相关文档
 
-- [认证](./fastapi-authentication.md) - OAuth2 + JWT、API Key
+- [认证](./fastapi-authentication.md) - OAuth2 + JWT
 - [错误处理](./fastapi-errors.md) - ForbiddenError、UnauthorizedError
