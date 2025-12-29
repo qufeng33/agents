@@ -55,7 +55,7 @@ Router (HTTP 层) → Service (业务逻辑层) → Repository (数据访问层)
 
 **好处**：可测试（mock Repository）、可替换（切换数据库）、职责清晰、代码复用
 
-详见 [核心模式](./references/fastapi-patterns.md)
+详见 [分层架构](./references/fastapi-layered-architecture.md)
 
 ---
 
@@ -107,7 +107,7 @@ app/
 
 使用 `lifespan` 管理应用生命周期（启动/关闭时的资源初始化与清理）。
 
-详见 [核心模式 - Lifespan](./references/fastapi-patterns.md#生命周期管理lifespan)
+详见 [应用生命周期](./references/fastapi-app-lifecycle.md)
 
 ### 配置管理
 
@@ -129,7 +129,7 @@ app/
 - 类型别名简化重复声明：`DBSession = Annotated[Session, Depends(get_db)]`
 - **返回类型必须标注**：`async def get_user(...) -> UserResponse:`
 
-详见 [核心模式 - 依赖注入](./references/fastapi-patterns.md#依赖注入)
+详见 [依赖注入](./references/fastapi-dependency-injection.md)
 
 ### 数据模型
 
@@ -158,28 +158,55 @@ app/
 
 ---
 
+## 后台任务选型
+
+| 方案 | 适用场景 | 特点 |
+|------|---------|------|
+| BackgroundTasks | 轻量任务、无需追踪 | 内置、简单、同进程 |
+| ARQ | 异步任务队列 | async 原生、Redis、轻量 |
+| Celery | 企业级任务系统 | 生态成熟、功能全面 |
+| APScheduler | 定时任务 | 多种触发器、可持久化 |
+
+> 选型建议：简单通知 → BackgroundTasks | 异步优先 → ARQ | 复杂工作流 → Celery | 定时任务 → APScheduler
+
+详见 [后台任务](./references/fastapi-tasks.md)
+
+---
+
 ## 参考文档
 
-按主题分类的详细文档，每个主题的完整代码示例在指定文档中。
+按主题分类的详细文档。索引文档（如 database.md）提供概览和导航。
 
 | 分类 | 主题 | 文档 | 说明 |
 |------|------|------|------|
-| **核心** | 架构设计 | [fastapi-architecture.md](./references/fastapi-architecture.md) | 需求分析、技术选型、数据库设计 |
-| | 分层架构 | [fastapi-patterns.md](./references/fastapi-patterns.md) | Repository/Service、依赖注入 |
-| | 应用启动 | [fastapi-startup.md](./references/fastapi-startup.md) | lifespan、init/setup 模式 |
+| **核心** | 项目规划 | [fastapi-project-planning.md](./references/fastapi-project-planning.md) | 需求分析、技术选型、设计文档模板 |
+| | 核心模式 | [fastapi-patterns.md](./references/fastapi-patterns.md) | 模式索引 |
+| | 分层架构 | [fastapi-layered-architecture.md](./references/fastapi-layered-architecture.md) | Router/Service/Repository 分层 |
+| | 依赖注入 | [fastapi-dependency-injection.md](./references/fastapi-dependency-injection.md) | Annotated、依赖链、类依赖 |
+| | 应用生命周期 | [fastapi-app-lifecycle.md](./references/fastapi-app-lifecycle.md) | lifespan、init/setup/close 模式 |
 | | 配置管理 | [fastapi-config.md](./references/fastapi-config.md) | pydantic-settings、嵌套配置 |
 | | 数据模型 | [fastapi-models.md](./references/fastapi-models.md) | Pydantic 验证、分离模型 |
-| | 错误处理 | [fastapi-errors.md](./references/fastapi-errors.md) | 自定义异常、统一响应 |
-| | 中间件 | [fastapi-middleware.md](./references/fastapi-middleware.md) | CORS、日志、执行顺序 |
+| | 错误处理 | [fastapi-errors.md](./references/fastapi-errors.md) | 异常体系、统一响应、错误码 |
+| | 中间件 | [fastapi-middleware.md](./references/fastapi-middleware.md) | CORS、日志、限流、安全响应头 |
 | | 项目结构 | [fastapi-project-structure.md](./references/fastapi-project-structure.md) | 简单/模块化布局 |
-| **数据** | 数据库 | [fastapi-database.md](./references/fastapi-database.md) | SQLAlchemy 2.0 异步、事务、ORM 基类、软删除 |
-| | 审计日志 | [fastapi-audit.md](./references/fastapi-audit.md) | 操作追踪、变更历史、contextvars |
-| | 安全性 | [fastapi-security.md](./references/fastapi-security.md) | OAuth2、JWT、权限控制 |
-| **运维** | 后台任务 | [fastapi-tasks.md](./references/fastapi-tasks.md) | BackgroundTasks、ARQ、Celery、APScheduler |
+| **数据** | 数据库 | [fastapi-database.md](./references/fastapi-database.md) | 数据库索引 |
+| | 数据库配置 | [fastapi-database-setup.md](./references/fastapi-database-setup.md) | 连接池、Session、get_db |
+| | ORM 基类 | [fastapi-database-orm.md](./references/fastapi-database-orm.md) | UUIDv7、软删除、时间戳 |
+| | Repository | [fastapi-database-patterns.md](./references/fastapi-database-patterns.md) | 事务、关联加载、分页 |
+| | 迁移 | [fastapi-database-migrations.md](./references/fastapi-database-migrations.md) | Alembic 配置、同步兼容 |
+| | 审计日志 | [fastapi-audit.md](./references/fastapi-audit.md) | 操作追踪、变更历史 |
+| **安全** | 安全索引 | [fastapi-security.md](./references/fastapi-security.md) | 安全索引 |
+| | 认证 | [fastapi-authentication.md](./references/fastapi-authentication.md) | OAuth2、JWT、API Key |
+| | 权限 | [fastapi-permissions.md](./references/fastapi-permissions.md) | 角色、Scopes、敏感数据 |
+| **运维** | 后台任务 | [fastapi-tasks.md](./references/fastapi-tasks.md) | 任务索引 |
+| | 内置任务 | [fastapi-tasks-background.md](./references/fastapi-tasks-background.md) | BackgroundTasks |
+| | ARQ | [fastapi-tasks-arq.md](./references/fastapi-tasks-arq.md) | 异步任务队列 |
+| | Celery | [fastapi-tasks-celery.md](./references/fastapi-tasks-celery.md) | 企业级任务系统 |
+| | 定时任务 | [fastapi-tasks-scheduler.md](./references/fastapi-tasks-scheduler.md) | APScheduler |
 | | 日志 | [fastapi-logging.md](./references/fastapi-logging.md) | Loguru 两阶段初始化 |
 | | 测试 | [fastapi-testing.md](./references/fastapi-testing.md) | pytest-asyncio、依赖覆盖 |
 | | 部署 | [fastapi-deployment.md](./references/fastapi-deployment.md) | Docker、Kubernetes |
-| | 性能 | [fastapi-performance.md](./references/fastapi-performance.md) | 缓存、连接池、并发 |
+| | 性能 | [fastapi-performance.md](./references/fastapi-performance.md) | async/def、缓存、连接池 |
 | **工具** | 开发工具 | [fastapi-tooling.md](./references/fastapi-tooling.md) | uv、Ruff、ty |
 | | 代码重构 | [fastapi-refactoring.md](./references/fastapi-refactoring.md) | 重构模式、代码坏味道 |
 | | API 设计 | [fastapi-api-design.md](./references/fastapi-api-design.md) | REST 规范、分页 |

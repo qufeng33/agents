@@ -1,5 +1,50 @@
 # FastAPI 性能优化
 
+## async def vs def 选择
+
+| 场景 | 推荐 | 原因 |
+|-----|------|------|
+| 无 I/O 的简单逻辑 | `async def` | 避免线程池开销 |
+| 异步 I/O（httpx, asyncpg） | `async def` + `await` | 非阻塞 |
+| 同步阻塞 I/O | `def` | FastAPI 自动线程池 |
+| CPU 密集型 | `ProcessPoolExecutor` | 不阻塞事件循环 |
+
+> 上述选择针对 FastAPI 路由/依赖场景；纯工具函数（不在请求链路中）可使用 `def`。
+
+```python
+from fastapi import APIRouter
+
+router = APIRouter()
+
+# I/O 密集型：async def
+@router.get("/external")
+async def call_api():
+    async with httpx.AsyncClient() as client:
+        return (await client.get("https://api.example.com")).json()
+
+# 同步阻塞：def（自动线程池）
+@router.get("/sync")
+def sync_operation():
+    time.sleep(1)  # 不会阻塞事件循环
+    return {"done": True}
+```
+
+### 常见错误
+
+```python
+# 错误：在 async def 中阻塞
+@router.get("/bad")
+async def bad():
+    time.sleep(5)  # 阻塞事件循环！
+
+# 正确：使用 def 或 asyncio.sleep
+@router.get("/good")
+async def good():
+    await asyncio.sleep(5)
+```
+
+---
+
 ## 响应优化
 
 ### ORJSONResponse

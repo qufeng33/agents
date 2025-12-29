@@ -127,7 +127,8 @@ class ErrorCode(IntEnum):
     TOKEN_EXPIRED = 40101
     TOKEN_INVALID = 40102
     FORBIDDEN = 40200
-    INSUFFICIENT_PERMISSIONS = 40201
+    USER_DISABLED = 40201
+    INSUFFICIENT_PERMISSIONS = 40202
 
     # 50000-59999: 外部依赖错误
     EXTERNAL_API_ERROR = 50000
@@ -366,7 +367,7 @@ def setup_exception_handlers(app: FastAPI) -> None:
 
 ```python
 # app/modules/user/exceptions.py
-from app.core.exceptions import NotFoundError, ConflictError, UnauthorizedError
+from app.core.exceptions import NotFoundError, ConflictError, UnauthorizedError, ForbiddenError
 from app.core.error_codes import ErrorCode
 
 
@@ -399,6 +400,16 @@ class InvalidCredentialsError(UnauthorizedError):
         super().__init__(
             code=ErrorCode.UNAUTHORIZED,
             message="邮箱或密码错误",
+        )
+
+
+class UserDisabledError(ForbiddenError):
+    """用户已禁用"""
+
+    def __init__(self):
+        super().__init__(
+            code=ErrorCode.USER_DISABLED,
+            message="用户已被禁用",
         )
 ```
 

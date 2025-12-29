@@ -66,3 +66,26 @@ class UnauthorizedError(ApiError):
         detail: dict | None = None,
     ) -> None:
         super().__init__(code, message, status_code=401, detail=detail)
+
+
+class ForbiddenError(ApiError):
+    """权限不足"""
+
+    def __init__(
+        self,
+        code: ErrorCode = ErrorCode.FORBIDDEN,
+        message: str = "Forbidden",
+        detail: dict | None = None,
+    ) -> None:
+        super().__init__(code, message, status_code=403, detail=detail)
+
+
+class UserDisabledError(ForbiddenError):
+    """用户已禁用"""
+
+    def __init__(
+        self,
+        message: str = "User is disabled",
+        detail: dict | None = None,
+    ) -> None:
+        super().__init__(ErrorCode.USER_DISABLED, message, detail)

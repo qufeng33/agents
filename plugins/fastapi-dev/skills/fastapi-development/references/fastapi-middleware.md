@@ -280,14 +280,6 @@ router = APIRouter(dependencies=[Depends(verify_api_key)])
 
 ---
 
-## 请求限流
-
-推荐使用 `slowapi`（基于 Redis，支持分布式限流）。
-
-> 完整的 slowapi 配置和使用示例详见 [安全性 - 请求限流](./fastapi-security.md)
-
----
-
 ## GZip 压缩
 
 ```python
@@ -298,15 +290,85 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 ---
 
+## 请求限流
+
+使用 `slowapi`（基于 Redis，支持分布式限流）：
+
+```bash
+uv add slowapi
+```
+
+```python
+# core/middlewares.py
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.middleware import SlowAPIMiddleware
+
+limiter = Limiter(key_func=get_remote_address)
+
+
+def setup_middlewares(app: FastAPI) -> None:
+    # 限流配置（slowapi 要求挂载到 app.state）
+    app.state.limiter = limiter
+    app.add_middleware(SlowAPIMiddleware)
+    # 其他中间件...
+```
+
+```python
+# 在路由中使用
+from fastapi import APIRouter, Request
+
+from app.core.middlewares import limiter
+
+router = APIRouter()
+
+
+@router.get("/limited")
+@limiter.limit("10/minute")
+async def limited_route(request: Request):
+    return {"message": "This route is rate limited"}
+```
+
+---
+
+## 安全响应头
+
+```python
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
+```
+
+---
+
 ## Trusted Host
+
+防止 Host Header 攻击：
 
 ```python
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["example.com", "*.example.com"],
+    allowed_hosts=["example.com", "*.example.com", "localhost"],
 )
+```
+
+---
+
+## HTTPS 重定向
+
+```python
+from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
+
+# 生产环境强制 HTTPS
+if not settings.debug:
+    app.add_middleware(HTTPSRedirectMiddleware)
 ```
 
 ---
