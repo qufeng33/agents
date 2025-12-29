@@ -20,3 +20,12 @@ async def login(
     """登录并获取 access token"""
     token = await auth_service.authenticate(form_data.username, form_data.password)
     return ApiResponse(data=token)
+
+
+@router.post("/token/raw", response_model=Token)
+async def login_raw(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    auth_service: AuthServiceDep,
+) -> Token:
+    """Swagger OAuth2 兼容端点（标准 token 响应）"""
+    return await auth_service.authenticate(form_data.username, form_data.password)

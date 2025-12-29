@@ -79,7 +79,8 @@ from app.modules.user.exceptions import UserDisabledError
 from app.modules.user.repository import UserRepository
 from app.modules.user.models import User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token")
+# 使用标准 OAuth2 token 端点（Swagger 授权按钮需要）
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token/raw")
 
 
 async def get_current_user(
@@ -205,6 +206,15 @@ async def login(
 ):
     token = await auth_service.authenticate(form_data.username, form_data.password)
     return ApiResponse(data=token)
+
+
+@router.post("/token/raw", response_model=Token)
+async def login_raw(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+):
+    """Swagger OAuth2 兼容端点（标准 token 响应）"""
+    return await auth_service.authenticate(form_data.username, form_data.password)
 ```
 
 ---
