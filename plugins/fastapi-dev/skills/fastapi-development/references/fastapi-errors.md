@@ -391,7 +391,7 @@ class UserNotFoundError(NotFoundError):
         super().__init__(
             code=ErrorCode.USER_NOT_FOUND,
             message="用户不存在",
-            detail={"user_id": user_id},
+            detail={"user_id": str(user_id)},
         )
 
 
