@@ -1,4 +1,4 @@
-# 配置管理
+# FastAPI 配置管理
 
 > pydantic-settings 最佳实践
 
