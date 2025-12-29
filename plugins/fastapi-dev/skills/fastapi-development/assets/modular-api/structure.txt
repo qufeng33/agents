@@ -16,6 +16,12 @@ app/
 ├── modules/                # 功能模块（按领域划分，单数命名）
 │   ├── __init__.py
 │   │
+│   ├── auth/               # 认证模块
+│   │   ├── __init__.py
+│   │   ├── router.py       # 登录/令牌端点
+│   │   ├── service.py      # 认证逻辑
+│   │   └── dependencies.py # 模块依赖注入链
+│   │
 │   ├── user/               # 用户模块（完全自包含）
 │   │   ├── __init__.py
 │   │   ├── router.py       # HTTP 处理，注入 Service
