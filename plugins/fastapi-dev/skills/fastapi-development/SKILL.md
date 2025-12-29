@@ -195,7 +195,7 @@ app/
 | | Repository | [fastapi-database-patterns.md](./references/fastapi-database-patterns.md) | 事务、关联加载、分页 |
 | | 迁移 | [fastapi-database-migrations.md](./references/fastapi-database-migrations.md) | Alembic 配置、同步兼容 |
 | | 审计日志 | [fastapi-audit.md](./references/fastapi-audit.md) | 操作追踪、变更历史 |
-| **安全** | 认证 | [fastapi-authentication.md](./references/fastapi-authentication.md) | OAuth2、JWT、API Key |
+| **安全** | 认证 | [fastapi-authentication.md](./references/fastapi-authentication.md) | OAuth2、JWT |
 | | 权限 | [fastapi-permissions.md](./references/fastapi-permissions.md) | 角色、Scopes、敏感数据 |
 | **运维** | 内置任务 | [fastapi-tasks-background.md](./references/fastapi-tasks-background.md) | BackgroundTasks |
 | | ARQ | [fastapi-tasks-arq.md](./references/fastapi-tasks-arq.md) | 异步任务队列 |

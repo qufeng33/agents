@@ -19,6 +19,7 @@ from app.core.database import close_database, init_database
 from app.core.middlewares import setup_middlewares
 from app.core.routers import setup_routers
 from app.core.exception_handlers import setup_exception_handlers
+from app.schemas.response import ApiResponse
 
 settings = get_settings()
 
@@ -53,6 +54,6 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-@app.get("/health")
-async def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+@app.get("/health", response_model=ApiResponse[dict[str, str]])
+async def health_check() -> ApiResponse[dict[str, str]]:
+    return ApiResponse(data={"status": "ok"})

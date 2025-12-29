@@ -367,37 +367,43 @@ server {
 ## 健康检查端点
 
 ```python
-from fastapi import APIRouter
+from fastapi import APIRouter, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
+from app.core.error_codes import ErrorCode
+from app.schemas.response import ApiResponse, ErrorResponse
 from app.services.health_service import HealthServiceDep
 
 router = APIRouter()
 
 
-@router.get("/health")
-async def health():
-    return {"status": "ok"}
+@router.get("/health", response_model=ApiResponse[dict[str, str]])
+async def health() -> ApiResponse[dict[str, str]]:
+    return ApiResponse(data={"status": "ok"})
 
 
-@router.get("/health/ready")
-async def readiness(service: HealthServiceDep):
+@router.get("/health/ready", response_model=ApiResponse[dict[str, str]])
+async def readiness(service: HealthServiceDep) -> ApiResponse[dict[str, str]]:
     """就绪检查：验证依赖服务"""
     try:
         await service.check_database()
-        return {"status": "ready", "database": "ok"}
+        return ApiResponse(data={"status": "ready", "database": "ok"})
     except Exception as e:
         return JSONResponse(
-            status_code=503,
-            content={"status": "not ready", "database": str(e)},
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content=ErrorResponse(
+                code=ErrorCode.SERVICE_UNAVAILABLE,
+                message="Service unavailable",
+                detail={"database": str(e)},
+            ).model_dump(),
         )
 
 
-@router.get("/health/live")
-async def liveness():
+@router.get("/health/live", response_model=ApiResponse[dict[str, str]])
+async def liveness() -> ApiResponse[dict[str, str]]:
     """存活检查：应用是否运行"""
-    return {"status": "alive"}
+    return ApiResponse(data={"status": "alive"})
 ```
 
 ```python

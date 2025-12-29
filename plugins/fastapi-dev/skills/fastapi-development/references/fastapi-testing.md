@@ -46,11 +46,11 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-def test_read_root():
+def test_health():
     with TestClient(app) as client:
-        response = client.get("/")
+        response = client.get("/health")
         assert response.status_code == 200
-        assert response.json()["data"] == {"message": "Hello World"}
+        assert response.json()["data"] == {"status": "ok"}
 ```
 
 ### 异步测试（AsyncClient）
@@ -62,14 +62,14 @@ from app.main import app
 
 
 @pytest.mark.asyncio
-async def test_read_root():
+async def test_health():
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
     ) as client:
-        response = await client.get("/")
+        response = await client.get("/health")
         assert response.status_code == 200
-        assert response.json()["data"] == {"message": "Hello World"}
+        assert response.json()["data"] == {"status": "ok"}
 ```
 
 ---
@@ -339,6 +339,8 @@ async def test_upload_file(client: AsyncClient):
 
 ## WebSocket 测试
 
+> 可选依赖：`uv add --dev httpx-ws`
+
 ```python
 import pytest
 from httpx_ws import aconnect_ws
@@ -361,6 +363,8 @@ async def test_websocket():
 ## 测试工具函数
 
 ### Factory Boy 集成
+
+> 可选依赖：`uv add --dev factory-boy`
 
 ```python
 import factory

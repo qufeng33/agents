@@ -193,18 +193,21 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 # app/routers/health.py
 from fastapi import APIRouter
 
+from app.schemas.response import ApiResponse
 from ..dependencies import SettingsDep
 
 router = APIRouter()
 
 
-@router.get("/health")
-def health_check(settings: SettingsDep):
-    return {
-        "status": "ok",
-        "app_name": settings.app_name,
-        "debug": settings.debug,
-    }
+@router.get("/health", response_model=ApiResponse[dict[str, str | bool]])
+def health_check(settings: SettingsDep) -> ApiResponse[dict[str, str | bool]]:
+    return ApiResponse(
+        data={
+            "status": "ok",
+            "app_name": settings.app_name,
+            "debug": settings.debug,
+        }
+    )
 ```
 
 ### 测试时覆盖配置

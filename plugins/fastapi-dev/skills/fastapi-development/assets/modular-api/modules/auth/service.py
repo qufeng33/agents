@@ -2,6 +2,7 @@
 
 from app.core.exceptions import InvalidCredentialsError
 from app.core.security import Token, create_access_token, verify_password
+from app.modules.user.exceptions import UserDisabledError
 from app.modules.user.repository import UserRepository
 
 
@@ -17,6 +18,8 @@ class AuthService:
             hashed_password=user.hashed_password,
         ):
             raise InvalidCredentialsError()
+        if not user.is_active:
+            raise UserDisabledError()
 
         access_token = create_access_token(data={"sub": str(user.id)})
         return Token(access_token=access_token)

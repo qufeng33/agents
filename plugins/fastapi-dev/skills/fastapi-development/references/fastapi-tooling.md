@@ -68,6 +68,8 @@ dependencies = [
     "loguru>=0.7.0",
     "pydantic-settings>=2.7.0",
     "pwdlib[argon2]>=0.3.0",
+    "pyjwt>=2.10.0",           # JWT（如不使用可移除并替换实现）
+    "uuid-utils>=0.10.0",      # UUIDv7（如不使用可移除并替换实现）
 ]
 
 [dependency-groups]
@@ -87,6 +89,7 @@ packages = ["app"]
 ```
 
 > **重要**：`[tool.hatch.build.targets.wheel]` 配置是必需的，否则 `uv run` 无法正确识别 app 包。
+> **可选依赖**：若不使用 JWT 或 UUIDv7，请移除 `pyjwt` / `uuid-utils` 并同步调整模板代码。
 
 ---
 

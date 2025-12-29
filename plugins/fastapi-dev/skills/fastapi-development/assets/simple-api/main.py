@@ -17,6 +17,7 @@ from app.core.database import Base, close_sync_engine, engine
 from app.core.exception_handlers import setup_exception_handlers
 from app.core.middlewares import setup_middlewares
 from app.routers import users
+from app.schemas.response import ApiResponse
 
 settings = get_settings()
 
@@ -51,6 +52,6 @@ setup_middlewares(app)
 app.include_router(users.router, prefix="/users", tags=["users"])
 
 
-@app.get("/health")
-async def health_check() -> dict[str, str]:
-    return {"status": "ok"}
+@app.get("/health", response_model=ApiResponse[dict[str, str]])
+async def health_check() -> ApiResponse[dict[str, str]]:
+    return ApiResponse(data={"status": "ok"})
