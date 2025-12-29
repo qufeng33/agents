@@ -207,6 +207,17 @@ class UnauthorizedError(ApiError):
         super().__init__(code, message, status_code=401, detail=detail)
 
 
+class InvalidCredentialsError(UnauthorizedError):
+    """凭证无效"""
+
+    def __init__(
+        self,
+        message: str = "Invalid credentials",
+        detail: dict | None = None,
+    ):
+        super().__init__(ErrorCode.UNAUTHORIZED, message, detail)
+
+
 class ForbiddenError(ApiError):
     """权限不足"""
 
@@ -368,7 +379,7 @@ def setup_exception_handlers(app: FastAPI) -> None:
 
 ```python
 # app/modules/user/exceptions.py
-from app.core.exceptions import NotFoundError, ConflictError, UnauthorizedError, ForbiddenError
+from app.core.exceptions import NotFoundError, ConflictError, ForbiddenError
 from app.core.error_codes import ErrorCode
 
 
@@ -391,16 +402,6 @@ class EmailAlreadyExistsError(ConflictError):
             code=ErrorCode.EMAIL_ALREADY_EXISTS,
             message="邮箱已注册",
             detail={"email": email},
-        )
-
-
-class InvalidCredentialsError(UnauthorizedError):
-    """凭证无效"""
-
-    def __init__(self):
-        super().__init__(
-            code=ErrorCode.UNAUTHORIZED,
-            message="邮箱或密码错误",
         )
 
 

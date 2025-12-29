@@ -126,7 +126,7 @@ class Settings(BaseSettings):
 # modules/auth/service.py
 from app.core.security import verify_password, create_access_token, Token
 from app.modules.user.repository import UserRepository
-from app.modules.auth.exceptions import InvalidCredentialsError
+from app.core.exceptions import InvalidCredentialsError
 
 
 class AuthService:

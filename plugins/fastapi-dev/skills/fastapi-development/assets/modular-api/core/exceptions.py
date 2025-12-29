@@ -56,6 +56,17 @@ class UnauthorizedError(ApiError):
         super().__init__(code, message, status_code=401, detail=detail)
 
 
+class InvalidCredentialsError(UnauthorizedError):
+    """凭证无效"""
+
+    def __init__(
+        self,
+        message: str = "Invalid credentials",
+        detail: dict | None = None,
+    ) -> None:
+        super().__init__(ErrorCode.UNAUTHORIZED, message, detail)
+
+
 class ForbiddenError(ApiError):
     """权限不足"""
 
