@@ -24,8 +24,8 @@ def setup_middlewares(app: FastAPI) -> None:
     # 3. CORS（最内层）
     app.add_middleware(CORSMiddleware, ...)
 
-    # 2. 异常处理
-    app.add_middleware(ExceptionMiddleware)
+    # 2. GZip 压缩
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
 
     # 1. 请求日志（最外层，最先执行）
     app.add_middleware(LoggingMiddleware)
@@ -169,44 +169,19 @@ def setup_middlewares(app: FastAPI) -> None:
 
 ---
 
-## 异常处理中间件
+## 异常处理器（推荐）
 
-捕获未处理的异常，返回统一格式：
+统一异常处理应由 `exception_handler` 负责，中间件不应捕获所有异常，否则会覆盖业务异常/参数校验的状态码与响应格式。
 
 ```python
-# app/middlewares/exception.py
-from fastapi import Request
-from fastapi.responses import JSONResponse
-from loguru import logger
-from starlette.middleware.base import BaseHTTPMiddleware
+# app/main.py
+from fastapi import FastAPI
 
-from app.core.error_codes import ErrorCode
+from app.core.exception_handlers import setup_exception_handlers
 
-
-class ExceptionMiddleware(BaseHTTPMiddleware):
-    """全局异常处理中间件"""
-
-    async def dispatch(self, request: Request, call_next):
-        try:
-            return await call_next(request)
-        except Exception as exc:
-            logger.exception("Unhandled exception")
-            return JSONResponse(
-                status_code=500,
-                content={
-                    "code": ErrorCode.SYSTEM_ERROR,
-                    "message": "Internal server error",
-                    "data": None,
-                    "detail": None,
-                },
-            )
+app = FastAPI()
+setup_exception_handlers(app)
 ```
-
-### 与异常处理器配合
-
-**职责划分**：
-- **ExceptionMiddleware** - 兜底处理中间件层未捕获的异常
-- **exception_handler** - 处理路由层的业务异常
 
 详见 [错误处理](./fastapi-errors.md)（`setup_exception_handlers`）
 
@@ -388,7 +363,6 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
 from app.config import get_settings
-from app.middlewares.exception import ExceptionMiddleware
 from app.middlewares.logging import LoggingMiddleware
 
 
@@ -397,7 +371,7 @@ def setup_middlewares(app: FastAPI) -> None:
     注册中间件。
 
     注意：后注册的先执行（洋葱模型）
-    执行顺序：Logging → Exception → GZip → CORS → 路由
+    执行顺序：Logging → GZip → CORS → 路由
     """
     settings = get_settings()
 
@@ -413,9 +387,6 @@ def setup_middlewares(app: FastAPI) -> None:
 
     # 3. GZip 压缩
     app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-    # 2. 异常处理
-    app.add_middleware(ExceptionMiddleware)
 
     # 1. 请求日志（最外层，最先执行）
     app.add_middleware(LoggingMiddleware)
@@ -444,7 +415,7 @@ def setup_middlewares(app: FastAPI) -> None:
 |------|------|
 | **注意顺序** | 后注册的先执行 |
 | **日志最外层** | 确保记录所有请求 |
-| **异常处理** | 中间件兜底 + 处理器处理业务异常 |
+| **异常处理** | 使用 `exception_handler` 统一处理，不在中间件吞异常 |
 | **纯 ASGI** | 高性能场景用纯 ASGI 中间件 |
 | **配置驱动** | CORS origins 等从 Settings 读取 |
 | **依赖注入优先** | 认证等复杂逻辑优先用 DI |

@@ -7,12 +7,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from loguru import logger
-from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import get_settings
 from app.core.context import RequestContext, set_request_context
-from app.core.error_codes import ErrorCode
 from app.core.security import decode_access_token
 
 settings = get_settings()
@@ -69,25 +67,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
-class ExceptionMiddleware(BaseHTTPMiddleware):
-    """全局异常处理中间件"""
-
-    async def dispatch(self, request: Request, call_next):
-        try:
-            return await call_next(request)
-        except Exception:
-            logger.exception("Unhandled exception")
-            return JSONResponse(
-                status_code=500,
-                content={
-                    "code": ErrorCode.SYSTEM_ERROR,
-                    "message": "Internal server error",
-                    "data": None,
-                    "detail": None,
-                },
-            )
-
-
 def setup_middlewares(app: FastAPI) -> None:
     """注册中间件（注册顺序与执行顺序相反）"""
     # CORS（最内层）
@@ -102,9 +81,6 @@ def setup_middlewares(app: FastAPI) -> None:
 
     # GZip 压缩
     app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-    # 异常处理
-    app.add_middleware(ExceptionMiddleware)
 
     # 请求日志
     app.add_middleware(LoggingMiddleware)

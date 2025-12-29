@@ -30,7 +30,7 @@ app/
     ├── error_codes.py   # 错误码定义
     ├── exception_handlers.py  # 异常处理器注册
     ├── exceptions.py    # 异常定义
-    ├── middlewares.py   # RequestContextMiddleware / LoggingMiddleware / ExceptionMiddleware
+    ├── middlewares.py   # RequestContextMiddleware / LoggingMiddleware
     └── security.py      # 密码哈希
 
 # 与模块化结构的区别：

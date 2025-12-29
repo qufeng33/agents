@@ -538,14 +538,18 @@ class RequestContext:
     request_id: str | None = None
 
 
-request_context: ContextVar[RequestContext] = ContextVar(
+request_context: ContextVar[RequestContext | None] = ContextVar(
     "request_context",
-    default=RequestContext(),
+    default=None,
 )
 
 
 def get_request_context() -> RequestContext:
-    return request_context.get()
+    ctx = request_context.get()
+    if ctx is None:
+        ctx = RequestContext()
+        request_context.set(ctx)
+    return ctx
 
 
 def set_request_context(ctx: RequestContext) -> None:

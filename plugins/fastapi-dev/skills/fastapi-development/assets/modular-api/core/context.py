@@ -15,16 +15,20 @@ class RequestContext:
     request_id: str | None = None
 
 
-# 请求上下文
-request_context: ContextVar[RequestContext] = ContextVar(
+# 请求上下文（避免可变默认值导致跨请求污染）
+request_context: ContextVar[RequestContext | None] = ContextVar(
     "request_context",
-    default=RequestContext(),
+    default=None,
 )
 
 
 def get_request_context() -> RequestContext:
     """获取当前请求上下文"""
-    return request_context.get()
+    ctx = request_context.get()
+    if ctx is None:
+        ctx = RequestContext()
+        request_context.set(ctx)
+    return ctx
 
 
 def set_request_context(ctx: RequestContext) -> None:
@@ -34,11 +38,11 @@ def set_request_context(ctx: RequestContext) -> None:
 
 def get_current_user_id() -> UUID | None:
     """获取当前用户 ID（快捷方法）"""
-    return request_context.get().user_id
+    return get_request_context().user_id
 
 
 def set_current_user_id(user_id: UUID | None) -> None:
     """设置当前用户 ID（快捷方法）"""
-    ctx = request_context.get()
+    ctx = get_request_context()
     ctx.user_id = user_id
     request_context.set(ctx)
