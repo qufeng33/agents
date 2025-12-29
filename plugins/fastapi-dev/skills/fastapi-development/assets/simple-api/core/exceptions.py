@@ -100,3 +100,15 @@ class UserDisabledError(ForbiddenError):
         detail: dict | None = None,
     ) -> None:
         super().__init__(ErrorCode.USER_DISABLED, message, detail)
+
+
+class ServiceUnavailableError(ApiError):
+    """服务不可用"""
+
+    def __init__(
+        self,
+        code: ErrorCode = ErrorCode.SERVICE_UNAVAILABLE,
+        message: str = "Service unavailable",
+        detail: dict | None = None,
+    ) -> None:
+        super().__init__(code, message, status_code=503, detail=detail)
