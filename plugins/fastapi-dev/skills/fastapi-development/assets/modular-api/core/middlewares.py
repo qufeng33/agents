@@ -10,7 +10,11 @@ from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import get_settings
-from app.core.context import RequestContext, set_request_context
+from app.core.context import (
+    RequestContext,
+    get_request_context,
+    set_request_context,
+)
 from app.core.security import decode_access_token
 
 settings = get_settings()
@@ -53,7 +57,11 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     """请求日志中间件（Loguru）"""
 
     async def dispatch(self, request: Request, call_next):
-        request_id = request.headers.get("X-Request-ID") or uuid4().hex[:8]
+        ctx = get_request_context()
+        if not ctx.request_id:
+            ctx.request_id = uuid4().hex[:8]
+            set_request_context(ctx)
+        request_id = ctx.request_id
         start_time = time.perf_counter()
 
         with logger.contextualize(request_id=request_id):
@@ -62,7 +70,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             duration = time.perf_counter() - start_time
             logger.info("Completed {} in {:.3f}s", response.status_code, duration)
 
-        response.headers["X-Request-ID"] = request_id
         response.headers["X-Process-Time"] = f"{duration:.3f}"
         return response
 

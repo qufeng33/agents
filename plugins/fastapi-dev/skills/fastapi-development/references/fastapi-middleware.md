@@ -45,13 +45,19 @@ from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from app.core.context import get_request_context, set_request_context
+
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     """请求日志中间件"""
 
     async def dispatch(self, request: Request, call_next):
         # 生成或获取 request_id
-        request_id = request.headers.get("X-Request-ID") or uuid4().hex[:8]
+        ctx = get_request_context()
+        if not ctx.request_id:
+            ctx.request_id = uuid4().hex[:8]
+            set_request_context(ctx)
+        request_id = ctx.request_id
         start_time = time.perf_counter()
 
         # 绑定上下文
@@ -68,10 +74,11 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             )
 
         # 添加响应头
-        response.headers["X-Request-ID"] = request_id
         response.headers["X-Process-Time"] = f"{duration:.3f}"
         return response
 ```
+
+> `X-Request-ID` 由 `RequestContextMiddleware` 统一注入，日志中间件只读取，避免重复生成导致链路不一致。
 
 ### 使用纯 ASGI 中间件（性能更好）
 
@@ -82,6 +89,8 @@ from uuid import uuid4
 
 from loguru import logger
 from starlette.types import ASGIApp, Receive, Scope, Send
+
+from app.core.context import get_request_context, set_request_context
 
 
 class LoggingMiddleware:
@@ -95,7 +104,11 @@ class LoggingMiddleware:
             await self.app(scope, receive, send)
             return
 
-        request_id = uuid4().hex[:8]
+        ctx = get_request_context()
+        if not ctx.request_id:
+            ctx.request_id = uuid4().hex[:8]
+            set_request_context(ctx)
+        request_id = ctx.request_id
         start_time = time.perf_counter()
         status_code = 0
 
@@ -103,10 +116,6 @@ class LoggingMiddleware:
             nonlocal status_code
             if message["type"] == "http.response.start":
                 status_code = message["status"]
-                # 添加响应头
-                headers = list(message.get("headers", []))
-                headers.append((b"x-request-id", request_id.encode()))
-                message["headers"] = headers
             await send(message)
 
         method = scope.get("method", "")
