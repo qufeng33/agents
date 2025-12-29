@@ -27,6 +27,13 @@ async def list_items(params: Pagination):
 ## 依赖链
 
 ```python
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Header
+
+from app.schemas.response import ApiResponse
+from app.schemas.user import UserResponse
+from app.models.user import User  # 模块化结构改为 app.modules.user.models
 from app.core.exceptions import UnauthorizedError
 from app.core.error_codes import ErrorCode
 
@@ -45,6 +52,9 @@ async def get_current_user(token: Annotated[str, Depends(get_token)]) -> User:
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+router = APIRouter()
 
 
 @router.get("/me", response_model=ApiResponse[UserResponse])
