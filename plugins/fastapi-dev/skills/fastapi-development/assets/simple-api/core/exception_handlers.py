@@ -57,6 +57,7 @@ async def http_error_handler(
         403: ErrorCode.FORBIDDEN,
         404: ErrorCode.RESOURCE_NOT_FOUND,
         500: ErrorCode.SYSTEM_ERROR,
+        503: ErrorCode.SERVICE_UNAVAILABLE,
     }
     code = code_map.get(exc.status_code, ErrorCode.SYSTEM_ERROR)
 
