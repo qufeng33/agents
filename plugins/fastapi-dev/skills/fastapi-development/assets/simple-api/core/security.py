@@ -8,6 +8,7 @@ from uuid import UUID
 
 import jwt
 from jwt.exceptions import InvalidTokenError
+from pydantic import BaseModel
 from pwdlib import PasswordHash
 
 from app.config import get_settings
@@ -16,6 +17,11 @@ settings = get_settings()
 
 # 使用推荐的 Argon2 算法
 password_hash = PasswordHash.recommended()
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
 
 
 def hash_password(password: str) -> str:
