@@ -6,8 +6,8 @@
 
 ```bash
 uv add apscheduler
-# 可选：持久化
-uv add sqlalchemy psycopg  # PostgreSQL（同步驱动）
+# 可选：持久化（SQLAlchemyJobStore 仅支持同步驱动）
+uv add sqlalchemy psycopg  # PostgreSQL（同步驱动，用于任务持久化）
 ```
 
 ---
@@ -52,6 +52,7 @@ def init_scheduler() -> AsyncIOScheduler:
     # 持久化（可选）：SQLAlchemyJobStore 仅支持同步驱动
     jobstores = {
         # PostgreSQL 示例：postgresql+psycopg://user:pass@host/db
+        # 或直接使用 settings.db.sync_url
         "default": SQLAlchemyJobStore(url="sqlite:///./scheduler.db"),
     }
     scheduler = AsyncIOScheduler(jobstores=jobstores, timezone="UTC")

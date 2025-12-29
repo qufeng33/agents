@@ -29,7 +29,7 @@ async def notify(email: str, bg: BackgroundTasks) -> ApiResponse[dict[str, str]]
 
 后台任务在请求完成后执行，此时请求的异步 session 已关闭。需要创建独立 session。
 
-> **为什么使用同步 Session？** FastAPI 自动将同步函数放入线程池，不会阻塞事件循环。
+> **为什么使用同步 Session？** FastAPI 自动将同步函数放入线程池，不会阻塞事件循环；同步引擎通常用于任务场景。
 
 ```python
 from uuid import UUID
@@ -59,7 +59,7 @@ async def create_order(
     return ApiResponse(data=created)
 ```
 
-> **同步引擎配置**：在 `core/database.py` 中添加 `sync_engine = create_engine(SYNC_DATABASE_URL)`
+> **同步引擎配置**：在 `core/database.py` 中添加 `sync_engine = create_engine(settings.db.sync_url)`（需安装 `psycopg`）
 
 ---
 

@@ -27,7 +27,7 @@ class DatabaseConfig(BaseModel):
     @computed_field
     @property
     def sync_url(self) -> str:
-        """构建同步数据库连接 URL（psycopg）"""
+        """构建同步数据库连接 URL（psycopg，用于任务/同步场景）"""
         user = quote(self.user, safe="")
         password = quote(self.password.get_secret_value(), safe="")
         return f"postgresql+psycopg://{user}:{password}@{self.host}:{self.port}/{self.name}"

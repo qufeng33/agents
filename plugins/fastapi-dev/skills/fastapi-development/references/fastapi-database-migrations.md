@@ -79,10 +79,10 @@ CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0"]
 
 ## 同步兼容
 
-当必须使用同步库时，使用 `run_in_threadpool` 避免阻塞：
+当需要在同步任务场景访问数据库时（例如 BackgroundTasks、Celery、APScheduler 持久化），使用 `run_in_threadpool` 避免阻塞：
 
 ```bash
-uv add psycopg
+uv add psycopg  # 仅在需要同步任务时安装
 ```
 
 ```python

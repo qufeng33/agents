@@ -8,6 +8,8 @@
 uv add celery[redis]
 ```
 
+> 如任务需要访问数据库，建议使用同步 Session，并额外安装 `psycopg`（同步驱动）。
+
 ---
 
 ## 配置
