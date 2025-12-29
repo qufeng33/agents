@@ -19,6 +19,7 @@
 # app/config.py
 from functools import lru_cache
 from typing import Annotated
+from urllib.parse import quote
 
 from pydantic import BaseModel, Field, SecretStr, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -40,7 +41,17 @@ class DatabaseConfig(BaseModel):
     @property
     def url(self) -> str:
         """构建数据库连接 URL"""
-        return f"postgresql+asyncpg://{self.user}:{self.password.get_secret_value()}@{self.host}:{self.port}/{self.name}"
+        user = quote(self.user, safe="")
+        password = quote(self.password.get_secret_value(), safe="")
+        return f"postgresql+asyncpg://{user}:{password}@{self.host}:{self.port}/{self.name}"
+
+    @computed_field
+    @property
+    def sync_url(self) -> str:
+        """构建同步数据库连接 URL（psycopg）"""
+        user = quote(self.user, safe="")
+        password = quote(self.password.get_secret_value(), safe="")
+        return f"postgresql+psycopg://{user}:{password}@{self.host}:{self.port}/{self.name}"
 
 
 class RedisConfig(BaseModel):
