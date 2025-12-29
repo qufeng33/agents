@@ -133,7 +133,7 @@ def sanitize_values(values: dict | None) -> dict | None:
 # ============================================================
 
 # 需要审计的表名（可按需调整）
-# 示例：AUDITED_TABLES = {"user", "order"}
+# 示例：AUDITED_TABLES = {"app_user", "order"}
 AUDITED_TABLES: set[str] = set()
 
 

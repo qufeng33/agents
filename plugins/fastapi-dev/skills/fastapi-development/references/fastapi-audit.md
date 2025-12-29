@@ -266,7 +266,7 @@ def create_audit_log(
 
 
 # 需要审计的表
-AUDITED_TABLES = {"user", "post", "order"}
+AUDITED_TABLES = {"app_user", "post", "order"}
 
 
 @event.listens_for(Session, "after_flush")
@@ -312,7 +312,7 @@ def audit_after_flush(session: Session, flush_context):
 
 ```python
 # 方式 1：全局配置
-AUDITED_TABLES = {"user", "post", "order"}
+AUDITED_TABLES = {"app_user", "post", "order"}
 
 # 方式 2：模型级标记
 class Auditable:
@@ -442,7 +442,7 @@ async def list_audit_records(
     return ApiResponse(data=records)
 
 # 说明：
-# resource 表示业务资源名（如 users、orders），建议用资源名到表名的映射表（users -> user, orders -> order）。
+# resource 表示业务资源名（如 app_users、orders），建议用资源名到表名的映射表（app_users -> app_user, orders -> order）。
 
 
 @router.get(
