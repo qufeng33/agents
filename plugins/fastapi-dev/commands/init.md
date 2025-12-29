@@ -47,7 +47,7 @@ argument-hint: "[project-name]"
 
 1. 根据情况执行 `uv init .` 或 `uv init {project_name}`
 2. **清理 uv init 生成的冲突文件**：删除自动生成的 `main.py` 或 `hello.py`（与项目结构冲突）
-3. 安装核心依赖：`fastapi[standard]`, `sqlalchemy`, `asyncpg`, `greenlet`, `alembic`, `loguru`, `pydantic-settings`, `pwdlib[argon2]`
+3. 安装核心依赖：`fastapi[standard]`, `sqlalchemy`, `asyncpg`, `greenlet`, `alembic`, `loguru`, `pydantic-settings`, `pwdlib[argon2]`, `uuid-utils`, `pyjwt`
 4. 开发依赖：`pytest`, `pytest-asyncio`, `httpx`, `ruff`
 
 ## Step 3: 创建项目结构
