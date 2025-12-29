@@ -72,7 +72,7 @@ argument-hint: "[project-name]"
    ```
 2. pytest / ruff / ty 配置
 3. ty 安装与执行：`uv tool install ty` 或 `uvx ty check`
-4. Python 版本约束：`requires-python = ">=3.13"`（PEP 695 语法要求）
+4. Python 版本约束：`requires-python = ">=3.13"`（与工具链配置与基础镜像一致）
 
 > 参考 **fastapi-development** skill 的 `references/fastapi-tooling.md`
 
