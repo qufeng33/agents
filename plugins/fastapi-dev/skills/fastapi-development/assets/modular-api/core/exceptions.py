@@ -79,17 +79,6 @@ class ForbiddenError(ApiError):
         super().__init__(code, message, status_code=403, detail=detail)
 
 
-class UserDisabledError(ForbiddenError):
-    """用户已禁用"""
-
-    def __init__(
-        self,
-        message: str = "User is disabled",
-        detail: dict | None = None,
-    ) -> None:
-        super().__init__(ErrorCode.USER_DISABLED, message, detail)
-
-
 class ConflictError(ApiError):
     """资源冲突"""
 
