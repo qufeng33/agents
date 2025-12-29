@@ -76,6 +76,7 @@ from fastapi.security import OAuth2PasswordBearer
 from app.core.security import decode_access_token
 from app.core.exceptions import InvalidCredentialsError
 from app.modules.user.exceptions import UserDisabledError
+from app.modules.user.dependencies import get_user_repository
 from app.modules.user.repository import UserRepository
 from app.modules.user.models import User
 
