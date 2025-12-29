@@ -36,7 +36,7 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+def verify_password(*, plain_password: str, hashed_password: str) -> bool:
     return password_hash.verify(plain_password, hashed_password)
 
 
@@ -134,7 +134,10 @@ class AuthService:
 
     async def authenticate(self, email: str, password: str) -> Token:
         user = await self.user_repo.get_by_email(email)
-        if not user or not verify_password(password, user.hashed_password):
+        if not user or not verify_password(
+            plain_password=password,
+            hashed_password=user.hashed_password,
+        ):
             raise InvalidCredentialsError()
 
         access_token = create_access_token(data={"sub": str(user.id)})
