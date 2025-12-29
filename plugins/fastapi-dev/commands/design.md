@@ -12,7 +12,7 @@ argument-hint: "<feature_description>"
 
 设计目标：$ARGUMENTS
 
-如果为空，使用 AskUserQuestion 询问用户要设计什么功能。
+如果为空，向用户提问确认要设计什么功能。
 
 ## 工作流程
 

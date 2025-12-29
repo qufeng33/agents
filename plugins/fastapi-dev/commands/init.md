@@ -8,7 +8,7 @@ argument-hint: "[project-name]"
 
 ## 当前环境检测
 
-执行以下检测（使用 Bash 工具）：
+通过终端命令执行以下检测：
 
 1. 获取当前目录路径和名称
 2. 检查目录是否为空
@@ -32,7 +32,7 @@ argument-hint: "[project-name]"
 
 ## Step 1: 确认项目配置
 
-使用 AskUserQuestion 工具确认：
+向用户提问确认：
 
 1. **项目名称**: `$ARGUMENTS` > 当前目录名
 2. **结构类型**:

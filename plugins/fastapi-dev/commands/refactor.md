@@ -12,7 +12,7 @@ argument-hint: "<target>"
 
 重构目标：$ARGUMENTS
 
-如果为空，使用 AskUserQuestion 询问用户要重构什么代码。
+如果为空，向用户提问确认要重构什么代码。
 
 ## 工作流程
 

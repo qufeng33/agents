@@ -12,7 +12,7 @@ argument-hint: "<feature_description>"
 
 用户提供功能描述：$ARGUMENTS
 
-如果 $ARGUMENTS 为空，使用 AskUserQuestion 询问用户要实现什么功能。
+如果 $ARGUMENTS 为空，向用户提问确认要实现什么功能。
 
 ## 工作流程
 
@@ -36,7 +36,7 @@ argument-hint: "<feature_description>"
 
 ### Phase 2: 确认开发模式
 
-使用 AskUserQuestion 询问用户偏好：
+向用户提问确认用户偏好：
 - **TDD 模式**: 先写测试，再实现功能
 - **快速原型**: 先实现功能，再补充测试
 
