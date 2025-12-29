@@ -51,7 +51,7 @@ celery_app.autodiscover_tasks(["app.tasks"])
 # app/tasks/orders.py
 from uuid import UUID
 from app.core.celery import celery_app
-from app.core.database import SyncSessionLocal
+from app.core.database import get_sync_session
 
 
 @celery_app.task(bind=True, max_retries=3)
@@ -61,8 +61,8 @@ def process_order(self, order_id: UUID):
     bind=True 允许访问 self（任务实例）
     """
     try:
-        with SyncSessionLocal() as db:
-            order = db.query(Order).get(order_id)
+        with get_sync_session() as db:
+            order = db.get(Order, order_id)
             if order:
                 order.status = "processed"
                 db.commit()

@@ -12,6 +12,10 @@ alembic init -t async alembic
 
 ```python
 # alembic/env.py
+from logging.config import fileConfig
+
+from alembic import context
+from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.config import get_settings
@@ -21,6 +25,11 @@ from app.models import *  # noqa: F401, F403 - 简单结构：导入所有模型
 # 模块化结构：显式导入各模块模型，确保 metadata 完整
 # from app.modules.user import models as user_models  # noqa: F401
 # from app.modules.order import models as order_models  # noqa: F401
+
+config = context.config
+
+if config.config_file_name:
+    fileConfig(config.config_file_name)
 
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.db.url)
@@ -32,6 +41,7 @@ def run_migrations_offline() -> None:
         url=settings.db.url,
         target_metadata=target_metadata,
         literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -41,6 +51,7 @@ async def run_async_migrations() -> None:
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
@@ -51,6 +62,18 @@ def do_run_migrations(connection):
     context.configure(connection=connection, target_metadata=target_metadata)
     with context.begin_transaction():
         context.run_migrations()
+
+
+def run_migrations_online() -> None:
+    import asyncio
+
+    asyncio.run(run_async_migrations())
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
 ```
 
 ### 常用命令
@@ -87,7 +110,6 @@ uv add psycopg  # 仅在需要同步任务时安装
 
 ```python
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 
@@ -96,11 +118,10 @@ def sync_operation(session, user_id: UUID):
     return session.query(User).filter(User.id == user_id).first()
 
 
-sync_engine = create_engine(settings.db.sync_url)
-
-
 def get_sync_db() -> Session:
-    with Session(sync_engine) as session:
+    from app.core.database import get_sync_engine
+
+    with Session(get_sync_engine()) as session:
         yield session
 
 

@@ -34,14 +34,12 @@ async def notify(email: str, bg: BackgroundTasks) -> ApiResponse[dict[str, str]]
 ```python
 from uuid import UUID
 from sqlalchemy import select
-from sqlalchemy.orm import Session as SyncSession
-
-from app.core.database import sync_engine  # 同步引擎，专用于后台任务
+from app.core.database import get_sync_session  # 同步 Session，专用于后台任务
 
 
 def process_order(order_id: UUID):
     """后台任务：使用同步 session（运行在线程池）"""
-    with SyncSession(sync_engine) as db:
+    with get_sync_session() as db:
         order = db.scalar(select(Order).where(Order.id == order_id))
         if order:
             order.status = "processed"
@@ -59,7 +57,9 @@ async def create_order(
     return ApiResponse(data=created)
 ```
 
-> **同步引擎配置**：在 `core/database.py` 中添加 `sync_engine = create_engine(settings.db.sync_url)`（需安装 `psycopg`）
+> **同步引擎配置**：模板已提供 `get_sync_session()`，底层使用 `settings.db.sync_url`（需安装 `psycopg`）
+>
+> **资源释放**：若任务场景使用过同步引擎，可在应用关闭时调用 `close_sync_engine()` 释放连接池。
 
 ---
 

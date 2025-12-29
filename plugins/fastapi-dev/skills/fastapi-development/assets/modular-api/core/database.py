@@ -1,18 +1,20 @@
 """数据库配置 - 增强型基类"""
 
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
+from contextlib import contextmanager
 from datetime import datetime, timezone
+from functools import lru_cache
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, MetaData, Select
+from sqlalchemy import DateTime, MetaData, Select, create_engine
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 from uuid_utils import uuid7
 
 from app.config import get_settings
@@ -137,3 +139,25 @@ async def init_database() -> None:
 async def close_database() -> None:
     """关闭连接池"""
     await engine.dispose()
+    close_sync_engine()
+
+
+@lru_cache
+def get_sync_engine():
+    """同步引擎（仅任务/同步场景使用，需要 psycopg）"""
+    return create_engine(settings.db.sync_url, pool_pre_ping=True)
+
+
+def close_sync_engine() -> None:
+    """释放同步引擎连接池（若已创建）"""
+    if get_sync_engine.cache_info().currsize:
+        get_sync_engine().dispose()
+        get_sync_engine.cache_clear()
+
+
+@contextmanager
+def get_sync_session() -> Generator[Session, None, None]:
+    """获取同步 Session（仅任务/同步场景使用）"""
+    sync_engine = get_sync_engine()
+    with Session(sync_engine) as session:
+        yield session
