@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from app.core.exceptions import NotFoundError, ConflictError
+from app.core.exceptions import NotFoundError, ConflictError, ForbiddenError
 from app.core.error_codes import ErrorCode
 
 
@@ -25,4 +25,14 @@ class EmailAlreadyExistsError(ConflictError):
             code=ErrorCode.EMAIL_ALREADY_EXISTS,
             message="邮箱已注册",
             detail={"email": email},
+        )
+
+
+class UserDisabledError(ForbiddenError):
+    """用户已禁用"""
+
+    def __init__(self) -> None:
+        super().__init__(
+            code=ErrorCode.USER_DISABLED,
+            message="用户已被禁用",
         )
