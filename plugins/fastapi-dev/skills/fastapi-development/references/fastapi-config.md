@@ -166,7 +166,7 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:8080
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=production_db
-DB_USER=app_user
+DB_USER=postgres
 DB_PASSWORD=secret123
 
 REDIS_HOST=redis.example.com
