@@ -59,7 +59,7 @@ name = "my-fastapi-app"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
-    "fastapi[standard]>=0.127.0",
+    "fastapi[standard]>=0.122.0",
     "sqlalchemy>=2.0",
     "asyncpg>=0.31.0",
     "greenlet>=3.0",           # SQLAlchemy 异步必需

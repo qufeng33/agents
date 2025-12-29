@@ -26,7 +26,7 @@ description: |
 
 # FastAPI 最佳实践
 
-**要求**: FastAPI ≥0.120.0 | Python ≥3.13 | Pydantic ≥2.10
+**要求**: FastAPI ≥0.122.0 | Python ≥3.13 | Pydantic ≥2.10
 
 ## 核心原则
 

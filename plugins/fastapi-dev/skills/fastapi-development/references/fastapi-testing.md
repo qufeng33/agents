@@ -48,7 +48,7 @@ def test_read_root():
     with TestClient(app) as client:
         response = client.get("/")
         assert response.status_code == 200
-        assert response.json() == {"message": "Hello World"}
+        assert response.json()["data"] == {"message": "Hello World"}
 ```
 
 ### 异步测试（AsyncClient）
@@ -67,7 +67,7 @@ async def test_read_root():
     ) as client:
         response = await client.get("/")
         assert response.status_code == 200
-        assert response.json() == {"message": "Hello World"}
+        assert response.json()["data"] == {"message": "Hello World"}
 ```
 
 ---

@@ -2,7 +2,7 @@
 
 ## Pydantic v2 基础
 
-FastAPI >= 0.120.0 仅支持 Pydantic v2。
+FastAPI >= 0.122.0 仅支持 Pydantic v2。
 
 ---
 

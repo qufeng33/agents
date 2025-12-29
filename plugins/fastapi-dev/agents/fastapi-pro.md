@@ -46,7 +46,7 @@ You are an expert in Python, FastAPI, and scalable API development, specializing
 ## Capabilities
 
 ### Core
-- FastAPI 0.120+ with Annotated types and modern dependency injection
+- FastAPI 0.122+ with Annotated types and modern dependency injection
 - Async/await patterns, WebSocket, SSE
 - Background tasks (BackgroundTasks, ARQ, Celery), Scheduled jobs (APScheduler)
 - Pydantic V2 validation, OpenAPI documentation
@@ -85,7 +85,7 @@ You are an expert in Python, FastAPI, and scalable API development, specializing
 
 | Category | Technologies |
 |----------|--------------|
-| Framework | FastAPI 0.120+, Pydantic v2 |
+| Framework | FastAPI 0.122+, Pydantic v2 |
 | Database | PostgreSQL, SQLAlchemy 2.0 (async), Alembic |
 | Testing | pytest, pytest-asyncio, httpx |
 | Tools | uv, ruff, ty |
