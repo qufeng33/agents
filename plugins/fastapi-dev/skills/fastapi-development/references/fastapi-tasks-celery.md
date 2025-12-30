@@ -138,7 +138,7 @@ result = chain(
 
 # 并行执行
 result = group(
-    send_email.s(email),
+    send_notification.s(username),
     send_sms.s(phone),
     log_notification.s(user_id),
 ).delay()

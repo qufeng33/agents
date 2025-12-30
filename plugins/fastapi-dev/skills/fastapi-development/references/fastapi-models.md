@@ -31,19 +31,17 @@ class BaseSchema(BaseModel):
 ```python
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # 创建请求
 class UserCreate(BaseModel):
-    email: EmailStr
     username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=8)
 
 
 # 更新请求（所有字段可选）
 class UserUpdate(BaseModel):
-    email: EmailStr | None = None
     username: str | None = Field(default=None, min_length=3, max_length=50)
 
 
@@ -52,7 +50,6 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    email: EmailStr
     username: str
     is_active: bool
     created_at: datetime
@@ -124,7 +121,6 @@ from pydantic import BaseModel, field_validator
 
 class User(BaseModel):
     username: str
-    email: str
 
     @field_validator("username")
     @classmethod
@@ -133,10 +129,6 @@ class User(BaseModel):
             raise ValueError("must be alphanumeric")
         return v.lower()
 
-    @field_validator("email")
-    @classmethod
-    def email_lowercase(cls, v: str) -> str:
-        return v.lower()
 ```
 
 ### model_validator

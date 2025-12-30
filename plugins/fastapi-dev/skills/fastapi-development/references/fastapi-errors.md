@@ -117,7 +117,6 @@ class ErrorCode(IntEnum):
     RESOURCE_NOT_FOUND = 30000
     USER_NOT_FOUND = 30001
     DUPLICATE_ENTRY = 30100
-    EMAIL_ALREADY_EXISTS = 30101
     USERNAME_ALREADY_EXISTS = 30102
     USER_NOT_DELETED = 30103
 
@@ -395,14 +394,14 @@ class UserNotFoundError(NotFoundError):
         )
 
 
-class EmailAlreadyExistsError(ConflictError):
-    """邮箱已注册"""
+class UsernameAlreadyExistsError(ConflictError):
+    """用户名已存在"""
 
-    def __init__(self, email: str):
+    def __init__(self, username: str):
         super().__init__(
-            code=ErrorCode.EMAIL_ALREADY_EXISTS,
-            message="邮箱已注册",
-            detail={"email": email},
+            code=ErrorCode.USERNAME_ALREADY_EXISTS,
+            message="用户名已存在",
+            detail={"username": username},
         )
 
 
@@ -422,7 +421,7 @@ class UserDisabledError(ForbiddenError):
 # app/modules/user/service.py
 from app.schemas.response import ApiResponse
 from app.schemas.user import UserCreate, UserResponse
-from .exceptions import UserNotFoundError, EmailAlreadyExistsError
+from .exceptions import UserNotFoundError, UsernameAlreadyExistsError
 from .models import User
 from app.core.security import hash_password
 
@@ -438,10 +437,9 @@ class UserService:
         return UserResponse.model_validate(user)
 
     async def create(self, data: UserCreate) -> UserResponse:
-        if await self.repo.get_by_email(data.email):
-            raise EmailAlreadyExistsError(data.email)
+        if await self.repo.get_by_username(data.username):
+            raise UsernameAlreadyExistsError(data.username)
         user = User(
-            email=data.email,
             username=data.username,
             hashed_password=hash_password(data.password),
         )

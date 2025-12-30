@@ -17,14 +17,14 @@ class UserNotFoundError(NotFoundError):
         )
 
 
-class EmailAlreadyExistsError(ConflictError):
-    """邮箱已注册"""
+class UsernameAlreadyExistsError(ConflictError):
+    """用户名已存在"""
 
-    def __init__(self, email: str) -> None:
+    def __init__(self, username: str) -> None:
         super().__init__(
-            code=ErrorCode.EMAIL_ALREADY_EXISTS,
-            message="邮箱已注册",
-            detail={"email": email},
+            code=ErrorCode.USERNAME_ALREADY_EXISTS,
+            message="用户名已存在",
+            detail={"username": username},
         )
 
 

@@ -140,8 +140,8 @@ class UserService:
 from sqlalchemy import select
 
 
-def get_user_by_email(session: Session, email: str) -> User | None:
-    stmt = select(User).where(User.email == email)
+def get_user_by_username(session: Session, username: str) -> User | None:
+    stmt = select(User).where(User.username == username)
     result = session.execute(stmt)
     return result.scalar_one_or_none()
 ```

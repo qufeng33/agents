@@ -11,15 +11,15 @@ from app.schemas.response import ApiResponse
 router = APIRouter()
 
 
-def send_email(email: str, message: str):
+def send_notification(username: str, message: str):
     """同步函数自动在线程池执行"""
-    # 发送邮件...
+    # 发送通知...
     pass
 
 
 @router.post("/notify", response_model=ApiResponse[dict[str, str]])
-async def notify(email: str, bg: BackgroundTasks) -> ApiResponse[dict[str, str]]:
-    bg.add_task(send_email, email, "Hello")
+async def notify(username: str, bg: BackgroundTasks) -> ApiResponse[dict[str, str]]:
+    bg.add_task(send_notification, username, "Hello")
     return ApiResponse(data={"status": "scheduled"})
 ```
 

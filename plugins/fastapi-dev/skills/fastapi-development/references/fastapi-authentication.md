@@ -125,17 +125,17 @@ class Settings(BaseSettings):
 
 ```python
 # modules/auth/service.py
-from app.core.security import verify_password, create_access_token, Token
-from app.modules.user.repository import UserRepository
 from app.core.exceptions import InvalidCredentialsError
+from app.core.security import Token, create_access_token, verify_password
+from app.modules.user.repository import UserRepository
 
 
 class AuthService:
     def __init__(self, user_repo: UserRepository):
         self.user_repo = user_repo
 
-    async def authenticate(self, email: str, password: str) -> Token:
-        user = await self.user_repo.get_by_email(email)
+    async def authenticate(self, username: str, password: str) -> Token:
+        user = await self.user_repo.get_by_username(username)
         if not user or not verify_password(
             plain_password=password,
             hashed_password=user.hashed_password,
@@ -154,7 +154,7 @@ class AuthService:
 # modules/user/schemas.py
 import re
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class PasswordMixin(BaseModel):
@@ -177,8 +177,7 @@ class PasswordMixin(BaseModel):
 
 
 class UserCreate(PasswordMixin):
-    email: EmailStr
-    name: str = Field(..., min_length=1, max_length=100)
+    username: str = Field(..., min_length=3, max_length=50)
 ```
 
 > 密码验证在 Pydantic schema 层完成，确保所有入口（注册、修改密码）统一校验。

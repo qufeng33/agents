@@ -506,7 +506,7 @@ class User(Base):
     __tablename__ = "app_user"
     __audit_exclude__ = {"hashed_password", "reset_token"}  # 排除的字段
 
-    email: Mapped[str]
+    username: Mapped[str]
     hashed_password: Mapped[str]
     reset_token: Mapped[str | None]
 ```

@@ -32,9 +32,13 @@ class UserRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_email(self, email: str) -> User | None:
-        """根据邮箱获取用户（排除已删除）"""
-        stmt = filter_active(select(User).where(User.email == email))
+    async def get_by_username(
+        self, username: str, *, include_deleted: bool = False
+    ) -> User | None:
+        """根据用户名获取用户"""
+        stmt = select(User).where(User.username == username)
+        if not include_deleted:
+            stmt = filter_active(stmt)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 

@@ -5,7 +5,7 @@ from uuid import UUID
 from .models import User
 from .repository import UserRepository
 from .schemas import UserCreate, UserResponse
-from .exceptions import UserNotFoundError, EmailAlreadyExistsError
+from .exceptions import UserNotFoundError, UsernameAlreadyExistsError
 from app.core.security import hash_password
 
 
@@ -31,12 +31,13 @@ class UserService:
 
     async def create(self, user_in: UserCreate) -> UserResponse:
         """创建用户"""
-        existing = await self.repository.get_by_email(user_in.email)
+        existing = await self.repository.get_by_username(
+            user_in.username, include_deleted=True
+        )
         if existing:
-            raise EmailAlreadyExistsError(user_in.email)
+            raise UsernameAlreadyExistsError(user_in.username)
 
         user = User(
-            email=user_in.email,
             username=user_in.username,
             hashed_password=hash_password(user_in.password),
         )

@@ -204,29 +204,21 @@ class UserRepository:
 
 ### 唯一约束与软删除
 
-软删除后，原记录的唯一字段仍然占用。解决方案：**部分唯一索引**（PostgreSQL）
+软删除后，原记录的唯一字段仍然占用（不允许复用）。使用**全局唯一索引**：
 
 ```python
-from sqlalchemy import Index, text
+from sqlalchemy import Index, String
 
 
 class User(Base):
     __tablename__ = "app_user"
 
-    email: Mapped[str] = mapped_column(unique=False)  # 不用列级 unique
+    username: Mapped[str] = mapped_column(String(50))
 
     __table_args__ = (
-        # 只对未删除的记录强制唯一
-        Index(
-            "uq_app_user_email_active",
-            "email",
-            unique=True,
-            postgresql_where=text("deleted_at IS NULL"),
-        ),
+        Index("uq_user_username", "username", unique=True),
     )
 ```
-
-> **MySQL 不支持部分索引**，替代方案：软删除时将 email 改为 `email_deleted_{timestamp}`。
 
 ### 级联软删除
 

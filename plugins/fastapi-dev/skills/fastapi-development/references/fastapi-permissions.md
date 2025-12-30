@@ -120,13 +120,13 @@ from app.modules.user.exceptions import UserNotFoundError
 
 class UserInDB(BaseModel):
     id: UUID
-    email: str
+    username: str
     hashed_password: str  # 敏感字段
 
 
 class UserResponse(BaseModel):
     id: UUID
-    email: str
+    username: str
     # 不包含 hashed_password
 
 

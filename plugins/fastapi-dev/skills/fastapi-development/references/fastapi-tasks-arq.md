@@ -23,10 +23,10 @@ from app.config import get_settings
 settings = get_settings()
 
 
-async def send_email(ctx: dict, email: str, message: str):
+async def send_notification(ctx: dict, username: str, message: str):
     """异步任务函数，ctx 包含 redis 连接等上下文"""
-    # 发送邮件...
-    return {"sent_to": email}
+    # 发送通知...
+    return {"sent_to": username}
 
 
 async def process_order(ctx: dict, order_id: UUID):
@@ -41,7 +41,7 @@ async def process_order(ctx: dict, order_id: UUID):
 
 class WorkerSettings:
     """ARQ Worker 配置"""
-    functions = [send_email, process_order]
+    functions = [send_notification, process_order]
     redis_settings = RedisSettings(
         host=settings.redis.host,
         port=settings.redis.port,
@@ -116,8 +116,8 @@ from app.schemas.response import ApiResponse
 
 
 @router.post("/notify", response_model=ApiResponse[dict[str, str]])
-async def notify(email: str, arq: ArqPool) -> ApiResponse[dict[str, str]]:
-    await arq.enqueue_job("send_email", email, "Hello")
+async def notify(username: str, arq: ArqPool) -> ApiResponse[dict[str, str]]:
+    await arq.enqueue_job("send_notification", username, "Hello")
     return ApiResponse(data={"status": "queued"})
 
 
@@ -138,10 +138,10 @@ async def create_order(
 
 ```python
 # 延迟执行
-await arq.enqueue_job("send_email", email, _defer_by=60)  # 60 秒后
+await arq.enqueue_job("send_notification", username, _defer_by=60)  # 60 秒后
 
 # 指定执行时间
-await arq.enqueue_job("send_email", email, _defer_until=datetime(2024, 1, 1))
+await arq.enqueue_job("send_notification", username, _defer_until=datetime(2024, 1, 1))
 
 # 任务唯一性（防止重复）
 await arq.enqueue_job("process_order", order_id, _job_id=f"order:{order_id}")

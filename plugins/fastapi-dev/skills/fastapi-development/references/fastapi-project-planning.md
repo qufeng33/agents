@@ -130,7 +130,7 @@
 | 时间字段 | `_at`（datetime）, `_date`（date） | `created_at`, `birth_date` |
 | 布尔字段 | `is_` 或 `has_` 前缀 | `is_active`, `has_verified` |
 | 外键 | `{table}_id` | `user_id`, `order_id` |
-| 索引 | `ix_{table}_{columns}` | `ix_user_email` |
+| 索引 | `ix_{table}_{columns}` | `ix_user_username` |
 
 推荐策略与数据库文档一致（单数表名 + UUIDv7）：见 [ORM 基类](./fastapi-database-orm.md)。
 

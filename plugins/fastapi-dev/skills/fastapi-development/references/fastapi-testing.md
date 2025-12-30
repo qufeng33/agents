@@ -98,10 +98,10 @@ async def client() -> AsyncClient:
 async def test_create_user(client: AsyncClient):
     response = await client.post(
         "/users/",
-        json={"email": "test@example.com", "password": "password123"},
+        json={"username": "tester", "password": "password123"},
     )
     assert response.status_code == 201
-    assert response.json()["data"]["email"] == "test@example.com"
+    assert response.json()["data"]["username"] == "tester"
 ```
 
 ### 处理 Lifespan 事件
@@ -216,7 +216,6 @@ async def authenticated_client(client: AsyncClient):
     """模拟已认证用户"""
     mock_user = User(
         id=uuid4(),
-        email="test@example.com",
         username="tester",
         hashed_password="fakehash",
         is_active=True,
@@ -231,34 +230,34 @@ async def authenticated_client(client: AsyncClient):
 async def test_protected_route(authenticated_client: AsyncClient):
     response = await authenticated_client.get("/users/me")
     assert response.status_code == 200
-    assert response.json()["data"]["email"] == "test@example.com"
+    assert response.json()["data"]["username"] == "tester"
 ```
 
 ### 覆盖外部服务
 
 ```python
 from unittest.mock import AsyncMock
-from app.services.email import EmailService
+from app.services.notification import NotificationService
 
 
 @pytest_asyncio.fixture
-async def client_with_mock_email(client: AsyncClient):
-    """模拟邮件服务"""
-    mock_email = AsyncMock(spec=EmailService)
-    mock_email.send.return_value = True
+async def client_with_mock_notification(client: AsyncClient):
+    """模拟通知服务"""
+    mock_notification = AsyncMock(spec=NotificationService)
+    mock_notification.send.return_value = True
 
-    app.dependency_overrides[EmailService] = lambda: mock_email
-    yield client, mock_email
+    app.dependency_overrides[NotificationService] = lambda: mock_notification
+    yield client, mock_notification
     app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
-async def test_send_notification(client_with_mock_email):
-    client, mock_email = client_with_mock_email
+async def test_send_notification(client_with_mock_notification):
+    client, mock_notification = client_with_mock_notification
     response = await client.post("/notifications/", json={"message": "Hello"})
 
     assert response.status_code == 200
-    mock_email.send.assert_called_once()
+    mock_notification.send.assert_called_once()
 ```
 
 ---
@@ -271,22 +270,22 @@ import pytest
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "email,password,expected_status",
+    "username,password,expected_status",
     [
-        ("valid@example.com", "password123", 201),
-        ("invalid-email", "password123", 422),
-        ("valid@example.com", "short", 422),
+        ("validuser", "password123", 201),
+        ("ab", "password123", 422),
+        ("validuser", "short", 422),
     ],
 )
 async def test_create_user_validation(
     client: AsyncClient,
-    email: str,
+    username: str,
     password: str,
     expected_status: int,
 ):
     response = await client.post(
         "/users/",
-        json={"email": email, "password": password},
+        json={"username": username, "password": password},
     )
     assert response.status_code == expected_status
 ```
@@ -377,7 +376,6 @@ class UserFactory(SQLAlchemyModelFactory):
         model = User
         sqlalchemy_session_persistence = "commit"
 
-    email = factory.Sequence(lambda n: f"user{n}@example.com")
     username = factory.Sequence(lambda n: f"user{n}")
     hashed_password = "hashed_password"
     is_active = True

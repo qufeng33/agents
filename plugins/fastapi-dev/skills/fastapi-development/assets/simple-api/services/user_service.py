@@ -58,18 +58,17 @@ class UserService:
 
     async def create(self, user_in: UserCreate) -> UserResponse:
         """创建用户"""
-        # 检查邮箱是否已存在（仅检查未删除的）
-        stmt = filter_active(select(User).where(User.email == user_in.email))
+        # 检查用户名是否已存在（全局唯一，包含已删除）
+        stmt = select(User).where(User.username == user_in.username)
         existing = await self.db.scalar(stmt)
         if existing:
             raise ConflictError(
-                code=ErrorCode.EMAIL_ALREADY_EXISTS,
-                message="邮箱已注册",
-                detail={"email": user_in.email},
+                code=ErrorCode.USERNAME_ALREADY_EXISTS,
+                message="用户名已存在",
+                detail={"username": user_in.username},
             )
 
         user = User(
-            email=user_in.email,
             username=user_in.username,
             hashed_password=hash_password(user_in.password),
         )

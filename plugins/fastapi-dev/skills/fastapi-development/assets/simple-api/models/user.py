@@ -1,6 +1,6 @@
 """用户模型"""
 
-from sqlalchemy import Boolean, Index, String, text
+from sqlalchemy import Boolean, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -18,17 +18,11 @@ class User(Base):
 
     __tablename__ = "app_user"
 
-    email: Mapped[str] = mapped_column(String(255), index=True)
     username: Mapped[str] = mapped_column(String(50))
     hashed_password: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     __table_args__ = (
-        # 部分唯一索引：只对未删除的记录强制唯一
-        Index(
-            "uq_app_user_email_active",
-            "email",
-            unique=True,
-            postgresql_where=text("deleted_at IS NULL"),
-        ),
+        # 全局唯一索引（软删除后仍不可复用）
+        Index("uq_user_username", "username", unique=True),
     )

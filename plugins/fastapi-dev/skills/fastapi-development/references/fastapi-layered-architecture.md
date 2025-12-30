@@ -40,8 +40,8 @@ class UserRepository:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
-    async def get_by_email(self, email: str) -> User | None:
-        result = await self.db.execute(select(User).where(User.email == email))
+    async def get_by_username(self, username: str) -> User | None:
+        result = await self.db.execute(select(User).where(User.username == username))
         return result.scalar_one_or_none()
 
     async def create(self, user: User) -> User:
@@ -59,7 +59,7 @@ from uuid import UUID
 from app.modules.user.repository import UserRepository
 from app.modules.user.schemas import UserCreate, UserResponse
 from app.modules.user.models import User
-from app.modules.user.exceptions import UserNotFoundError, EmailAlreadyExistsError
+from app.modules.user.exceptions import UserNotFoundError, UsernameAlreadyExistsError
 from app.core.security import hash_password
 
 
@@ -74,14 +74,13 @@ class UserService:
         return UserResponse.model_validate(user)
 
     async def create(self, data: UserCreate) -> UserResponse:
-        # 业务逻辑：检查邮箱唯一性
-        if await self.repo.get_by_email(data.email):
-            raise EmailAlreadyExistsError(data.email)
+        # 业务逻辑：检查唯一性（全局唯一）
+        if await self.repo.get_by_username(data.username):
+            raise UsernameAlreadyExistsError(data.username)
 
         # 业务逻辑：密码哈希
         user = User(
-            email=data.email,
-            name=data.name,
+            username=data.username,
             hashed_password=hash_password(data.password),
         )
         user = await self.repo.create(user)
@@ -111,7 +110,7 @@ async def get_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[UserRe
 
 @router.post("/", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
 async def create_user(data: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
-    user = await service.create(data)  # 邮箱重复时抛出 EmailAlreadyExistsError
+    user = await service.create(data)  # 用户名重复时抛出对应异常
     return ApiResponse(data=user)
 ```
 

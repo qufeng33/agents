@@ -41,33 +41,33 @@
 ```python
 # Before
 async def create_user(data: UserCreate) -> User:
-    # 验证邮箱格式
-    if not re.match(r"...", data.email):
-        raise ValidationError("Invalid email")
-    # 检查邮箱唯一性
-    existing = await repo.get_by_email(data.email)
+    # 验证用户名格式
+    if not re.match(r"...", data.username):
+        raise ValidationError("Invalid username")
+    # 检查用户名唯一性
+    existing = await repo.get_by_username(data.username)
     if existing:
-        raise ConflictError("Email exists")
+        raise ConflictError("Username exists")
     # 创建用户
     user = User(...)
     return await repo.save(user)
 
 # After
 async def create_user(data: UserCreate) -> User:
-    await validate_email(data.email)
-    await ensure_email_unique(data.email)
+    await validate_username(data.username)
+    await ensure_username_unique(data.username)
     return await save_new_user(data)
 
 
-async def validate_email(email: str) -> None:
-    if not re.match(r"...", email):
-        raise ValidationError("Invalid email")
+async def validate_username(username: str) -> None:
+    if not re.match(r"...", username):
+        raise ValidationError("Invalid username")
 
 
-async def ensure_email_unique(email: str) -> None:
-    existing = await repo.get_by_email(email)
+async def ensure_username_unique(username: str) -> None:
+    existing = await repo.get_by_username(username)
     if existing:
-        raise ConflictError("Email exists")
+        raise ConflictError("Username exists")
 ```
 
 ### Early Return
@@ -161,19 +161,21 @@ class UserService:
     async def create(self, data): ...
     async def validate_password(self, password): ...
     async def hash_password(self, password): ...
-    async def send_welcome_email(self, user): ...
-    async def send_reset_email(self, user): ...
+    async def send_welcome(self, user): ...
+    async def send_reset(self, user): ...
 
 # After: 拆分职责
 class UserService:
-    def __init__(self, password_service: PasswordService, email_service: EmailService):
+    def __init__(
+        self, password_service: PasswordService, notification_service: NotificationService
+    ):
         self.password_service = password_service
-        self.email_service = email_service
+        self.notification_service = notification_service
 
     async def create(self, data: UserCreate) -> User:
         hashed = await self.password_service.hash(data.password)
         user = User(hashed_password=hashed)
-        await self.email_service.send_welcome(user)
+        await self.notification_service.send_welcome(user)
         return user
 
 
@@ -182,7 +184,7 @@ class PasswordService:
     async def hash(self, password: str) -> str: ...
 
 
-class EmailService:
+class NotificationService:
     async def send_welcome(self, user: User) -> None: ...
     async def send_reset(self, user: User) -> None: ...
 ```

@@ -137,7 +137,7 @@ app/
 
 - 基类配置：`ConfigDict(from_attributes=True, str_strip_whitespace=True)`
 - 分离模型：`Create` / `Update` / `Response` / `InDB`
-- 字段验证：`Field(min_length=8)`, `EmailStr`, `@field_validator`
+- 字段验证：`Field(min_length=8)`, `@field_validator`
 
 详见 [数据模型](./references/fastapi-models.md)
 

@@ -32,7 +32,7 @@ GET    /api/getUserById        # ❌ 动词
 | GET | 获取资源 | ✓ | ✓ | 获取用户信息 |
 | POST | 创建资源 | ✗ | ✗ | 创建新用户 |
 | PUT | 完整替换 | ✓ | ✗ | 更新整个用户对象 |
-| PATCH | 部分更新 | ✓ | ✗ | 只更新用户邮箱 |
+| PATCH | 部分更新 | ✓ | ✗ | 只更新用户部分属性 |
 | DELETE | 删除资源 | ✓ | ✗ | 删除用户 |
 
 ---
@@ -77,7 +77,7 @@ async def delete_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[Non
 | 401 | Unauthorized | 未认证（缺少/无效 token） |
 | 403 | Forbidden | 已认证但无权限 |
 | 404 | Not Found | 资源不存在 |
-| 409 | Conflict | 资源冲突（如邮箱已存在） |
+| 409 | Conflict | 资源冲突（如用户名已存在） |
 | 422 | Unprocessable Entity | 验证失败（FastAPI 默认） |
 | 500 | Internal Server Error | 服务器内部错误 |
 
@@ -139,7 +139,7 @@ class ApiPagedResponse(BaseModel, Generic[T]):
 
 ```python
 from datetime import datetime
-from sqlalchemy import or_, select, func
+from sqlalchemy import select, func
 
 
 async def list(
@@ -164,7 +164,7 @@ async def list(
         filters.append(User.created_at <= created_before)
     if search:
         pattern = f"%{search}%"
-        filters.append(or_(User.email.ilike(pattern), User.username.ilike(pattern)))
+        filters.append(User.username.ilike(pattern))
 
     # 计算总数（包含过滤条件）
     total = await self.db.scalar(
@@ -241,7 +241,7 @@ async def list_users(
     "data": null,
     "detail": {
         "errors": [
-            {"field": "email", "message": "Invalid email format", "type": "value_error"},
+            {"field": "username", "message": "Invalid username format", "type": "value_error"},
             {"field": "password", "message": "Must be at least 8 characters", "type": "string_too_short"}
         ]
     }
@@ -259,14 +259,12 @@ async def list_users(
 ```python
 class UserCreate(BaseModel):
     """创建用户请求"""
-    email: EmailStr
     username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=8)
 
 
 class UserUpdate(BaseModel):
     """更新用户请求（所有字段可选）"""
-    email: EmailStr | None = None
     username: str | None = Field(default=None, min_length=3, max_length=50)
 
 
@@ -287,7 +285,6 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-    email: EmailStr
     username: str
     is_active: bool
     created_at: datetime
