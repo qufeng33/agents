@@ -331,7 +331,7 @@ async def test_upload_file(client: AsyncClient):
     response = await client.post("/upload/", files=files)
 
     assert response.status_code == 200
-    assert response.json()["filename"] == "test.txt"
+    assert response.json()["data"]["filename"] == "test.txt"
 ```
 
 ---
