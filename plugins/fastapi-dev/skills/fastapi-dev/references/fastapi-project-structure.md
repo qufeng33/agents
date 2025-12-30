@@ -1,6 +1,32 @@
 # FastAPI 项目结构
 > 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/users`。
 
+聚焦目录组织与职责边界；API 路径/版本/响应规范详见 [API 设计](./fastapi-api-design.md)。
+
+## 设计原则
+- 结构服务于协作与演进，先小后大
+- 目录边界与业务领域对齐，减少跨模块耦合
+- 路由只处理 HTTP 语义，业务逻辑下沉到服务层
+- 共享基础能力集中到 `core/`，避免散落
+- API 规范集中在单一文档维护，避免分叉
+
+## 最佳实践
+1. 规模小先用简单结构，规模上来再切模块化
+2. 模块内自包含，跨模块共享放 `core/`
+3. 路由仅做参数解析、响应封装与状态码控制
+4. 命名规则统一：模块单数、路径复数
+5. API 版本/路径约束统一遵循 [API 设计](./fastapi-api-design.md)
+
+## 目录
+- `如何选择结构`
+- `结构一：简单结构（按层组织）`
+- `结构二：模块化结构（按领域组织）`
+- `分层架构`
+- `命名约定`
+- `模块文件职责`
+- `模板代码`
+
+---
 
 ## 如何选择结构
 
@@ -66,41 +92,13 @@ app/
 - 修改一个功能需要跨多个目录
 - 团队协作时容易产生冲突
 
-### 代码示例
+### 使用要点
 
-```python
-# dependencies.py（集中管理依赖）
-from typing import Annotated
-from fastapi import Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+- 依赖在 `dependencies.py` 统一管理，路由只引用依赖
+- Service 负责业务规则，Router 负责 HTTP 语义
+- 结构扩张后可平滑迁移到模块化结构
 
-from app.core.database import get_db
-from app.services.user_service import UserService
-
-DBSession = Annotated[AsyncSession, Depends(get_db)]
-
-def get_user_service(db: DBSession) -> UserService:
-    return UserService(db)
-
-UserServiceDep = Annotated[UserService, Depends(get_user_service)]
-```
-
-```python
-# routers/users.py（只导入依赖，不定义）
-from fastapi import APIRouter, status
-
-from app.dependencies import UserServiceDep
-from app.schemas.response import ApiResponse
-from app.schemas.user import UserCreate, UserResponse
-
-router = APIRouter()
-
-
-@router.post("/", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
-async def create_user(user_in: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
-    user = await service.create(user_in)
-    return ApiResponse(data=user)
-```
+> 完整示例见 `assets/simple-api/`，此处省略细节以突出结构要点。
 
 ---
 
@@ -165,61 +163,22 @@ app/
 - 小项目可能过度设计
 - 模块间共享代码需要放到 `core/`
 
-### 代码示例
+### 使用要点
 
-```python
-# modules/user/dependencies.py（模块自包含的依赖）
-from typing import Annotated
-from fastapi import Depends
-
-from app.dependencies import DBSession
-from .repository import UserRepository
-from .service import UserService
-
-
-def get_user_repository(db: DBSession) -> UserRepository:
-    return UserRepository(db)
-
-
-def get_user_service(
-    repo: Annotated[UserRepository, Depends(get_user_repository)],
-) -> UserService:
-    return UserService(repo)
-
-
-UserServiceDep = Annotated[UserService, Depends(get_user_service)]
-```
-
-```python
-# modules/user/router.py（只导入依赖，不定义）
-from fastapi import APIRouter, status
-
-from app.schemas.response import ApiResponse
-from .schemas import UserCreate, UserResponse
-from .dependencies import UserServiceDep
-
-router = APIRouter()
-
-
-@router.post("/", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
-async def create_user(user_in: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
-    user = await service.create(user_in)
-    return ApiResponse(data=user)
-```
+- `api/v1/router.py` 只做路由聚合
+- 模块内部维护自己的依赖、模型与异常
+- API 路径/版本规范详见 [API 设计](./fastapi-api-design.md)
 
 ```python
 # api/v1/router.py（路由聚合）
 from fastapi import APIRouter
-
 from app.modules.user.router import router as user_router
 
 api_router = APIRouter()
-
 api_router.include_router(user_router, prefix="/users", tags=["users"])
-# 添加其他模块路由：
-# from app.modules.item.router import router as item_router
-# api_router.include_router(item_router, prefix="/items", tags=["items"])
 ```
+
+> 完整示例见 `assets/modular-api/`，此处省略依赖与路由细节。
 
 ---
 
@@ -261,6 +220,8 @@ HTTP处理  业务逻辑    数据访问
 - 模块目录表示"领域"而非"资源集合"
 - 与类名保持一致（User → user/）
 - 符合 DDD 命名习惯
+
+> API 路径与版本规则以 [API 设计](./fastapi-api-design.md) 为准。
 
 ---
 

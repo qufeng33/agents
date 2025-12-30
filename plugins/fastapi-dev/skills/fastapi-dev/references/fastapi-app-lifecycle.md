@@ -2,6 +2,29 @@
 
 > 完整可运行模板见 `assets/simple-api/` 和 `assets/modular-api/`
 
+## 设计原则
+- 资源初始化与清理必须成对出现
+- 应用入口最小化，启动流程可读可测
+- 共享资源统一放 `app.state` 并通过依赖注入访问
+- 初始化顺序清晰，关闭顺序严格相反
+- 与项目结构保持一致（`init/setup/close`）
+
+## 最佳实践
+1. 使用 `create_app` 工厂模式
+2. 组件注册拆成 `setup_xxx` 函数
+3. 资源生命周期用 `lifespan` 统一管理
+4. `init_xxx` 与 `close_xxx` 一一对应
+5. 关闭顺序与初始化顺序相反
+
+## 目录
+- `初始化顺序`
+- `模块入口 (app/main.py)`
+- `Lifespan 详解`
+- `init/setup/close 函数模式`
+- `相关文档`
+
+---
+
 ## 初始化顺序
 
 ```
@@ -22,19 +45,17 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.core.database import close_database, init_database
+from app.core.exception_handlers import setup_exception_handlers
 from app.core.middlewares import setup_middlewares
 from app.core.routers import setup_routers
-from app.core.exception_handlers import setup_exception_handlers
 
 settings = get_settings()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # 启动时初始化
     await init_database()
     yield
-    # 关闭时清理
     await close_database()
 
 
@@ -48,7 +69,6 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if settings.debug else None,
     )
 
-    # 注册组件
     setup_middlewares(application)
     setup_routers(application)
     setup_exception_handlers(application)
@@ -58,6 +78,8 @@ def create_app() -> FastAPI:
 
 app = create_app()
 ```
+
+> 更复杂的初始化逻辑应拆分到 `init_xxx`/`setup_xxx`，保持入口可读。
 
 ---
 
@@ -70,10 +92,8 @@ app = create_app()
 ```python
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动：初始化资源，存储到 app.state
     app.state.http_client = httpx.AsyncClient()
     yield
-    # 关闭：清理资源
     await app.state.http_client.aclose()
 
 app = FastAPI(lifespan=lifespan)
@@ -84,18 +104,18 @@ app = FastAPI(lifespan=lifespan)
 ```python
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # 启动顺序
     await init_database()
     init_scheduler()
     await init_arq(app)
 
     yield
 
-    # 关闭顺序（与启动相反）
     await close_arq(app)
     close_scheduler()
     await close_database()
 ```
+
+> 多资源场景下，关闭顺序必须与初始化顺序相反。
 
 ### 通过依赖注入访问资源
 
@@ -104,13 +124,9 @@ async def get_http_client(request: Request) -> httpx.AsyncClient:
     return request.app.state.http_client
 
 HttpClient = Annotated[httpx.AsyncClient, Depends(get_http_client)]
-
-
-@router.get("/external")
-async def call_external(client: HttpClient):
-    response = await client.get("https://api.example.com")
-    return response.json()
 ```
+
+> 路由中通过依赖注入获取共享资源，避免直接访问 `app.state`。
 
 ---
 
@@ -134,19 +150,6 @@ async def call_external(client: HttpClient):
 | `setup_exception_handlers` | core/exception_handlers.py | [错误处理](./fastapi-errors.md) |
 | `init_arq` / `close_arq` | core/arq.py | [ARQ 任务队列](./fastapi-tasks-arq.md) |
 | `init_scheduler` / `close_scheduler` | core/scheduler.py | [定时任务](./fastapi-tasks-scheduler.md) |
-
----
-
-## 最佳实践
-
-| 实践 | 说明 |
-|------|------|
-| **create_app 工厂模式** | 便于测试和多实例场景 |
-| **setup_xxx 分离注册** | 中间件、路由、异常处理器分离到独立函数 |
-| **lifespan 管理资源** | 启动时初始化，关闭时清理 |
-| **close 对应 init** | 每个 `init_xxx` 都有对应的 `close_xxx` |
-| **顺序一致** | 关闭顺序与初始化顺序相反 |
-| **app.state 存储共享资源** | 通过依赖注入访问 |
 
 ---
 

@@ -1,6 +1,28 @@
 # FastAPI 分层架构
 > 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/users`。
 
+## 设计原则
+- 让每一层只做一类职责，避免层间混用
+- 业务规则集中在 Service，数据访问集中在 Repository
+- Router 只处理 HTTP 语义，不下沉业务细节
+- 可测试性优先，分层便于替换与 mock
+- 简化结构时必须明确责任边界
+
+## 最佳实践
+1. Router 只做参数解析、响应封装和状态码控制
+2. Service 负责规则校验、编排与异常语义
+3. Repository 只提供数据访问能力，不做业务判断
+4. 小项目可省略 Repository，但要明确 Service 直接持有 `AsyncSession`
+5. 分层示例与模板集中维护在 `assets/`
+
+## 目录
+- `概述`
+- `分层示例`
+- `分层好处`
+- `代码模板`
+- `相关文档`
+
+---
 
 ## 概述
 
@@ -30,7 +52,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.user.models import User
-from app.core.database import filter_active
 
 
 class UserRepository:
@@ -40,33 +61,19 @@ class UserRepository:
     async def get_by_id(self, user_id: UUID) -> User | None:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
-
-    async def get_by_username(
-        self, username: str, *, include_deleted: bool = False
-    ) -> User | None:
-        stmt = select(User).where(User.username == username)
-        if not include_deleted:
-            stmt = filter_active(stmt)
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
-
-    async def create(self, user: User) -> User:
-        self.db.add(user)
-        await self.db.flush()
-        await self.db.refresh(user)
-        return user
 ```
+
+> Repository 只封装查询与持久化细节，避免任何业务判断。
 
 ### Service 层
 
 ```python
 # modules/user/service.py
 from uuid import UUID
+
 from app.modules.user.repository import UserRepository
-from app.modules.user.schemas import UserCreate, UserResponse
-from app.modules.user.models import User
-from app.modules.user.exceptions import UserNotFoundError, UsernameAlreadyExistsError
-from app.core.security import hash_password
+from app.modules.user.schemas import UserResponse
+from app.modules.user.exceptions import UserNotFoundError
 
 
 class UserService:
@@ -78,20 +85,9 @@ class UserService:
         if not user:
             raise UserNotFoundError(user_id)
         return UserResponse.model_validate(user)
-
-    async def create(self, data: UserCreate) -> UserResponse:
-        # 业务逻辑：检查唯一性（全局唯一）
-        if await self.repo.get_by_username(data.username, include_deleted=True):
-            raise UsernameAlreadyExistsError(data.username)
-
-        # 业务逻辑：密码哈希
-        user = User(
-            username=data.username,
-            hashed_password=hash_password(data.password),
-        )
-        user = await self.repo.create(user)
-        return UserResponse.model_validate(user)
 ```
+
+> 复杂业务校验（如唯一性校验、权限判断、加密）应在 Service 中完成。
 
 ### Router 层
 
@@ -99,26 +95,22 @@ class UserService:
 # modules/user/router.py
 from uuid import UUID
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 
 from app.schemas.response import ApiResponse
 from app.modules.user.dependencies import UserServiceDep
-from app.modules.user.schemas import UserCreate, UserResponse
+from app.modules.user.schemas import UserResponse
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("/{user_id}", response_model=ApiResponse[UserResponse])
 async def get_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[UserResponse]:
-    user = await service.get_by_id(user_id)  # 不存在时抛出 UserNotFoundError
-    return ApiResponse(data=user)
-
-
-@router.post("/", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
-async def create_user(data: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
-    user = await service.create(data)  # 用户名重复时抛出对应异常
+    user = await service.get_by_id(user_id)
     return ApiResponse(data=user)
 ```
+
+> Router 只处理 HTTP 语义（路径、状态码、响应封装），不下沉业务细节。
 
 ---
 
@@ -135,10 +127,8 @@ async def create_user(data: UserCreate, service: UserServiceDep) -> ApiResponse[
 
 完整可运行示例见 `assets/` 目录：
 
-| 结构 | 模板目录 | 特点 |
-|------|----------|------|
-| 简单结构 | `assets/simple-api/services/` | Service 直接操作 AsyncSession |
-| 模块化结构 | `assets/modular-api/modules/user/` | 完整三层架构（含 Repository）|
+- `assets/simple-api/services/` - Service 直接操作 AsyncSession
+- `assets/modular-api/modules/user/` - 完整三层架构（含 Repository）
 
 ---
 

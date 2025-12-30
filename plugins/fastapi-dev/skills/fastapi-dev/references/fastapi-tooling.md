@@ -1,9 +1,36 @@
 # FastAPI 开发工具
 > 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/users`。
 
+## 设计原则
+- 工具链最小化，覆盖构建、测试、质量检查即可
+- 依赖锁定与可复现优先
+- 避免全局安装工具，使用 `uvx` 或 `uv run`
+- 配置保持短小，按需扩展
+- 规范集中维护，避免多处重复
+
+## 最佳实践
+1. `uv` 负责依赖与运行
+2. `ruff` 统一格式化与静态检查
+3. `ty` 进行类型检查（按需）
+4. `uv.lock` 必须提交
+5. Docker 构建使用分层缓存
+
+## 目录
+- `uv 包管理`
+- `Ruff 代码检查`
+- `ty 类型检查`
+- `pre-commit`
+- `pytest 配置`
+- `Docker 集成`
+- `命名规范速查`
+- `类型注解规范`
+- `命令速查`
+
+---
+
 ## uv 包管理
 
-极速 Python 包管理器（Rust 编写），比 pip 快 10-100 倍。
+极速 Python 包管理器（Rust 编写）。
 
 ```bash
 # 安装
@@ -17,23 +44,23 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv init my-project --python 3.13
 
 # 依赖管理
-uv add fastapi sqlalchemy          # 添加依赖
-uv add --dev pytest ruff           # 开发依赖
-uv remove requests                 # 移除依赖
+uv add fastapi sqlalchemy
+uv add --dev pytest ruff
+uv remove requests
 
 # 环境同步
-uv sync                            # 同步依赖
-uv sync --locked                   # 严格锁定（CI 用）
-uv sync --no-dev                   # 只生产依赖
+uv sync
+uv sync --locked
+uv sync --no-dev
 
 # 运行
-uv run fastapi dev                 # 开发服务器
-uv run pytest                      # 测试
-uv run ruff check .                # Lint
+uv run fastapi dev
+uv run pytest
+uv run ruff check .
 
 # 锁文件
-uv lock                            # 生成
-uv lock --upgrade                  # 升级所有
+uv lock
+uv lock --upgrade
 ```
 
 ### uv.lock 版本控制
@@ -43,54 +70,6 @@ uv lock --upgrade                  # 升级所有
 - `uv sync --locked` 依赖此文件进行严格版本锁定
 - Docker 构建时用于分层缓存
 
-```gitignore
-# .gitignore - 不要忽略 uv.lock
-.venv/
-__pycache__/
-*.pyc
-.env
-# uv.lock  ← 不要加这行！
-```
-
-### pyproject.toml 示例
-
-```toml
-[project]
-name = "my-fastapi-app"
-version = "0.1.0"
-requires-python = ">=3.13"
-dependencies = [
-    "fastapi[standard]>=0.122.0",
-    "sqlalchemy>=2.0",
-    "asyncpg>=0.31.0",
-    "greenlet>=3.0",           # SQLAlchemy 异步必需
-    "alembic>=1.17.0",
-    "loguru>=0.7.0",
-    "pydantic-settings>=2.7.0",
-    "pwdlib[argon2]>=0.3.0",
-    "pyjwt>=2.10.0",           # JWT（如不使用可移除并替换实现）
-    "uuid-utils>=0.10.0",      # UUIDv7（如不使用可移除并替换实现）
-]
-
-[dependency-groups]
-dev = [
-    "pytest>=9.0",
-    "pytest-asyncio>=1.0",
-    "httpx>=0.28.0",
-    "ruff>=0.14.0",
-]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["app"]
-```
-
-> **重要**：`[tool.hatch.build.targets.wheel]` 配置是必需的，否则 `uv run` 无法正确识别 app 包。
-> **可选依赖**：若不使用 JWT 或 UUIDv7，请移除 `pyjwt` / `uuid-utils` 并同步调整模板代码。
-
 ---
 
 ## Ruff 代码检查
@@ -99,13 +78,12 @@ packages = ["app"]
 
 ```bash
 uv add --dev ruff
-
-ruff check .          # 检查
-ruff check . --fix    # 自动修复
-ruff format .         # 格式化
+ruff check .
+ruff check . --fix
+ruff format .
 ```
 
-### 配置
+### 最小配置
 
 ```toml
 [tool.ruff]
@@ -114,54 +92,27 @@ line-length = 100
 exclude = [".venv", "alembic"]
 
 [tool.ruff.lint]
-select = [
-    "E", "W",     # pycodestyle
-    "F",          # Pyflakes
-    "I",          # isort
-    "B",          # bugbear
-    "UP",         # pyupgrade
-    "SIM",        # simplify
-    "ASYNC",      # async
-    "ANN",        # annotations
-    "S",          # security
-    "RUF",        # Ruff 规则
-]
-ignore = [
-    "ANN101",     # missing self type
-    "ANN102",     # missing cls type
-    "RUF001",     # 中文环境：字符串中的 Unicode
-    "RUF002",     # 中文环境：docstring 中的 Unicode
-    "RUF003",     # 中文环境：注释中的 Unicode
-]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "ANN"]
-
-[tool.ruff.lint.isort]
-known-first-party = ["app"]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "ASYNC", "ANN", "S", "RUF"]
+ignore = ["ANN101", "ANN102", "RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.format]
 quote-style = "double"
 docstring-code-format = true
 ```
 
+> 规则可按项目规模扩展，避免一次性启用全部规则导致维护成本过高。
+
 ---
 
 ## ty 类型检查
 
-Astral 的极速类型检查器，比 mypy 快 10-100 倍。
-
 ```bash
-# 安装（全局工具）
-uv tool install ty
-
-# 运行
-ty check
-ty check --watch     # 监听模式
-uvx ty check         # 无需安装
+# 无需全局安装
+uvx ty check
+uvx ty check --watch
 ```
 
-### 配置
+### 最小配置
 
 ```toml
 [tool.ty]
@@ -169,11 +120,7 @@ python-version = "3.13"
 
 [tool.ty.rules]
 unresolved-import = "error"
-unresolved-attribute = "warn"
 possibly-unbound = "warn"
-
-[tool.ty.src]
-exclude = ["alembic/**", ".venv/**"]
 ```
 
 ---
@@ -185,10 +132,9 @@ uv add --dev pre-commit
 uv run pre-commit install
 ```
 
-### 配置
+### 最小配置
 
 ```yaml
-# .pre-commit-config.yaml
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.4
@@ -214,12 +160,8 @@ repos:
 ```toml
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 addopts = "-v --tb=short"
-filterwarnings = [
-    "ignore::DeprecationWarning",
-]
 ```
 
 ---
@@ -284,17 +226,10 @@ uv 与 Docker 配合使用的要点：
 ### 现代语法（Python 3.10+）
 
 ```python
-# 内置泛型
-items: list[str]           # 不用 List[str]
-mapping: dict[str, int]    # 不用 Dict[str, int]
+items: list[str]
+mapping: dict[str, int]
+optional: str | None
 
-# Union 类型
-optional: str | None       # 不用 Optional[str]
-
-# 类型别名（3.12+）
-type UserID = int
-
-# Annotated 元数据
 DBSession = Annotated[Session, Depends(get_db)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 ```
@@ -324,4 +259,4 @@ def list_users() -> list[User]: ...
 | `uv lock` | 更新锁文件 |
 | `ruff check .` | 代码检查 |
 | `ruff format .` | 格式化 |
-| `ty check` | 类型检查 |
+| `uvx ty check` | 类型检查 |

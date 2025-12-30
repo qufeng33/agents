@@ -1,6 +1,35 @@
 # FastAPI 性能优化
 > 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/users`。
 
+## 设计原则
+- 优先保证事件循环不被阻塞，I/O 和 CPU 任务分离
+- 让 `response_model` 统一处理序列化，避免重复转换
+- 缓存、连接池、共享客户端用于提升吞吐与稳定性
+- 先监控再优化，性能结论基于数据而非直觉
+- 优化不牺牲可读性与可测试性
+
+## 最佳实践
+1. **使用 ORJSONResponse** - 大型响应必备
+2. **启用 GZip** - 减少传输数据量
+3. **配置连接池** - 避免连接耗尽
+4. **预加载关联** - 避免 N+1 查询
+5. **合理分页** - 限制单次返回数量
+6. **并行请求** - `asyncio.gather`
+7. **共享资源** - HTTP 客户端、Redis 连接
+8. **CPU 任务分离** - 进程池或任务队列
+9. **监控耗时** - 中间件记录请求时间
+10. **缓存热点数据** - Redis 或内存缓存
+
+## 目录
+- `async def vs def 选择`
+- `响应优化`
+- `缓存策略`
+- `数据库优化`
+- `异步优化`
+- `CPU 密集型任务`
+- `监控与分析`
+
+---
 
 ## async def vs def 选择
 
@@ -14,6 +43,10 @@
 > 上述选择针对 FastAPI 路由/依赖场景；纯工具函数（不在请求链路中）可使用 `def`。
 
 ```python
+import asyncio
+import time
+
+import httpx
 from fastapi import APIRouter
 
 router = APIRouter()
@@ -52,32 +85,18 @@ async def good():
 ```python
 from starlette.concurrency import run_in_threadpool
 
-# 场景：在 async 函数中调用同步第三方库
 @router.get("/sync-sdk")
 async def call_sync_sdk():
-    # 错误：直接调用会阻塞事件循环
-    # result = sync_sdk.heavy_operation()
-
-    # 正确：使用 run_in_threadpool 包装
     result = await run_in_threadpool(sync_sdk.heavy_operation)
     return {"result": result}
-
-
-# 带参数的同步调用
-async def process_file(file_path: str):
-    # 使用 lambda 或 functools.partial 传递参数
-    content = await run_in_threadpool(lambda: sync_sdk.read_file(file_path))
-    return content
 ```
+
+> 需要传参时可用 `lambda` 或 `functools.partial` 包装同步函数。
 
 **适用场景**：
 - 第三方 SDK 只提供同步接口（如某些云服务 SDK）
 - 需要在 async 函数中调用同步 I/O 操作
-- 无法使用 `def` 路由（如需要 await 其他操作）
-
-**与 `def` 路由的区别**：
-- `def` 路由：整个函数在线程池中执行
-- `run_in_threadpool`：只有特定调用在线程池中执行，其余保持异步
+- 无法使用 `def` 路由（如需要 `await` 其他操作）
 
 ---
 
@@ -85,65 +104,24 @@ async def process_file(file_path: str):
 
 ### 避免双重序列化
 
-FastAPI 使用 `response_model` 时会自动验证和序列化返回值。如果手动创建 Pydantic 模型实例再返回，会导致双重处理。
-
-#### 使用 ApiResponse 包装的场景
+FastAPI 使用 `response_model` 时会自动验证和序列化返回值。手动创建 Pydantic 模型实例再返回，会导致双重处理。
 
 ```python
-# ✅ 推荐：Service 返回 ORM 对象，直接传入 ApiResponse
-@router.get("/user/{user_id}", response_model=ApiResponse[UserResponse])
-async def get_user(user_id: UUID, service: UserServiceDep):
-    user = await service.get(user_id)  # 返回 ORM 对象
-    return ApiResponse(data=user)      # 直接传入，由 response_model 转换
-
-
-# ❌ 冗余：手动转换后再传入
+# 推荐：Service 返回 ORM 对象，交给 response_model 统一序列化
 @router.get("/user/{user_id}", response_model=ApiResponse[UserResponse])
 async def get_user(user_id: UUID, service: UserServiceDep):
     user = await service.get(user_id)
-    return ApiResponse(data=UserResponse.model_validate(user))  # 多余！
+    return ApiResponse(data=user)
 ```
 
-**原理**：
-1. `ApiResponse(data=user)` 构造时，泛型 `T` 在运行时不会立即验证
-2. FastAPI 根据 `response_model=ApiResponse[UserResponse]` 在响应时统一序列化
-3. `UserResponse` 配置了 `from_attributes=True`，ORM 对象自动转换
-
-#### 不使用包装的场景
-
 ```python
-# ✅ 推荐：直接返回 ORM 对象
+# 不使用包装时，直接返回 ORM 对象
 @router.get("/user/{user_id}", response_model=UserResponse)
 async def get_user(user_id: UUID, service: UserServiceDep):
-    return await service.get(user_id)  # 返回 ORM 对象
-
-
-# ✅ 或者：不使用 response_model，手动标注返回类型
-@router.get("/user/{user_id}")
-async def get_user(user_id: UUID, service: UserServiceDep) -> UserResponse:
-    user = await service.get(user_id)
-    return UserResponse.model_validate(user)
+    return await service.get(user_id)
 ```
 
-#### Service 层设计原则
-
-```python
-# ✅ 推荐：Service 返回 ORM 对象
-class UserService:
-    async def get(self, user_id: UUID) -> User | None:
-        return await self.repo.get_by_id(user_id)  # 返回 ORM 对象
-
-
-# ❌ 避免：Service 返回已转换的 Schema（除非有特殊需求）
-class UserService:
-    async def get(self, user_id: UUID) -> UserResponse | None:
-        user = await self.repo.get_by_id(user_id)
-        return UserResponse.model_validate(user) if user else None
-```
-
-**总结**：
-- Service 层返回 ORM 对象，Router 层负责构造 `ApiResponse`
-- 让 `response_model` 统一处理序列化，避免手动调用 `model_validate`
+> Service 层尽量返回 ORM 对象；如必须返回 Schema，请注明原因（例如权限裁剪或聚合字段）。
 
 ### ORJSONResponse
 
@@ -154,18 +132,10 @@ uv add orjson
 ```
 
 ```python
-from fastapi import APIRouter, FastAPI
+from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 
-router = APIRouter()
-
-# 全局默认
 app = FastAPI(default_response_class=ORJSONResponse)
-
-# 或单个路由
-@router.get("/items/", response_class=ORJSONResponse)
-async def list_items():
-    return [{"id": i, "name": f"Item {i}"} for i in range(1000)]
 ```
 
 ### GZip 压缩
@@ -224,28 +194,17 @@ def get_settings():
 ```python
 # core/cache.py
 import json
-from typing import Annotated
 
 import redis.asyncio as redis
-from fastapi import Depends, FastAPI, Request
+from fastapi import FastAPI, Request
 
 
 async def init_redis(app: FastAPI) -> None:
-    """初始化 Redis 连接"""
     app.state.redis = await redis.from_url("redis://localhost")
 
 
-async def close_redis(app: FastAPI) -> None:
-    """关闭 Redis 连接"""
-    await app.state.redis.close()
-
-
 async def get_redis(request: Request) -> redis.Redis:
-    """依赖注入：获取 Redis 客户端"""
     return request.app.state.redis
-
-
-RedisClient = Annotated[redis.Redis, Depends(get_redis)]
 
 
 async def get_cached_or_fetch(
@@ -254,7 +213,6 @@ async def get_cached_or_fetch(
     fetch_func,
     ttl: int = 300,
 ):
-    """尝试从缓存获取，否则调用 fetch_func 并缓存"""
     cached = await redis_client.get(key)
     if cached:
         return json.loads(cached)
@@ -264,19 +222,7 @@ async def get_cached_or_fetch(
     return data
 ```
 
-```python
-# 使用示例
-from uuid import UUID
-
-@router.get("/users/{user_id}")
-async def get_user(user_id: UUID, redis_client: RedisClient):
-    cache_key = f"user:{user_id}"
-
-    async def fetch():
-        return await user_service.get(user_id)
-
-    return await get_cached_or_fetch(redis_client, cache_key, fetch, ttl=600)
-```
+> 路由中通过依赖注入获取 `redis_client` 并构造缓存键。`key` 建议包含版本或租户信息，`ttl` 按数据更新频率设定。
 
 ### HTTP 缓存头
 
@@ -320,7 +266,7 @@ async_engine = create_async_engine(
 ```python
 # repository.py
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.dependencies import DBSession
 
@@ -352,66 +298,15 @@ class PostRepository:
         return result.scalar_one_or_none()
 ```
 
-```python
-# service.py
-class UserService:
-    def __init__(self, repo: UserRepository):
-        self.repo = repo
-
-    async def list_users(self) -> list[User]:
-        return await self.repo.list_with_relations()
-
-
-class PostService:
-    def __init__(self, repo: PostRepository):
-        self.repo = repo
-
-    async def get_post(self, post_id: UUID) -> Post | None:
-        return await self.repo.get_with_author(post_id)
-```
-
-```python
-# router.py
-@router.get("/users/")
-async def list_users(service: UserServiceDep):
-    return await service.list_users()
-
-
-@router.get("/posts/{post_id}")
-async def get_post(post_id: UUID, service: PostServiceDep):
-    return await service.get_post(post_id)
-```
+> Service 层/Router 层只需调用 Repository；示例省略以突出关键查询形态。
 
 ### 分页
 
 ```python
-from fastapi import Query
-from sqlalchemy import select, func
-
-
-@router.get("/items/", response_model=ApiPagedResponse[ItemResponse])
-async def list_items(
-    page: int = Query(default=0, ge=0, description="页码（从 0 开始）"),
-    page_size: int = Query(default=20, ge=1, le=100),
-    service: ItemServiceDep,
-) -> ApiPagedResponse[ItemResponse]:
-    items, total = await service.list_items(page=page, page_size=page_size)
-    return ApiPagedResponse(data=items, total=total, page=page, page_size=page_size)
-```
-
-```python
-# service.py
-class ItemService:
-    def __init__(self, repo: ItemRepository):
-        self.repo = repo
-
-    async def list_items(self, page: int, page_size: int) -> tuple[list[ItemResponse], int]:
-        items, total = await self.repo.list(page=page, page_size=page_size)
-        return [ItemResponse.model_validate(i) for i in items], total
-```
-
-```python
 # repository.py
+from sqlalchemy import func, select
+
+
 class ItemRepository:
     def __init__(self, db: DBSession):
         self.db = db
@@ -425,6 +320,8 @@ class ItemRepository:
         items = list(result.scalars().all())
         return items, total
 ```
+
+> Router 侧仅负责接收 `page/page_size` 并构造响应；若 `response_model` 支持 `from_attributes`，可直接传 ORM 列表。
 
 ---
 
@@ -440,20 +337,19 @@ import httpx
 @router.get("/aggregate")
 async def aggregate_data():
     async with httpx.AsyncClient() as client:
-        # 并行请求
         tasks = [
             client.get("https://api1.example.com/data"),
             client.get("https://api2.example.com/data"),
-            client.get("https://api3.example.com/data"),
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
     return {
         "api1": results[0].json() if not isinstance(results[0], Exception) else None,
         "api2": results[1].json() if not isinstance(results[1], Exception) else None,
-        "api3": results[2].json() if not isinstance(results[2], Exception) else None,
     }
 ```
+
+> 建议为请求设置超时，并明确异常兜底策略。
 
 ### 共享 HTTP 客户端
 
@@ -478,7 +374,6 @@ executor = ProcessPoolExecutor(max_workers=4)
 
 
 def cpu_intensive(data: str) -> str:
-    # CPU 密集型计算
     import hashlib
     for _ in range(1000000):
         data = hashlib.sha256(data.encode()).hexdigest()
@@ -492,32 +387,12 @@ async def compute(data: str):
     return {"result": result}
 ```
 
-### 任务队列（Celery）
-
-```python
-from uuid import UUID
-from celery import Celery
-
-celery_app = Celery("tasks", broker="redis://localhost:6379/0")
-
-
-@celery_app.task
-def process_video(video_id: UUID):
-    # 耗时任务
-    ...
-
-
-@router.post("/videos/{video_id}/process")
-async def start_processing(video_id: UUID):
-    task = process_video.delay(video_id)
-    return {"task_id": task.id}
-
-
-@router.get("/tasks/{task_id}")
-async def get_task_status(task_id: str):
-    task = celery_app.AsyncResult(task_id)
-    return {"status": task.status, "result": task.result}
-```
+> 长耗时任务建议交给任务队列处理，以获得重试、延时与异步结果能力。
+>
+> 任务队列详见：
+> - [Celery](./fastapi-tasks-celery.md) - 分布式任务队列
+> - [Arq](./fastapi-tasks-arq.md) - 轻量级异步任务队列
+> - [后台任务](./fastapi-tasks-background.md) - FastAPI 内置方案
 
 ---
 
@@ -526,8 +401,8 @@ async def get_task_status(task_id: str):
 ### 请求耗时中间件
 
 ```python
-import time
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -557,35 +432,9 @@ async def log_request_time(request: Request, call_next):
 ```python
 import logging
 
-# SQLAlchemy 慢查询日志
 logging.getLogger("sqlalchemy.engine").setLevel(logging.INFO)
-
-# 或自定义
-from sqlalchemy import event
-
-@event.listens_for(engine, "before_cursor_execute")
-def receive_before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-    conn.info.setdefault("query_start_time", []).append(time.time())
-
-
-@event.listens_for(engine, "after_cursor_execute")
-def receive_after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-    total = time.time() - conn.info["query_start_time"].pop()
-    if total > 0.5:  # 超过 500ms
-        logger.warning(f"Slow query ({total:.2f}s): {statement[:100]}")
 ```
 
+> 如需按阈值记录慢查询，可在 SQLAlchemy 事件中统计耗时并输出告警。
+
 ---
-
-## 最佳实践
-
-1. **使用 ORJSONResponse** - 大型响应必备
-2. **启用 GZip** - 减少传输数据量
-3. **配置连接池** - 避免连接耗尽
-4. **预加载关联** - 避免 N+1 查询
-5. **合理分页** - 限制单次返回数量
-6. **并行请求** - asyncio.gather
-7. **共享资源** - HTTP 客户端、Redis 连接
-8. **CPU 任务分离** - 进程池或任务队列
-9. **监控耗时** - 中间件记录请求时间
-10. **缓存热点数据** - Redis 或内存缓存

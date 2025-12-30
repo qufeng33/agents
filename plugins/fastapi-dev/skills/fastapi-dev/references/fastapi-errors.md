@@ -13,6 +13,37 @@
 
 ---
 
+## 最佳实践
+
+| 实践 | 说明 |
+|------|------|
+| **统一响应格式** | `ApiResponse[T]` 包装所有成功响应 |
+| **错误码分段** | 5 位整数，按类别分段管理 |
+| **异常继承体系** | 继承 `ApiError` 基类，按业务分类 |
+| **模块级异常** | 按领域组织，如 `user/exceptions.py` |
+| **依赖验证** | 在依赖中抛出异常，路由保持简洁 |
+| **分层处理** | Service 抛业务异常，Router 包装响应 |
+| **日志记录** | 业务异常 warning，系统异常 exception |
+| **隐藏细节** | 生产环境不暴露堆栈和内部信息 |
+| **文档化错误** | 在 OpenAPI 中声明 `responses` |
+
+---
+
+## 目录
+
+- 设计原则
+- 最佳实践
+- 响应模型
+- 错误码体系
+- 业务异常
+- 全局异常处理器
+- 模块级异常
+- 依赖中的异常处理
+- OpenAPI 文档
+- 相关文档
+
+---
+
 ## 响应模型
 
 ### 统一响应格式
@@ -33,18 +64,6 @@ class ApiResponse(BaseModel, Generic[T]):
     message: str = "success"
     data: T
 
-
-class ApiPagedResponse(BaseModel, Generic[T]):
-    """分页列表响应"""
-
-    code: int = 0
-    message: str = "success"
-    data: list[T]
-    total: int
-    page: int
-    page_size: int
-
-
 class ErrorResponse(BaseModel):
     """错误响应"""
 
@@ -54,12 +73,14 @@ class ErrorResponse(BaseModel):
     detail: dict | None = None
 ```
 
+**分页响应说明**：使用 `ApiPagedResponse` 时保留 `code/message/data/total/page/page_size` 字段即可；`data` 为列表，`total` 为总数。
+
 ### 使用示例
 
 ```python
 from uuid import UUID
 
-from app.schemas.response import ApiResponse, ApiPagedResponse
+from app.schemas.response import ApiResponse
 from app.schemas.user import UserResponse
 
 
@@ -67,17 +88,9 @@ from app.schemas.user import UserResponse
 async def get_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[UserResponse]:
     user = await service.get(user_id)
     return ApiResponse(data=user)
-
-
-@router.get("/", response_model=ApiPagedResponse[UserResponse])
-async def list_users(
-    page: int = 0,
-    page_size: int = 20,
-    service: UserServiceDep,
-) -> ApiPagedResponse[UserResponse]:
-    users, total = await service.list(page, page_size)
-    return ApiPagedResponse(data=users, total=total, page=page, page_size=page_size)
 ```
+
+**列表接口**：用 `ApiPagedResponse[T]`，并在 Service 返回 `(items, total)`。
 
 ---
 
@@ -106,36 +119,24 @@ class ErrorCode(IntEnum):
 
     # 10000-19999: 系统级错误
     SYSTEM_ERROR = 10000
-    DATABASE_ERROR = 10001
-    CACHE_ERROR = 10002
 
     # 20000-29999: 服务级错误
     SERVICE_UNAVAILABLE = 20000
-    SERVICE_TIMEOUT = 20001
 
     # 30000-39999: 业务校验错误
     RESOURCE_NOT_FOUND = 30000
-    USER_NOT_FOUND = 30001
     DUPLICATE_ENTRY = 30100
-    USERNAME_ALREADY_EXISTS = 30102
-    USER_NOT_DELETED = 30103
 
     # 40000-49999: 客户端请求错误
     INVALID_REQUEST = 40000
-    INVALID_PARAMETER = 40001
-    MISSING_PARAMETER = 40002
     UNAUTHORIZED = 40100
-    TOKEN_EXPIRED = 40101
-    TOKEN_INVALID = 40102
     FORBIDDEN = 40200
-    USER_DISABLED = 40201
-    INSUFFICIENT_PERMISSIONS = 40202
 
     # 50000-59999: 外部依赖错误
     EXTERNAL_API_ERROR = 50000
-    EXTERNAL_API_TIMEOUT = 50001
-    PAYMENT_GATEWAY_ERROR = 50100
 ```
+
+**扩展说明**：每个分段至少保留 1-2 个代表码；具体业务码按模块扩展（例如 `USER_NOT_FOUND`、`TOKEN_EXPIRED` 等）。
 
 ---
 
@@ -183,18 +184,6 @@ class NotFoundError(ApiError):
         super().__init__(code, message, status_code=404, detail=detail)
 
 
-class ValidationError(ApiError):
-    """业务验证失败"""
-
-    def __init__(
-        self,
-        code: ErrorCode = ErrorCode.INVALID_PARAMETER,
-        message: str = "Validation failed",
-        detail: dict | None = None,
-    ):
-        super().__init__(code, message, status_code=400, detail=detail)
-
-
 class UnauthorizedError(ApiError):
     """认证失败"""
 
@@ -208,14 +197,10 @@ class UnauthorizedError(ApiError):
 
 
 class InvalidCredentialsError(UnauthorizedError):
-    """凭证无效"""
+    """凭证无效（登录失败）"""
 
-    def __init__(
-        self,
-        message: str = "Invalid credentials",
-        detail: dict | None = None,
-    ):
-        super().__init__(ErrorCode.UNAUTHORIZED, message, detail)
+    def __init__(self, message: str = "Invalid credentials"):
+        super().__init__(ErrorCode.UNAUTHORIZED, message)
 
 
 class ForbiddenError(ApiError):
@@ -240,19 +225,9 @@ class ConflictError(ApiError):
         detail: dict | None = None,
     ):
         super().__init__(code, message, status_code=409, detail=detail)
-
-
-class ServiceUnavailableError(ApiError):
-    """服务不可用"""
-
-    def __init__(
-        self,
-        code: ErrorCode = ErrorCode.SERVICE_UNAVAILABLE,
-        message: str = "Service unavailable",
-        detail: dict | None = None,
-    ):
-        super().__init__(code, message, status_code=503, detail=detail)
 ```
+
+> 其他异常（如 `ValidationError`、`ServiceUnavailableError`）按同模式扩展。
 
 ---
 
@@ -298,8 +273,13 @@ async def validation_error_handler(
     """请求验证异常处理"""
     errors = []
     for error in exc.errors():
+        # 将 loc 列表转换为点分字符串 (e.g. ["body", "user", "name"] -> "user.name")
+        # 跳过第一个元素（通常是 'body' 或 'query'）
+        loc = error["loc"]
+        field = ".".join(str(x) for x in loc[1:]) if len(loc) > 1 else str(loc[0])
+        
         errors.append({
-            "field": ".".join(str(loc) for loc in error["loc"][1:]),
+            "field": field,
             "message": error["msg"],
             "type": error["type"],
         })
@@ -307,7 +287,7 @@ async def validation_error_handler(
     return JSONResponse(
         status_code=422,
         content={
-            "code": ErrorCode.INVALID_PARAMETER,
+            "code": ErrorCode.INVALID_REQUEST,
             "message": "Validation failed",
             "data": None,
             "detail": {"errors": errors},
@@ -327,7 +307,6 @@ async def http_error_handler(
         403: ErrorCode.FORBIDDEN,
         404: ErrorCode.RESOURCE_NOT_FOUND,
         500: ErrorCode.SYSTEM_ERROR,
-        503: ErrorCode.SERVICE_UNAVAILABLE,
     }
     code = code_map.get(exc.status_code, ErrorCode.SYSTEM_ERROR)
 
@@ -379,7 +358,7 @@ def setup_exception_handlers(app: FastAPI) -> None:
 
 ```python
 # app/modules/user/exceptions.py
-from app.core.exceptions import NotFoundError, ConflictError, ForbiddenError
+from app.core.exceptions import NotFoundError
 from app.core.error_codes import ErrorCode
 
 
@@ -388,40 +367,20 @@ class UserNotFoundError(NotFoundError):
 
     def __init__(self, user_id: UUID):
         super().__init__(
-            code=ErrorCode.USER_NOT_FOUND,
+            code=ErrorCode.RESOURCE_NOT_FOUND,
             message="用户不存在",
             detail={"user_id": str(user_id)},
         )
-
-
-class UsernameAlreadyExistsError(ConflictError):
-    """用户名已存在"""
-
-    def __init__(self, username: str):
-        super().__init__(
-            code=ErrorCode.USERNAME_ALREADY_EXISTS,
-            message="用户名已存在",
-            detail={"username": username},
-        )
-
-
-class UserDisabledError(ForbiddenError):
-    """用户已禁用"""
-
-    def __init__(self):
-        super().__init__(
-            code=ErrorCode.USER_DISABLED,
-            message="用户已被禁用",
-        )
 ```
+
+**扩展说明**：冲突/权限类异常按 `ConflictError`/`ForbiddenError` 模式扩展即可。
 
 ### Service 层使用
 
 ```python
 # app/modules/user/service.py
-from app.schemas.response import ApiResponse
 from app.schemas.user import UserCreate, UserResponse
-from .exceptions import UserNotFoundError, UsernameAlreadyExistsError
+from .exceptions import UserNotFoundError
 from .models import User
 from app.core.security import hash_password
 
@@ -437,8 +396,6 @@ class UserService:
         return UserResponse.model_validate(user)
 
     async def create(self, data: UserCreate) -> UserResponse:
-        if await self.repo.get_by_username(data.username, include_deleted=True):
-            raise UsernameAlreadyExistsError(data.username)
         user = User(
             username=data.username,
             hashed_password=hash_password(data.password),
@@ -447,30 +404,9 @@ class UserService:
         return UserResponse.model_validate(user)
 ```
 
-### Router 层使用
+**补充说明**：如需唯一性校验，按需抛出 `ConflictError`（或其派生类）并携带冲突字段信息。
 
-```python
-# app/modules/user/router.py
-from fastapi import APIRouter, status
-
-from app.schemas.response import ApiResponse
-from app.schemas.user import UserCreate, UserResponse
-from .dependencies import UserServiceDep
-
-router = APIRouter()
-
-
-@router.post("/", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
-async def create_user(user_in: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
-    user = await service.create(user_in)
-    return ApiResponse(data=user)
-
-
-@router.get("/{user_id}", response_model=ApiResponse[UserResponse])
-async def get_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[UserResponse]:
-    user = await service.get(user_id)
-    return ApiResponse(data=user)
-```
+**Router 层**：直接返回 `ApiResponse(data=...)`，异常交给全局处理器。
 
 ---
 
@@ -502,8 +438,6 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 ### 依赖中验证并抛出异常
 
 ```python
-from typing import Annotated
-
 from fastapi import Depends
 from sqlalchemy import select
 
@@ -516,15 +450,9 @@ async def get_user_or_404(user_id: UUID, db: DBSession) -> User:
     if not user:
         raise UserNotFoundError(user_id)
     return user
-
-
-ValidUser = Annotated[User, Depends(get_user_or_404)]
-
-
-@router.get("/users/{user_id}")
-async def get_user(user: ValidUser) -> ApiResponse[UserResponse]:
-    return ApiResponse(data=UserResponse.model_validate(user))
 ```
+
+**使用方式**：在路由依赖中引用 `get_user_or_404` 即可，异常会被全局处理器统一转换为错误响应。
 
 ---
 
@@ -541,13 +469,14 @@ from app.schemas.response import ErrorResponse
     response_model=ApiResponse[ItemResponse],
     responses={
         404: {"model": ErrorResponse, "description": "Item not found"},
-        422: {"model": ErrorResponse, "description": "Validation error"},
     },
 )
 async def get_item(item_id: UUID, service: ItemServiceDep) -> ApiResponse[ItemResponse]:
     item = await service.get(item_id)
     return ApiResponse(data=item)
 ```
+
+**补充说明**：根据端点需要补充 401/403/422 等错误响应声明。
 
 ---
 
@@ -556,19 +485,3 @@ async def get_item(item_id: UUID, service: ItemServiceDep) -> ApiResponse[ItemRe
 - **日志记录** - 详见 [日志](./fastapi-logging.md)
 - **请求追踪** - 详见 [中间件](./fastapi-middleware.md)
 - **应用启动** - 详见 [应用生命周期](./fastapi-app-lifecycle.md)
-
----
-
-## 最佳实践
-
-| 实践 | 说明 |
-|------|------|
-| **统一响应格式** | `ApiResponse[T]` 包装所有成功响应 |
-| **错误码分段** | 5 位整数，按类别分段管理 |
-| **异常继承体系** | 继承 `ApiError` 基类，按业务分类 |
-| **模块级异常** | 按领域组织，如 `user/exceptions.py` |
-| **依赖验证** | 在依赖中抛出异常，路由保持简洁 |
-| **分层处理** | Service 抛业务异常，Router 包装响应 |
-| **日志记录** | 业务异常 warning，系统异常 exception |
-| **隐藏细节** | 生产环境不暴露堆栈和内部信息 |
-| **文档化错误** | 在 OpenAPI 中声明 `responses` |

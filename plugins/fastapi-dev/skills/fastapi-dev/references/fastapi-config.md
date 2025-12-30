@@ -3,19 +3,30 @@
 
 > pydantic-settings 最佳实践
 
-## 核心原则
+## 设计原则
+- 配置集中管理，应用内只读取一次
+- 敏感信息必须使用 `SecretStr`
+- 必填字段不设默认值，启动时强校验
+- 类型与约束用 `Field` 明确表达
+- 嵌套配置用 `BaseModel`，顶层用 `BaseSettings`
 
-1. **使用 .env 文件** - 管理开发环境配置
-2. **敏感信息用 SecretStr** - 避免日志泄露密钥
-3. **必填字段无默认值** - 启动时强制验证
-4. **类型验证用 Field** - 利用 `ge`、`le` 等参数约束
-5. **全局单例** - 配置类实例化一次（`@lru_cache`）
-6. **使用 SettingsConfigDict** - 替代旧的 `class Config`
-7. **可变默认值用 default_factory** - 列表/字典/对象避免共享默认实例
+## 最佳实践
+1. 使用 `.env` 管理开发环境配置
+2. `@lru_cache` 保证全局单例
+3. 使用 `SettingsConfigDict` 代替旧 `Config`
+4. 可变默认值使用 `default_factory`
+5. 配置源优先级明确、可预期
+
+## 目录
+- `最小示例`
+- `FastAPI 集成`
+- `配置源优先级`
+- `SettingsConfigDict 常用选项`
+- `常见问题`
 
 ---
 
-## 完整示例
+## 最小示例
 
 ```python
 # app/config.py
@@ -27,12 +38,7 @@ from pydantic import BaseModel, Field, SecretStr, computed_field, field_validato
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-# ============================================================
-# 嵌套配置模型（使用 BaseModel，不是 BaseSettings）
-# ============================================================
-
 class DatabaseConfig(BaseModel):
-    """数据库配置"""
     host: str = "localhost"
     port: int = Field(default=5432, ge=1, le=65535)
     name: str = "mydb"
@@ -42,82 +48,26 @@ class DatabaseConfig(BaseModel):
     @computed_field
     @property
     def url(self) -> str:
-        """构建数据库连接 URL"""
         user = quote(self.user, safe="")
         password = quote(self.password.get_secret_value(), safe="")
         return f"postgresql+asyncpg://{user}:{password}@{self.host}:{self.port}/{self.name}"
 
-    @computed_field
-    @property
-    def sync_url(self) -> str:
-        """构建同步数据库连接 URL（psycopg，用于任务/同步场景）"""
-        user = quote(self.user, safe="")
-        password = quote(self.password.get_secret_value(), safe="")
-        return f"postgresql+psycopg://{user}:{password}@{self.host}:{self.port}/{self.name}"
-
-
-class RedisConfig(BaseModel):
-    """Redis 配置"""
-    host: str = "localhost"
-    port: int = Field(default=6379, ge=1, le=65535)
-    db: int = Field(default=0, ge=0, le=15)
-
-
-# ============================================================
-# 主配置类
-# ============================================================
 
 class Settings(BaseSettings):
-    """应用配置"""
-
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        env_nested_delimiter="_",   # 嵌套分隔符：DB_HOST -> db.host
-        env_nested_max_split=1,     # 只分割第一个 _，避免 DB_USER_NAME -> db.user.name
-        extra="ignore",             # 忽略 .env 中未定义的变量
+        env_nested_delimiter="_",
+        env_nested_max_split=1,
+        extra="ignore",
     )
 
-    # ----------------------------------------------------------
-    # 必填字段：无默认值，启动时验证
-    # ----------------------------------------------------------
     secret_key: SecretStr
-
-    # ----------------------------------------------------------
-    # 可选字段：有默认值
-    # ----------------------------------------------------------
     debug: bool = False
-    app_name: str = "MyApp"
     log_level: str = "INFO"
 
-    # ----------------------------------------------------------
-    # 带约束的字段
-    # ----------------------------------------------------------
-    port: int = Field(default=8000, ge=1, le=65535)
-    workers: int = Field(default=4, ge=1, le=32)
-
-    # ----------------------------------------------------------
-    # 列表字段：支持逗号分隔或 JSON 格式
-    # ----------------------------------------------------------
-    cors_origins: list[str] = Field(default_factory=list)
-
-    # ----------------------------------------------------------
-    # 嵌套配置
-    # ----------------------------------------------------------
     db: DatabaseConfig
-    redis: RedisConfig = Field(default_factory=RedisConfig)  # 可选嵌套，有默认值
 
-    # ----------------------------------------------------------
-    # 计算属性（供 SQLAlchemy 等使用）
-    # ----------------------------------------------------------
-    @computed_field
-    @property
-    def database_url(self) -> str:
-        return self.db.url
-
-    # ----------------------------------------------------------
-    # 自定义验证器
-    # ----------------------------------------------------------
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, v: str) -> str:
@@ -127,108 +77,48 @@ class Settings(BaseSettings):
             raise ValueError(f"log_level 必须是 {allowed} 之一")
         return upper
 
-    @field_validator("cors_origins", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
-        """支持逗号分隔的字符串"""
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",") if origin.strip()]
-        return v
-
-
-# ============================================================
-# 全局单例
-# ============================================================
 
 @lru_cache
 def get_settings() -> Settings:
-    """全局单例，避免重复解析"""
     return Settings()
+
+
+SettingsDep = Annotated[Settings, Depends(get_settings)]
 ```
+
+> 其他配置字段（如 CORS、Redis、workers）可按需要添加，避免一次性堆入所有项。
 
 对应 `.env` 文件：
 
 ```env
-# 必填
 SECRET_KEY=your-secret-key-here
-
-# 可选（覆盖默认值）
 DEBUG=true
-APP_NAME=MyApp
 LOG_LEVEL=debug
-PORT=8000
-WORKERS=4
-
-# 列表（逗号分隔）
-CORS_ORIGINS=http://localhost:3000,http://localhost:8080
-
-# 嵌套配置（使用 _ 分隔）
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=production_db
 DB_USER=postgres
 DB_PASSWORD=secret123
-
-REDIS_HOST=redis.example.com
-REDIS_PORT=6379
-REDIS_DB=0
 ```
+
+> 使用 `DB_` 前缀配合 `env_nested_delimiter="_"` 生成嵌套配置。
 
 ---
 
 ## FastAPI 集成
 
+通过依赖注入统一获取配置。建议将此依赖定义在 `app/dependencies.py` 中以避免循环导入。
+
 ```python
 # app/dependencies.py
 from typing import Annotated
 from fastapi import Depends
+from app.config import Settings, get_settings
 
-from .config import Settings, get_settings
-
-# 类型别名，简化依赖声明
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 ```
 
-```python
-# app/routers/health.py
-from fastapi import APIRouter
-
-from app.schemas.response import ApiResponse
-
-router = APIRouter()
-
-
-@router.get("/health", response_model=ApiResponse[dict[str, str]])
-async def health_check() -> ApiResponse[dict[str, str]]:
-    return ApiResponse(data={"status": "ok"})
-```
-
-### 测试时覆盖配置
-
-```python
-# tests/conftest.py
-import pytest
-from fastapi.testclient import TestClient
-
-from app.config import Settings, get_settings
-from app.main import app
-
-
-def get_settings_override() -> Settings:
-    return Settings(
-        secret_key="test-secret-key",
-        db={"host": "localhost", "port": 5432, "name": "test_db",
-            "user": "test", "password": "test"},
-        debug=True,
-    )
-
-
-@pytest.fixture
-def client():
-    app.dependency_overrides[get_settings] = get_settings_override
-    yield TestClient(app)
-    app.dependency_overrides.clear()
-```
+> 测试时可用 `dependency_overrides` 覆盖 `get_settings()`。
 
 ---
 
@@ -247,16 +137,14 @@ def client():
 
 ## SettingsConfigDict 常用选项
 
-| 选项 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `env_file` | `str \| tuple` | `None` | .env 文件路径 |
-| `env_file_encoding` | `str` | `None` | 文件编码 |
-| `env_prefix` | `str` | `""` | 环境变量前缀 |
-| `env_nested_delimiter` | `str` | `None` | 嵌套配置分隔符 |
-| `env_nested_max_split` | `int` | `None` | 分隔符最大分割次数 |
-| `case_sensitive` | `bool` | `False` | 是否区分大小写 |
-| `extra` | `str` | `"forbid"` | 额外字段处理 |
-| `validate_default` | `bool` | `True` | 是否验证默认值 |
+| 选项 | 说明 |
+|------|------|
+| `env_file` | .env 文件路径 |
+| `env_file_encoding` | 文件编码 |
+| `env_prefix` | 环境变量前缀 |
+| `env_nested_delimiter` | 嵌套配置分隔符 |
+| `env_nested_max_split` | 分隔符最大分割次数 |
+| `extra` | 额外字段处理策略 |
 
 ---
 

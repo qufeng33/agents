@@ -1,9 +1,31 @@
 # FastAPI 认证
 
+## 设计原则
+- 密码永不明文存储
+- Token 有效期短、可撤销
+- 认证逻辑集中在安全模块
+- 鉴权依赖注入，不下沉到路由
+- 响应模型不泄露敏感字段
+
+## 最佳实践
+1. 密码哈希使用 Argon2
+2. JWT 过期时间保持短（15–60 分钟）
+3. 生产环境强制 HTTPS
+4. 认证失败统一返回 401
+5. Swagger OAuth2 使用标准 token 端点
+
+## 目录
+- `依赖安装`
+- `OAuth2 + JWT 认证`
+- `密码策略`
+- `登录端点`
+- `相关文档`
+
+---
+
 ## 依赖安装
 
 ```bash
-# JWT + 密码哈希（推荐 Argon2）
 uv add pyjwt "pwdlib[argon2]"
 ```
 
@@ -11,7 +33,7 @@ uv add pyjwt "pwdlib[argon2]"
 
 ## OAuth2 + JWT 认证
 
-### 完整实现
+### 核心实现
 
 ```python
 # core/security.py
@@ -26,12 +48,11 @@ from pwdlib import PasswordHash
 from app.config import get_settings
 
 settings = get_settings()
-
-# 密码哈希（使用 Argon2 算法）
 password_hash = PasswordHash.recommended()
 
 
 class Token(BaseModel):
+    """OAuth2 token 响应"""
     access_token: str
     token_type: str = "bearer"
 
@@ -44,10 +65,7 @@ def hash_password(password: str) -> str:
     return password_hash.hash(password)
 
 
-def create_access_token(
-    data: dict,
-    expires_delta: timedelta | None = None,
-) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.access_token_expire_minutes)
@@ -57,7 +75,6 @@ def create_access_token(
 
 
 def decode_access_token(token: str) -> UUID | None:
-    """解码 token，返回 user_id，无效则返回 None"""
     try:
         payload = jwt.decode(token, settings.secret_key.get_secret_value(), algorithms=["HS256"])
         sub = payload.get("sub")
@@ -66,6 +83,8 @@ def decode_access_token(token: str) -> UUID | None:
         return None
 ```
 
+### 当前用户依赖
+
 ```python
 # app/dependencies.py
 from typing import Annotated
@@ -73,14 +92,11 @@ from typing import Annotated
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 
-from app.core.security import decode_access_token
 from app.core.exceptions import InvalidCredentialsError
-from app.modules.user.exceptions import UserDisabledError
+from app.core.security import decode_access_token
 from app.modules.user.dependencies import get_user_repository
 from app.modules.user.repository import UserRepository
-from app.modules.user.models import User
 
-# 使用标准 OAuth2 token 端点（Swagger 授权按钮需要）
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token/raw")
 
 
@@ -93,73 +109,32 @@ async def get_current_user(
         raise InvalidCredentialsError()
 
     user = await user_repo.get_by_id(user_id)
-    if user is None:
+    if user is None or not user.is_active:
         raise InvalidCredentialsError()
 
-    if not user.is_active:
-        raise UserDisabledError()
-
     return user
-
-
-CurrentUser = Annotated[User, Depends(get_current_user)]
 ```
+
+> 认证依赖应放在 `dependencies.py`，避免在路由中编排鉴权逻辑。
 
 ### 配置示例
 
 ```python
-# app/config.py
-from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
-
-
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
-    # 生成方式: openssl rand -hex 32
-    secret_key: SecretStr
+    secret_key: SecretStr  # 生成方式: openssl rand -hex 32
     access_token_expire_minutes: int = 30
 ```
 
-### AuthService
+---
+
+## 密码策略
 
 ```python
-# modules/auth/service.py
-from app.core.exceptions import InvalidCredentialsError
-from app.core.security import Token, create_access_token, verify_password
-from app.modules.user.repository import UserRepository
-
-
-class AuthService:
-    def __init__(self, user_repo: UserRepository):
-        self.user_repo = user_repo
-
-    async def authenticate(self, username: str, password: str) -> Token:
-        user = await self.user_repo.get_by_username(username)
-        if not user or not verify_password(
-            plain_password=password,
-            hashed_password=user.hashed_password,
-        ):
-            raise InvalidCredentialsError()
-
-        access_token = create_access_token(data={"sub": str(user.id)})
-        return Token(access_token=access_token)
-```
-
-### 密码策略
-
-在用户注册/修改密码时验证密码强度：
-
-```python
-# modules/user/schemas.py
 import re
-
 from pydantic import BaseModel, Field, field_validator
 
 
 class PasswordMixin(BaseModel):
-    """密码验证 Mixin"""
-
     password: str = Field(..., min_length=8, max_length=128)
 
     @field_validator("password")
@@ -167,32 +142,25 @@ class PasswordMixin(BaseModel):
     def validate_password_strength(cls, v: str) -> str:
         if not re.search(r"[A-Z]", v):
             raise ValueError("密码必须包含至少一个大写字母")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("密码必须包含至少一个小写字母")
         if not re.search(r"\d", v):
             raise ValueError("密码必须包含至少一个数字")
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
-            raise ValueError("密码必须包含至少一个特殊字符")
         return v
-
-
-class UserCreate(PasswordMixin):
-    username: str = Field(..., min_length=3, max_length=50)
 ```
 
-> 密码验证在 Pydantic schema 层完成，确保所有入口（注册、修改密码）统一校验。
+> 其余强度规则（小写/特殊字符/常见密码黑名单）按安全要求补充。
 
-### 登录端点
+---
+
+## 登录端点
 
 ```python
-# modules/auth/router.py
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.core.security import Token
 from app.schemas.response import ApiResponse
+from app.core.security import Token
 from .service import AuthService
 from .dependencies import get_auth_service
 
@@ -206,26 +174,9 @@ async def login(
 ):
     token = await auth_service.authenticate(form_data.username, form_data.password)
     return ApiResponse(data=token)
-
-
-@router.post("/token/raw", response_model=Token)
-async def login_raw(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    auth_service: Annotated[AuthService, Depends(get_auth_service)],
-):
-    """Swagger OAuth2 兼容端点（标准 token 响应）"""
-    return await auth_service.authenticate(form_data.username, form_data.password)
 ```
 
----
-
-## 最佳实践
-
-1. **永远不存储明文密码** - 使用 Argon2（推荐）或 bcrypt
-2. **JWT 过期时间要短** - 建议 15-60 分钟
-3. **使用 HTTPS** - 生产环境必须
-4. **验证所有输入** - Pydantic + 自定义验证
-5. **响应模型过滤** - 永远不返回敏感数据
+> Swagger OAuth2 如需标准 token 响应，可提供 `/token/raw` 端点。
 
 ---
 

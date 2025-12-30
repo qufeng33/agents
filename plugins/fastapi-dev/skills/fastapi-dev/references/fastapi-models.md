@@ -1,6 +1,33 @@
 # FastAPI 数据模型
 > 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/users`。
 
+## 设计原则
+- 请求/响应/内部模型严格分离
+- 配置集中在基类，避免散落
+- 外部输入默认严格校验
+- 领域类型复用，减少重复验证
+- 错误处理交给统一异常处理器
+
+## 最佳实践
+1. 使用 `ConfigDict` 统一配置基类
+2. 请求模型与响应模型分离
+3. 对外输入使用 `extra="forbid"`
+4. 自定义类型集中复用
+5. 始终显式声明 `response_model`
+
+## 目录
+- `Pydantic v2 基础`
+- `模型定义`
+- `Field 验证`
+- `自定义验证器`
+- `严格模式`
+- `嵌套模型`
+- `自定义类型`
+- `枚举和字面量`
+- `验证错误处理`
+- `代码模板`
+
+---
 
 ## Pydantic v2 基础
 
@@ -13,22 +40,21 @@ FastAPI >= 0.122.0 仅支持 Pydantic v2。
 ### 基础配置
 
 ```python
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 
 class BaseSchema(BaseModel):
-    """所有 schema 的基类"""
     model_config = ConfigDict(
-        from_attributes=True,      # 支持 ORM 模型转换
-        str_strip_whitespace=True, # 自动去除字符串首尾空白
-        validate_default=True,     # 验证默认值
+        from_attributes=True,
+        str_strip_whitespace=True,
+        validate_default=True,
     )
 ```
 
 ### 请求/响应模型分离
 
 ```python
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -53,61 +79,26 @@ class UserResponse(BaseModel):
     username: str
     is_active: bool
     created_at: datetime
-
-
-# 数据库内部使用
-class UserInDB(UserResponse):
-    hashed_password: str
+    # 注意：不包含 password、hashed_password
 ```
+
+> 内部模型（如 `UserInDB`）只在数据库层使用，不对外暴露。
+> 响应模型必须排除敏感字段（密码、token 等）。
 
 ---
 
 ## Field 验证
 
-### 字符串约束
-
 ```python
-from pydantic import ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class Example(BaseModel):
-    # 自动去除字符串首尾空白（在 ConfigDict 中配置）
-    model_config = ConfigDict(str_strip_whitespace=True)
-
-    # 长度限制
     username: str = Field(min_length=3, max_length=50)
-
-    # 正则模式
-    slug: str = Field(pattern=r"^[a-z0-9-]+$")
-
-    # name 会自动 strip（通过 model_config）
-    name: str
-```
-
-### 数值约束
-
-```python
-class Product(BaseModel):
-    # 范围限制
     price: float = Field(gt=0, le=10000)
-
-    # 整数范围
-    quantity: int = Field(ge=0, lt=1000)
-
-    # 倍数
-    discount: float = Field(multiple_of=0.01)
 ```
 
-### 集合约束
-
-```python
-class Order(BaseModel):
-    # 列表长度
-    items: list[str] = Field(min_length=1, max_length=100)
-
-    # 唯一项（转为 set）
-    tags: set[str] = Field(max_length=10)
-```
+> 正则、集合长度、倍数等约束按需求补充。
 
 ---
 
@@ -128,7 +119,6 @@ class User(BaseModel):
         if not v.isalnum():
             raise ValueError("must be alphanumeric")
         return v.lower()
-
 ```
 
 > **提示**：在验证器中抛出 `ValueError` 会被 FastAPI 自动捕获并转换为 422 响应，包含友好的错误信息。无需额外处理，直接抛出即可。
@@ -136,6 +126,7 @@ class User(BaseModel):
 ### model_validator
 
 ```python
+from datetime import datetime
 from pydantic import BaseModel, model_validator
 
 
@@ -148,27 +139,14 @@ class DateRange(BaseModel):
         if self.end_date <= self.start_date:
             raise ValueError("end_date must be after start_date")
         return self
-
-
-class PasswordChange(BaseModel):
-    password: str
-    password_confirm: str
-
-    @model_validator(mode="after")
-    def check_passwords_match(self) -> "PasswordChange":
-        if self.password != self.password_confirm:
-            raise ValueError("passwords do not match")
-        return self
 ```
 
 ---
 
 ## 严格模式
 
-### 禁止额外字段
-
 ```python
-from pydantic import ConfigDict
+from pydantic import BaseModel, ConfigDict
 
 
 class StrictInput(BaseModel):
@@ -176,95 +154,29 @@ class StrictInput(BaseModel):
 
     name: str
     value: int
-
-
-# 这会抛出验证错误
-# StrictInput(name="test", value=1, extra_field="oops")
 ```
 
-### 应用于查询参数
-
-```python
-from fastapi import APIRouter, Query
-from app.schemas.response import ApiResponse
-
-router = APIRouter()
-
-
-class QueryParams(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    page: int = 0  # 从 0 开始
-    page_size: int = 20
-
-
-@router.get("/items/", response_model=ApiResponse[dict[str, int]])
-async def list_items(params: QueryParams = Query()) -> ApiResponse[dict[str, int]]:
-    # 额外的查询参数会返回 422 错误
-    return ApiResponse(data={"page": params.page, "page_size": params.page_size})
-```
-
----
-
-## 响应模型
-
-### 过滤敏感数据
-
-```python
-@router.post("/users/", response_model=ApiResponse[UserResponse])
-async def create_user(user: UserCreate, service: UserServiceDep) -> ApiResponse[UserResponse]:
-    # service 内部完成持久化与密码处理
-    created = await service.create(user)
-    # UserResponse 排除敏感字段（如 hashed_password）
-    return ApiResponse(data=created)
-```
-
-### 排除默认值
-
-```python
-class Item(BaseModel):
-    name: str
-    description: str | None = None
-    price: float
-    tax: float = 10.5
-
-
-@router.get("/items/{item_id}", response_model=ApiResponse[Item], response_model_exclude_unset=True)
-async def get_item(item_id: UUID) -> ApiResponse[Item]:
-    return ApiResponse(code=0, message="success", data=Item(name="Foo", price=50.2))
-    # 响应 data 只包含 name 和 price，不包含 description 和 tax
-```
+> 对外部输入建议默认 `extra="forbid"`，避免隐式字段穿透。
 
 ---
 
 ## 嵌套模型
 
 ```python
+from pydantic import BaseModel
+
+
 class Address(BaseModel):
     street: str
     city: str
-    country: str = "China"
 
 
 class Company(BaseModel):
     name: str
     address: Address
-
-
-class UserWithCompany(BaseModel):
-    username: str
-    company: Company | None = None
-
-
-# 请求体示例
-# {
-#     "username": "john",
-#     "company": {
-#         "name": "Acme",
-#         "address": {"street": "123 Main St", "city": "Beijing"}
-#     }
-# }
 ```
+
+> 复杂请求体可拆成嵌套结构，避免扁平模型过长。
 
 ---
 
@@ -276,7 +188,6 @@ from pydantic import AfterValidator
 
 
 def validate_phone(v: str) -> str:
-    # 移除非数字字符
     digits = "".join(filter(str.isdigit, v))
     if len(digits) != 11:
         raise ValueError("Phone number must have 11 digits")
@@ -284,12 +195,9 @@ def validate_phone(v: str) -> str:
 
 
 PhoneNumber = Annotated[str, AfterValidator(validate_phone)]
-
-
-class Contact(BaseModel):
-    name: str
-    phone: PhoneNumber  # 自动验证和格式化
 ```
+
+> 领域特定校验（如手机号、地区码）建议封装为类型别名复用。
 
 ---
 
@@ -303,14 +211,10 @@ from typing import Literal
 class Status(str, Enum):
     PENDING = "pending"
     ACTIVE = "active"
-    INACTIVE = "inactive"
 
 
 class Task(BaseModel):
-    title: str
     status: Status = Status.PENDING
-
-    # 或使用 Literal
     priority: Literal["low", "medium", "high"] = "medium"
 ```
 
@@ -318,50 +222,9 @@ class Task(BaseModel):
 
 ## 验证错误处理
 
-FastAPI 自动返回 422 响应，可自定义格式：
+FastAPI 自动返回 422 响应，可在统一异常处理中转换格式。
 
-```python
-from fastapi import Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-
-from app.core.error_codes import ErrorCode
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(
-    request: Request,
-    exc: RequestValidationError,
-):
-    errors = []
-    for error in exc.errors():
-        errors.append({
-            "field": ".".join(str(loc) for loc in error["loc"]),
-            "message": error["msg"],
-            "type": error["type"],
-        })
-
-    return JSONResponse(
-        status_code=422,
-        content={
-            "code": ErrorCode.INVALID_PARAMETER,
-            "message": "Validation failed",
-            "data": None,
-            "detail": {"errors": errors},
-        },
-    )
-```
-
----
-
-## 最佳实践
-
-1. **分离请求/响应模型** - 永远不要暴露内部字段
-2. **使用 ConfigDict** - 统一配置基类
-3. **Field 提供默认值** - 明确可选和必填
-4. **自定义类型复用** - 创建领域特定类型
-5. **严格模式** - 对外部输入使用 `extra="forbid"`
-6. **response_model** - 始终指定，确保类型安全
+> 自定义验证错误响应详见 [错误处理](./fastapi-errors.md)
 
 ---
 
@@ -369,7 +232,5 @@ async def validation_exception_handler(
 
 完整可运行示例见 `assets/` 目录：
 
-| 结构 | ORM 模型 | Pydantic Schema |
-|------|----------|-----------------|
-| 简单结构 | `assets/simple-api/models/` | `assets/simple-api/schemas/` |
-| 模块化结构 | `assets/modular-api/modules/user/models.py` | `assets/modular-api/modules/user/schemas.py` |
+- `assets/simple-api/models/` / `assets/simple-api/schemas/`
+- `assets/modular-api/modules/user/models.py` / `assets/modular-api/modules/user/schemas.py`

@@ -1,6 +1,29 @@
 # FastAPI Repository 与事务
 > 说明：`user` 是数据库保留字，示例统一使用表名 `app_user`、API 路径 `/users`。
 
+## 设计原则
+- 一个请求一个事务
+- Repository 封装数据访问
+- Service 负责业务编排
+- 查询加载策略显式声明
+- SQL 处理聚合与过滤
+
+## 最佳实践
+1. Repository 禁止 `commit()`，仅 `flush()`
+2. Session 依赖统一管理事务
+3. 关系加载使用 `selectinload/joinedload`
+4. SQL 优先处理聚合/过滤/排序
+5. 复杂事务用 savepoint 或后台任务
+
+## 目录
+- `依赖注入`
+- `关系加载策略`
+- `事务管理`
+- `Repository 模式`
+- `SQL 优先原则`
+- `相关文档`
+
+---
 
 ## 依赖注入
 
@@ -8,8 +31,8 @@
 
 ```python
 # app/dependencies.py
-from typing import Annotated
 from collections.abc import AsyncGenerator
+from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,102 +69,40 @@ Router → Service → Repository → DBSession
 
 > **异步环境禁止隐式懒加载**，访问未加载的关系会抛出 `MissingGreenlet` 错误。
 
-### 推荐策略
-
-| 关系类型 | 加载策略 | 说明 |
-|---------|---------|------|
-| One-to-Many / Many-to-Many | `selectinload()` | IN 查询，不影响原查询 |
-| Many-to-One | `joinedload()` | 单条记录，JOIN 更高效 |
-| 默认防护 | `lazy="raise"` | 强制显式加载，防止意外 |
-
-### 模型定义
+**推荐策略**：
+- One-to-Many / Many-to-Many 使用 `selectinload()`
+- Many-to-One 使用 `joinedload()`
+- 默认启用 `lazy="raise"` 防止意外懒加载
 
 ```python
-from uuid import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
+from sqlalchemy.orm import relationship
 
 class User(Base):
     __tablename__ = "app_user"
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
-    name: Mapped[str]
-
-    # lazy="raise" 防止异步环境下的意外懒加载
-    posts: Mapped[list["Post"]] = relationship(
-        back_populates="author",
-        lazy="raise",
-    )
-
-
-class Post(Base):
-    __tablename__ = "post"
-
-    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid7)
-    title: Mapped[str]
-    author_id: Mapped[UUID] = mapped_column(ForeignKey("app_user.id"))
-
-    author: Mapped["User"] = relationship(
-        back_populates="posts",
-        lazy="raise",
-    )
+    posts: Mapped[list["Post"]] = relationship(back_populates="author", lazy="raise")
 ```
-
-### 查询时显式加载
 
 ```python
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload, joinedload
+from sqlalchemy.orm import selectinload
 
-
-# One-to-Many: 使用 selectinload
 async def get_user_with_posts(db: AsyncSession, user_id: UUID) -> User | None:
-    stmt = (
-        select(User)
-        .where(User.id == user_id)
-        .options(selectinload(User.posts))
-    )
-    result = await db.execute(stmt)
-    return result.scalar_one_or_none()
-
-
-# Many-to-One: 使用 joinedload
-async def get_post_with_author(db: AsyncSession, post_id: UUID) -> Post | None:
-    stmt = (
-        select(Post)
-        .where(Post.id == post_id)
-        .options(joinedload(Post.author))
-    )
-    result = await db.execute(stmt)
-    return result.scalar_one_or_none()
-
-
-# 嵌套关系: 链式加载
-async def get_user_with_posts_and_comments(db: AsyncSession, user_id: UUID):
-    stmt = (
-        select(User)
-        .where(User.id == user_id)
-        .options(
-            selectinload(User.posts).selectinload(Post.comments)
-        )
-    )
+    stmt = select(User).where(User.id == user_id).options(selectinload(User.posts))
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 ```
+
+> 嵌套关系可链式 `selectinload().selectinload()`，按需使用。
 
 ---
 
 ## 事务管理
 
-> **核心约定**：**一个请求 = 一个事务**。事务由 `get_db()` 依赖统一管理。
-> - Repository 层**禁止调用 `commit()`**，只用 `flush()` 同步数据
-> - Service 层无需显式事务操作
-
-### 分层中的事务规则
+**核心约定**：**一个请求 = 一个事务**。事务由 `get_db()` 依赖统一管理。
 
 | 层 | 事务操作 | 说明 |
 |----|---------|------|
-| **Repository** | `flush()` / `refresh()` | 不调用 commit，只同步到数据库获取 ID |
+| **Repository** | `flush()` / `refresh()` | 不调用 commit |
 | **Service** | 无显式操作 | 依赖注入自动管理 |
 | **Router** | 无 | 不接触事务 |
 
@@ -149,56 +110,12 @@ async def get_user_with_posts_and_comments(db: AsyncSession, user_id: UUID):
 # Repository - 只用 flush，不 commit
 async def create(self, user: User) -> User:
     self.db.add(user)
-    await self.db.flush()      # 同步到 DB，获取自增 ID
-    await self.db.refresh(user)  # 刷新对象状态
+    await self.db.flush()
+    await self.db.refresh(user)
     return user
-
-# Service - 多个 Repository 操作在同一事务中
-async def create_user_with_profile(self, data: UserCreate) -> User:
-    user = await self.user_repo.create(User(...))
-    await self.profile_repo.create(Profile(user_id=user.id, ...))
-    return user  # 两个操作在同一事务，依赖注入统一 commit
 ```
 
-### 嵌套事务（Savepoint）
-
-部分操作允许失败时使用：
-
-```python
-# Service 层
-async def transfer_with_notification(
-    self,
-    from_id: UUID,
-    to_id: UUID,
-    amount: float,
-) -> None:
-    # 主事务：转账（必须成功）
-    from_account = await self.account_repo.get_by_id(from_id)
-    to_account = await self.account_repo.get_by_id(to_id)
-
-    from_account.balance -= amount
-    to_account.balance += amount
-
-    # 嵌套事务：通知（可失败）
-    try:
-        async with self.db.begin_nested():
-            await self.notification_repo.create(...)
-    except NotificationError:
-        pass  # 通知失败不影响转账，savepoint 自动回滚
-```
-
-### 手动事务（特殊场景）
-
-后台任务、CLI 脚本等非请求上下文：
-
-```python
-async def background_job():
-    async with AsyncSessionLocal() as session:
-        async with session.begin():
-            # 操作...
-            pass
-        # 自动 commit
-```
+> 嵌套事务可用 `session.begin_nested()`；后台任务/CLI 可手动 `session.begin()`。
 
 ---
 
@@ -210,130 +127,65 @@ Repository 封装数据访问逻辑，提供领域友好的查询接口。
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
-| `get_by_id(id)` | `Model \| None` | 主键查询 |
-| `get_by_xxx(field)` | `Model \| None` | 唯一字段查询 |
-| `list(page, page_size)` | `tuple[list[Model], int]` | 分页列表，返回 (items, total) |
+| `get_by_id(id)` | `Model | None` | 主键查询 |
+| `list(page, page_size)` | `tuple[list[Model], int]` | 分页列表 |
 | `create(model)` | `Model` | 创建，使用 `flush()` + `refresh()` |
 | `update(model, data)` | `Model` | 更新，使用 `flush()` + `refresh()` |
 | `delete(model)` | `None` | 删除（默认软删除） |
-| `count()` | `int` | 统计数量 |
 
-### 关键操作
+### 列表查询实现示例
 
 ```python
-# 创建：flush 同步到 DB 获取自增 ID，refresh 刷新对象状态
-async def create(self, user: User) -> User:
-    self.db.add(user)
-    await self.db.flush()
-    await self.db.refresh(user)
-    return user
+from sqlalchemy import func, select
 
-# 聚合查询：使用 SQL 函数
-async def count(self) -> int:
-    result = await self.db.execute(select(func.count(User.id)))
-    return result.scalar_one()
+async def list(
+    self,
+    page: int,
+    page_size: int,
+    # ... 其他过滤参数
+) -> tuple[list[User], int]:
+    stmt = select(User)
+    
+    # 动态构建过滤条件
+    # if some_filter:
+    #     stmt = stmt.where(User.field == value)
+
+    # 1. 计算总数 (复用过滤条件)
+    # 注意：func.count() 应该作用于主键或 *
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    total = (await self.db.execute(count_stmt)).scalar_one()
+
+    # 2. 分页与排序
+    stmt = stmt.order_by(User.id.desc()).offset(page * page_size).limit(page_size)
+    
+    # 3. 执行查询
+    result = await self.db.execute(stmt)
+    return list(result.scalars().all()), total
 ```
 
 ---
 
 ## SQL 优先原则
 
-> **核心思想**：让数据库做它擅长的事——复杂查询、聚合、过滤、排序应在 SQL 层完成，Python 只处理业务逻辑和数据转换。
-
-### 为什么 SQL 优先？
-
-| 操作 | Python 处理 | SQL 处理 |
-|------|------------|----------|
-| 过滤 10 万条记录 | 全部加载到内存，逐条过滤 | 数据库索引直接定位，只返回结果 |
-| 分组聚合 | OOM 风险，O(n) 遍历 | 数据库优化器，利用索引 |
-| 多表 JOIN | 多次查询，内存中合并 | 单次查询，数据库优化 |
-| 排序 | 内存排序，受限于 RAM | 利用索引，可处理海量数据 |
-
-### 聚合查询示例
+让数据库做它擅长的事：复杂查询、聚合、过滤、排序应在 SQL 层完成。
 
 ```python
-# ❌ 错误：Python 侧聚合（可能 OOM）
+# ❌ 错误：Python 侧聚合
 async def get_stats_slow(db: AsyncSession):
     result = await db.execute(select(Post))
-    posts = result.scalars().all()  # 加载所有数据到内存
+    posts = result.scalars().all()
     return {"total": len(posts)}
 
-
 # ✅ 正确：SQL 聚合
-from sqlalchemy import func, case
+from sqlalchemy import func
 
 async def get_stats(db: AsyncSession):
-    result = await db.execute(
-        select(
-            func.count(Post.id).label("total"),
-            func.count(case((Post.is_published == True, 1))).label("published"),
-        )
-    )
-    row = result.one()
-    return {"total": row.total, "published": row.published}
+    result = await db.execute(select(func.count(Post.id)))
+    total = result.scalar_one()
+    return {"total": total}
 ```
 
-### 复杂 JOIN 示例
-
-```python
-# ❌ 错误：多次查询 + Python 合并
-async def get_user_order_stats_slow(db: AsyncSession, user_id: UUID):
-    user = await db.get(User, user_id)
-    orders = await db.execute(select(Order).where(Order.user_id == user_id))
-    # Python 中计算...
-    total = sum(o.amount for o in orders.scalars())
-    return {"user": user.name, "total": total}
-
-
-# ✅ 正确：SQL JOIN + 聚合
-async def get_user_order_stats(db: AsyncSession, user_id: UUID):
-    result = await db.execute(
-        select(
-            User.name,
-            func.count(Order.id).label("order_count"),
-            func.coalesce(func.sum(Order.amount), 0).label("total_amount"),
-        )
-        .join(Order, Order.user_id == User.id, isouter=True)
-        .where(User.id == user_id)
-        .group_by(User.id)
-    )
-    row = result.one_or_none()
-    return {
-        "user": row.name,
-        "order_count": row.order_count,
-        "total_amount": row.total_amount,
-    } if row else None
-```
-
-### 过滤与分页
-
-```python
-# ❌ 错误：加载所有数据再切片
-async def list_users_slow(db: AsyncSession, page: int, page_size: int):
-    result = await db.execute(select(User))
-    all_users = result.scalars().all()
-    return all_users[page * page_size:(page + 1) * page_size]
-
-
-# ✅ 正确：数据库分页
-async def list_users(db: AsyncSession, page: int, page_size: int):
-    result = await db.execute(
-        select(User)
-        .order_by(User.id)
-        .offset(page * page_size)
-        .limit(page_size)
-    )
-    return result.scalars().all()
-```
-
-### 最佳实践
-
-1. **聚合在 SQL** - `COUNT`, `SUM`, `AVG`, `MAX`, `MIN` 等
-2. **过滤在 SQL** - `WHERE` 子句，利用索引
-3. **排序在 SQL** - `ORDER BY`，可利用索引
-4. **分页在 SQL** - `OFFSET` + `LIMIT`
-5. **JOIN 在 SQL** - 避免多次查询再合并
-6. **Python 只做** - 业务逻辑、数据转换、格式化
+> JOIN、分页、排序同理，应优先在 SQL 层完成。
 
 ---
 
