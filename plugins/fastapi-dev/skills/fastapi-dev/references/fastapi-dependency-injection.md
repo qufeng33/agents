@@ -70,6 +70,20 @@ async def list_items(params: Pagination):
 
 > 依赖链（如鉴权 → 用户 → 权限）建议拆成小依赖并组合，而非在路由内直接编排。
 
+### OAuth2 认证依赖约定
+
+```python
+from fastapi.security import OAuth2PasswordBearer
+
+# tokenUrl 必须指向返回 raw token 的端点（非 ApiResponse 包装）
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token/raw")
+```
+
+> **重要约定**：
+> - `tokenUrl` 必须返回 `{"access_token": "...", "token_type": "bearer"}` 格式（OAuth2 规范），Swagger 授权按钮依赖此格式
+> - 若项目统一使用 `ApiResponse`，需额外提供一个 `/token/raw` 端点返回标准格式
+> - 401 响应需携带 `WWW-Authenticate: Bearer` 头，可由全局异常处理器统一补齐
+
 ---
 
 ## yield 依赖（资源管理）

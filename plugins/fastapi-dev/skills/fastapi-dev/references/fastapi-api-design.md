@@ -102,6 +102,8 @@ async def create_user(...):
 | `page` | 页码（从 0 开始） | 0 | `ge=0` |
 | `page_size` | 每页数量 | 20 | `ge=1, le=100` |
 
+> **重要约定**：`page` 从 0 开始（非 1），与数组索引一致。偏移量计算：`offset = page * page_size`。
+
 ### 响应模型
 
 ```python
@@ -116,7 +118,7 @@ class ApiPagedResponse(BaseModel, Generic[T]):
     message: str = "success"
     data: list[T]
     total: int
-    page: int
+    page: int        # 当前页码（从 0 开始）
     page_size: int
 ```
 

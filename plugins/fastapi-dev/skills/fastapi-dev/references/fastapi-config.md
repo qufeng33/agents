@@ -57,8 +57,8 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
-        env_nested_delimiter="_",
-        env_nested_max_split=1,
+        env_nested_delimiter="_",    # 嵌套分隔符：DB_HOST -> db.host
+        env_nested_max_split=1,      # 只分割第一个 _，避免 DB_USER_NAME 被误解析为 db.user.name
         extra="ignore",
     )
 
