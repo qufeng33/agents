@@ -131,6 +131,8 @@ class User(BaseModel):
 
 ```
 
+> **提示**：在验证器中抛出 `ValueError` 会被 FastAPI 自动捕获并转换为 422 响应，包含友好的错误信息。无需额外处理，直接抛出即可。
+
 ### model_validator
 
 ```python

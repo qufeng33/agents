@@ -236,19 +236,30 @@ async def count(self) -> int:
 
 ---
 
-## SQL 优先聚合
+## SQL 优先原则
 
-数据库处理聚合比 Python 更快更高效。
+> **核心思想**：让数据库做它擅长的事——复杂查询、聚合、过滤、排序应在 SQL 层完成，Python 只处理业务逻辑和数据转换。
+
+### 为什么 SQL 优先？
+
+| 操作 | Python 处理 | SQL 处理 |
+|------|------------|----------|
+| 过滤 10 万条记录 | 全部加载到内存，逐条过滤 | 数据库索引直接定位，只返回结果 |
+| 分组聚合 | OOM 风险，O(n) 遍历 | 数据库优化器，利用索引 |
+| 多表 JOIN | 多次查询，内存中合并 | 单次查询，数据库优化 |
+| 排序 | 内存排序，受限于 RAM | 利用索引，可处理海量数据 |
+
+### 聚合查询示例
 
 ```python
-# 错误：Python 侧聚合（可能 OOM）
+# ❌ 错误：Python 侧聚合（可能 OOM）
 async def get_stats_slow(db: AsyncSession):
     result = await db.execute(select(Post))
-    posts = result.scalars().all()
+    posts = result.scalars().all()  # 加载所有数据到内存
     return {"total": len(posts)}
 
 
-# 正确：SQL 聚合
+# ✅ 正确：SQL 聚合
 from sqlalchemy import func, case
 
 async def get_stats(db: AsyncSession):
@@ -261,6 +272,68 @@ async def get_stats(db: AsyncSession):
     row = result.one()
     return {"total": row.total, "published": row.published}
 ```
+
+### 复杂 JOIN 示例
+
+```python
+# ❌ 错误：多次查询 + Python 合并
+async def get_user_order_stats_slow(db: AsyncSession, user_id: UUID):
+    user = await db.get(User, user_id)
+    orders = await db.execute(select(Order).where(Order.user_id == user_id))
+    # Python 中计算...
+    total = sum(o.amount for o in orders.scalars())
+    return {"user": user.name, "total": total}
+
+
+# ✅ 正确：SQL JOIN + 聚合
+async def get_user_order_stats(db: AsyncSession, user_id: UUID):
+    result = await db.execute(
+        select(
+            User.name,
+            func.count(Order.id).label("order_count"),
+            func.coalesce(func.sum(Order.amount), 0).label("total_amount"),
+        )
+        .join(Order, Order.user_id == User.id, isouter=True)
+        .where(User.id == user_id)
+        .group_by(User.id)
+    )
+    row = result.one_or_none()
+    return {
+        "user": row.name,
+        "order_count": row.order_count,
+        "total_amount": row.total_amount,
+    } if row else None
+```
+
+### 过滤与分页
+
+```python
+# ❌ 错误：加载所有数据再切片
+async def list_users_slow(db: AsyncSession, page: int, page_size: int):
+    result = await db.execute(select(User))
+    all_users = result.scalars().all()
+    return all_users[page * page_size:(page + 1) * page_size]
+
+
+# ✅ 正确：数据库分页
+async def list_users(db: AsyncSession, page: int, page_size: int):
+    result = await db.execute(
+        select(User)
+        .order_by(User.id)
+        .offset(page * page_size)
+        .limit(page_size)
+    )
+    return result.scalars().all()
+```
+
+### 最佳实践
+
+1. **聚合在 SQL** - `COUNT`, `SUM`, `AVG`, `MAX`, `MIN` 等
+2. **过滤在 SQL** - `WHERE` 子句，利用索引
+3. **排序在 SQL** - `ORDER BY`，可利用索引
+4. **分页在 SQL** - `OFFSET` + `LIMIT`
+5. **JOIN 在 SQL** - 避免多次查询再合并
+6. **Python 只做** - 业务逻辑、数据转换、格式化
 
 ---
 

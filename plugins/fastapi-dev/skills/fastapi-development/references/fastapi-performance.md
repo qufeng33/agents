@@ -45,9 +45,105 @@ async def good():
     await asyncio.sleep(5)
 ```
 
+### 包装同步 SDK（run_in_threadpool）
+
+在 async 函数中需要调用同步 SDK 时，使用 `run_in_threadpool` 避免阻塞事件循环：
+
+```python
+from starlette.concurrency import run_in_threadpool
+
+# 场景：在 async 函数中调用同步第三方库
+@router.get("/sync-sdk")
+async def call_sync_sdk():
+    # 错误：直接调用会阻塞事件循环
+    # result = sync_sdk.heavy_operation()
+
+    # 正确：使用 run_in_threadpool 包装
+    result = await run_in_threadpool(sync_sdk.heavy_operation)
+    return {"result": result}
+
+
+# 带参数的同步调用
+async def process_file(file_path: str):
+    # 使用 lambda 或 functools.partial 传递参数
+    content = await run_in_threadpool(lambda: sync_sdk.read_file(file_path))
+    return content
+```
+
+**适用场景**：
+- 第三方 SDK 只提供同步接口（如某些云服务 SDK）
+- 需要在 async 函数中调用同步 I/O 操作
+- 无法使用 `def` 路由（如需要 await 其他操作）
+
+**与 `def` 路由的区别**：
+- `def` 路由：整个函数在线程池中执行
+- `run_in_threadpool`：只有特定调用在线程池中执行，其余保持异步
+
 ---
 
 ## 响应优化
+
+### 避免双重序列化
+
+FastAPI 使用 `response_model` 时会自动验证和序列化返回值。如果手动创建 Pydantic 模型实例再返回，会导致双重处理。
+
+#### 使用 ApiResponse 包装的场景
+
+```python
+# ✅ 推荐：Service 返回 ORM 对象，直接传入 ApiResponse
+@router.get("/user/{user_id}", response_model=ApiResponse[UserResponse])
+async def get_user(user_id: UUID, service: UserServiceDep):
+    user = await service.get(user_id)  # 返回 ORM 对象
+    return ApiResponse(data=user)      # 直接传入，由 response_model 转换
+
+
+# ❌ 冗余：手动转换后再传入
+@router.get("/user/{user_id}", response_model=ApiResponse[UserResponse])
+async def get_user(user_id: UUID, service: UserServiceDep):
+    user = await service.get(user_id)
+    return ApiResponse(data=UserResponse.model_validate(user))  # 多余！
+```
+
+**原理**：
+1. `ApiResponse(data=user)` 构造时，泛型 `T` 在运行时不会立即验证
+2. FastAPI 根据 `response_model=ApiResponse[UserResponse]` 在响应时统一序列化
+3. `UserResponse` 配置了 `from_attributes=True`，ORM 对象自动转换
+
+#### 不使用包装的场景
+
+```python
+# ✅ 推荐：直接返回 ORM 对象
+@router.get("/user/{user_id}", response_model=UserResponse)
+async def get_user(user_id: UUID, service: UserServiceDep):
+    return await service.get(user_id)  # 返回 ORM 对象
+
+
+# ✅ 或者：不使用 response_model，手动标注返回类型
+@router.get("/user/{user_id}")
+async def get_user(user_id: UUID, service: UserServiceDep) -> UserResponse:
+    user = await service.get(user_id)
+    return UserResponse.model_validate(user)
+```
+
+#### Service 层设计原则
+
+```python
+# ✅ 推荐：Service 返回 ORM 对象
+class UserService:
+    async def get(self, user_id: UUID) -> User | None:
+        return await self.repo.get_by_id(user_id)  # 返回 ORM 对象
+
+
+# ❌ 避免：Service 返回已转换的 Schema（除非有特殊需求）
+class UserService:
+    async def get(self, user_id: UUID) -> UserResponse | None:
+        user = await self.repo.get_by_id(user_id)
+        return UserResponse.model_validate(user) if user else None
+```
+
+**总结**：
+- Service 层返回 ORM 对象，Router 层负责构造 `ApiResponse`
+- 让 `response_model` 统一处理序列化，避免手动调用 `model_validate`
 
 ### ORJSONResponse
 
