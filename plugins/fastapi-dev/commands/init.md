@@ -72,7 +72,7 @@ argument-hint: "[project-name]"
    packages = ["app"]
    ```
 2. pytest / ruff / ty 配置
-3. ty 安装与执行：`uv tool install ty` 或 `uvx ty check`
+3. ty 执行（避免全局安装）：`uvx ty check` 或将 `ty` 加入项目工具后用 `uv run ty`
 4. Python 版本约束：`requires-python = ">=3.13"`（与工具链配置与基础镜像一致）
 
 > 参考 **fastapi-development** skill 的 `references/fastapi-tooling.md`
