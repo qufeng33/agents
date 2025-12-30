@@ -224,10 +224,9 @@ mcp__context7__resolve-library-id
 ```
 
 ```
-mcp__context7__get-library-docs
-  context7CompatibleLibraryID: <resolve 返回的 ID>
-  topic: <相关主题>
-  mode: code (API/示例) 或 info (概念)
+mcp__context7__query-docs
+  libraryId: <resolve 返回的 ID>
+  query: <相关主题>
 ```
 
 常用主题：`dependencies`, `middleware`, `lifespan`, `background tasks`, `websocket`, `testing`, `security`, `oauth2`, `jwt`
