@@ -11,6 +11,7 @@ from app.core.exceptions import ApiError
 
 async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
     """业务异常处理"""
+    headers = {"WWW-Authenticate": "Bearer"} if exc.status_code == 401 else None
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -19,6 +20,7 @@ async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
             "data": None,
             "detail": exc.detail,
         },
+        headers=headers,
     )
 
 
@@ -61,6 +63,10 @@ async def http_error_handler(
     }
     code = code_map.get(exc.status_code, ErrorCode.SYSTEM_ERROR)
 
+    headers = dict(exc.headers or {})
+    if exc.status_code == 401 and "WWW-Authenticate" not in headers:
+        headers["WWW-Authenticate"] = "Bearer"
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -69,6 +75,7 @@ async def http_error_handler(
             "data": None,
             "detail": None,
         },
+        headers=headers or None,
     )
 
 

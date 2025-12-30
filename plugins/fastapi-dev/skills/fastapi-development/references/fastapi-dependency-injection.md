@@ -31,7 +31,8 @@ async def list_items(params: Pagination):
 ```python
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends
+from fastapi.security import OAuth2PasswordBearer
 
 from app.schemas.response import ApiResponse
 from app.schemas.user import UserResponse
@@ -40,13 +41,10 @@ from app.core.exceptions import UnauthorizedError
 from app.core.error_codes import ErrorCode
 
 
-async def get_token(authorization: str = Header()) -> str:
-    if not authorization.startswith("Bearer "):
-        raise UnauthorizedError(message="Invalid authorization format")
-    return authorization[7:]
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/token/raw")
 
 
-async def get_current_user(token: Annotated[str, Depends(get_token)]) -> User:
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> User:
     user = await decode_token(token)
     if not user:
         raise UnauthorizedError(code=ErrorCode.TOKEN_INVALID, message="Invalid token")
@@ -63,6 +61,10 @@ router = APIRouter()
 async def get_me(user: CurrentUser) -> ApiResponse[UserResponse]:
     return ApiResponse(data=UserResponse.model_validate(user))
 ```
+
+说明：
+- 使用 `OAuth2PasswordBearer` 由框架解析 `Authorization`，避免自行处理头部格式。
+- `tokenUrl` 指向 OAuth2 规范的 raw token 接口；如果项目统一使用 `ApiResponse`，401 仍需携带 `WWW-Authenticate` 头，可由异常处理器统一补齐。
 
 ---
 
