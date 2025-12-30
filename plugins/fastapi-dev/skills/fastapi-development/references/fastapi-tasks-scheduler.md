@@ -112,7 +112,7 @@ CronTrigger(day_of_week="mon-fri", hour=9)       # 工作日 9:00
 CronTrigger(day=1, hour=0, minute=0)             # 每月 1 号 0:00
 
 # 单次执行
-DateTrigger(run_time=datetime(2024, 12, 31, 23, 59))
+DateTrigger(run_time=datetime.utcnow() + timedelta(days=7))
 
 # 日历间隔（考虑 DST）
 CalendarIntervalTrigger(days=1)  # 每天（比 IntervalTrigger 更精确）

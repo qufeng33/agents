@@ -141,7 +141,11 @@ async def create_order(
 await arq.enqueue_job("send_notification", username, _defer_by=60)  # 60 秒后
 
 # 指定执行时间
-await arq.enqueue_job("send_notification", username, _defer_until=datetime(2024, 1, 1))
+await arq.enqueue_job(
+    "send_notification",
+    username,
+    _defer_until=datetime.utcnow() + timedelta(hours=24),
+)
 
 # 任务唯一性（防止重复）
 await arq.enqueue_job("process_order", order_id, _job_id=f"order:{order_id}")
