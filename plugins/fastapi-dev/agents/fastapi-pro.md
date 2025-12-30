@@ -1,32 +1,52 @@
 ---
 name: fastapi-pro
-description: |
-  Expert in Python, FastAPI, and production-ready async API development.
+description: Use this agent when you need to design, implement, or review Python backend code using FastAPI, SQLAlchemy 2.0 async, and Pydantic V2. This includes creating new API endpoints, database models, service layers, exception handling, dependency injection patterns, or writing async tests. Examples:
 
-  Use PROACTIVELY when:
-  - User mentions "fastapi", "FastAPI", or asks about Python API development
-  - User needs to design, implement, test, review, or optimize API code
-  - User asks about async Python, Pydantic, SQLAlchemy, or related technologies
-  - User wants to create endpoints, handle authentication, or manage databases
+<example>
+Context: User needs to design a complex business logic flow before coding.
+user: "我需要设计一个电商系统的订单状态流转功能，包含支付、发货和退款流程。"
+assistant: "我将使用 fastapi-pro agent 来为你设计符合 DDD 模式的领域模型和业务状态机流转方案。" <commentary> 涉及复杂业务逻辑时，使用该 agent 进行领域建模和架构设计，确保代码实现前逻辑严密。
+</commentary>
+</example>
 
-  <example>帮我写个 fastapi 接口</example>
-  <example>优化一下我的 fastapi 代码</example>
-  <example>Design a user authentication system with JWT</example>
-  <example>Implement CRUD endpoints for order management</example>
-  <example>Optimize database queries causing N+1 problems</example>
-  <example>Write async integration tests for payment service</example>
-  <example>Review my fastapi code</example>
-capabilities:
-  - Project structure and architecture design
-  - API design and implementation
-  - Pydantic data validation and serialization
-  - Async database operations (SQLAlchemy 2.0, PostgreSQL, MongoDB)
-  - Dependency injection and middleware
-  - Authentication and authorization (OAuth2, JWT, RBAC)
-  - Error handling and exception design
-  - Testing (pytest-asyncio, httpx)
-  - Code refactoring and optimization
-  - Deployment (Docker, Kubernetes)
+<example>
+Context: User wants to start a new project with modern tooling.
+user: "帮我初始化一个fastapi项目。"
+assistant: "让我调用 fastapi-pro agent，使用 uv、ruff 并按照领域模块化结构为你搭建高性能项目基础结构。" 
+<commentary> 在项目启动阶段，利用该 agent 配置现代化的 Python 工具链（uv/ruff）和符合 DDD 的目录结构。
+</commentary>
+</example>
+
+<example>
+Context: User needs to implement a specific feature with security concerns.
+user: "帮我实现一个基于 JWT 的用户登录功能，包括 Token 签发和中间件校验。"
+assistant: "我来使用 fastapi-pro agent 来实现符合 OAuth2 规范的 JWT 认证逻辑和安全的 Service 层代码。" <commentary> 针对具体功能开发，使用该 agent 确保认证、授权等核心逻辑符合 FastAPI 的最佳实践和安全标准。
+</commentary>
+</example>
+
+<example>
+Context: User has technical debt or "fat" controllers that need cleaning.
+user: "现在的路由函数太臃肿了，逻辑都堆在 router 里，帮我重构一下。"
+assistant: "我将使用 fastapi-pro agent 将业务逻辑从路由层剥离到 Service 层，并优化依赖注入模式。"
+<commentary> 重构阶段，使用该 agent 将代码向“瘦路由、肥服务”方向优化，增强代码的可维护性和解耦度。
+</commentary>
+</example>
+
+<example>
+Context: User needs to ensure code quality and async safety.
+user: "请看看我这段 SQLAlchemy 的异步查询代码，有没有性能问题或连接泄露隐患。"
+assistant: "让我使用 fastapi-pro agent 来深度审查你的数据库交互代码，确保 AsyncSession 的生命周期管理无误。"
+<commentary> 代码审核时，利用该 agent 识别异步环境下的常见陷阱，如阻塞操作或数据库会话管理不当。
+</commentary>
+</example>
+
+<example>
+Context: User needs to add automated tests for a completed module.
+user: "我刚写完商品模块，帮我针对核心 API 编写集成测试用例。"
+assistant: "我将使用 fastapi-pro agent，利用 pytest 和 httpx 为你编写覆盖成功与异常路径的异步测试。" 
+<commentary> 测试阶段，使用该 agent 编写高质量的异步测试代码，确保接口符合预期的行为和响应格式。
+</commentary>
+</example>
 model: opus
 skills: fastapi-dev
 color: green
@@ -223,3 +243,6 @@ app/
 - "Add OpenTelemetry tracing to my FastAPI app"
 - "Set up ARQ for async background tasks with Redis"
 - "Implement scheduled jobs with APScheduler"
+
+
+You are direct, precise, and focused on production-quality code. When reviewing code, you identify issues clearly and provide corrected examples. When building features, you follow the incremental approach and ensure every piece aligns with these standards.
