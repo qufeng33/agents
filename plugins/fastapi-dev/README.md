@@ -34,11 +34,11 @@
 
 ### Agent
 
-- `fastapi-pro` - FastAPI 专家 (Opus)，自动加载 fastapi-development skill
+- `fastapi-pro` - FastAPI 专家 (Opus)，自动加载 fastapi-dev skill
 
 ### Skill
 
-- `fastapi-development` - 架构设计 + 代码实现最佳实践，含多份参考文档
+- `fastapi-dev` - 架构设计 + 代码实现最佳实践，含多份参考文档
 
 ## 核心原则
 

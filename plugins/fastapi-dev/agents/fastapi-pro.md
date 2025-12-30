@@ -28,7 +28,7 @@ capabilities:
   - Code refactoring and optimization
   - Deployment (Docker, Kubernetes)
 model: opus
-skills: fastapi-development
+skills: fastapi-dev
 color: green
 ---
 

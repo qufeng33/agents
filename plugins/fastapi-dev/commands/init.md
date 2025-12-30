@@ -41,7 +41,7 @@ argument-hint: "[project-name]"
 3. **认证方式**: JWT 认证 / 无认证
 4. **Docker 支持**: 是否需要
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-project-structure.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-project-structure.md`
 
 ## Step 2: 初始化项目
 
@@ -60,7 +60,7 @@ argument-hint: "[project-name]"
 | 简单 | 无 Repository 层，main.py 直接配置 |
 | 模块化 | 有 Repository 层，create_app 工厂模式 |
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-project-structure.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-project-structure.md`
 
 ## Step 4: 配置工具
 
@@ -75,7 +75,7 @@ argument-hint: "[project-name]"
 3. ty 执行（避免全局安装）：`uvx ty check` 或将 `ty` 加入项目工具后用 `uv run ty`
 4. Python 版本约束：`requires-python = ">=3.13"`（与工具链配置与基础镜像一致）
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-tooling.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-tooling.md`
 
 ## Step 5: 生成代码文件
 
@@ -86,7 +86,7 @@ argument-hint: "[project-name]"
 - `app/core/database.py` - 数据库连接
 - `app/core/security.py` - 认证模块（如需要）
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-app-lifecycle.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-app-lifecycle.md`
 
 ## Step 6: 完成设置
 

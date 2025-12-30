@@ -40,7 +40,7 @@ argument-hint: "<scope>"
 | 行长度 | <= 100 字符 |
 | 导入顺序 | stdlib > third-party > local |
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-tooling.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-tooling.md`
 
 #### 3.2 架构一致性
 
@@ -51,7 +51,7 @@ argument-hint: "<scope>"
 | 职责分离 | Service 处理 HTTP？ |
 | 循环导入 | 模块间循环依赖？ |
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-layered-architecture.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-layered-architecture.md`
 
 #### 3.3 性能检查
 
@@ -62,7 +62,7 @@ argument-hint: "<scope>"
 | 同步阻塞 | 异步函数中使用同步 IO？ |
 | 缺少分页 | 列表查询无限制？ |
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-performance.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-performance.md`
 
 #### 3.4 安全检查
 
@@ -73,7 +73,7 @@ argument-hint: "<scope>"
 | 认证检查 | 端点缺少认证？ |
 | 输入验证 | 用户输入未验证？ |
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-authentication.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-authentication.md`
 
 #### 3.5 测试覆盖
 
@@ -83,7 +83,7 @@ argument-hint: "<scope>"
 | 边界条件 | 测试了边界情况？ |
 | 错误路径 | 测试了错误处理？ |
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-testing.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-testing.md`
 
 ### Step 4: 自动化检查
 

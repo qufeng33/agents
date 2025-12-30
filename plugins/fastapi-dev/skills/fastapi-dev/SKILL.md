@@ -1,5 +1,5 @@
 ---
-name: fastapi-development
+name: fastapi-dev
 version: 1.0.0
 description: |
   FastAPI 开发最佳实践。包含架构设计、分层架构、项目结构、异步模式、依赖注入、数据验证、数据库集成、错误处理、测试、部署等完整开发周期。

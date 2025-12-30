@@ -32,7 +32,7 @@ argument-hint: "<feature_description>"
 
 > 如需完整设计文档，使用 `/design` 命令
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-project-planning.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-project-planning.md`
 
 ### Phase 2: 确认开发模式
 
@@ -49,7 +49,7 @@ argument-hint: "<feature_description>"
 
 向用户确认设计是否符合预期。
 
-> 参考 **fastapi-development** skill：
+> 参考 **fastapi-dev** skill：
 > - `references/fastapi-models.md` - Pydantic 模型设计
 > - `references/fastapi-api-design.md` - REST API 设计规范
 > - `references/fastapi-layered-architecture.md` - 分层架构模式
@@ -67,7 +67,7 @@ argument-hint: "<feature_description>"
 1. **实现功能** - 创建模型、Schema、Service、Router
 2. **补充测试** - 为已实现的功能编写测试
 
-> 参考 **fastapi-development** skill：
+> 参考 **fastapi-dev** skill：
 > - `references/fastapi-layered-architecture.md` - Service/Repository 实现
 > - `references/fastapi-testing.md` - 测试编写指南
 
@@ -77,7 +77,7 @@ argument-hint: "<feature_description>"
 2. 创建数据库迁移（`alembic revision --autogenerate`）
 3. 更新 API 文档
 
-> 参考 **fastapi-development** skill：
+> 参考 **fastapi-dev** skill：
 > - `references/fastapi-database-migrations.md` - 数据库迁移
 
 ### Phase 6: 验证
@@ -86,7 +86,7 @@ argument-hint: "<feature_description>"
 - `pytest` / `pytest --cov=app`
 - `ruff check .`
 
-> 参考 **fastapi-development** skill：
+> 参考 **fastapi-dev** skill：
 > - `references/fastapi-testing.md` - 测试覆盖率
 > - `references/fastapi-tooling.md` - 开发工具配置
 

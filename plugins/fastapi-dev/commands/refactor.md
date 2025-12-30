@@ -27,7 +27,7 @@ argument-hint: "<target>"
 
 读取目标代码，识别可重构的问题（代码坏味道）。
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-refactoring.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-refactoring.md`
 
 ### Step 3: 制定重构计划
 
@@ -45,7 +45,7 @@ argument-hint: "<target>"
 3. **确认绿色**
 4. **下一步或回滚**
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-refactoring.md`（常见重构模式）
+> 参考 **fastapi-dev** skill 的 `references/fastapi-refactoring.md`（常见重构模式）
 
 ### Step 5: 最终验证
 
@@ -53,7 +53,7 @@ argument-hint: "<target>"
 - `pytest`
 - `ruff check .`
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-tooling.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-tooling.md`
 
 ## 关键点
 

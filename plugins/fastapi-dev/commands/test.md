@@ -38,13 +38,13 @@ argument-hint: "<target>"
 - 模块专用 fixture → 模块目录下的 `conftest.py`
 - 单测试专用 → 测试文件内定义
 
-> 详见 **fastapi-development** skill 的 `references/fastapi-testing.md`
+> 详见 **fastapi-dev** skill 的 `references/fastapi-testing.md`
 
 ### Step 3: 生成测试
 
 根据代码类型和测试策略生成测试代码。
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-testing.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-testing.md`
 
 ### Step 4: 测试场景清单
 
@@ -65,7 +65,7 @@ argument-hint: "<target>"
 - `pytest tests/path/to/test_file.py -v`
 - `pytest --cov=app.module --cov-report=term-missing`
 
-> 参考 **fastapi-development** skill 的 `references/fastapi-tooling.md`
+> 参考 **fastapi-dev** skill 的 `references/fastapi-tooling.md`
 
 ## 测试命名规范
 
