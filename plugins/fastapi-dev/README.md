@@ -12,7 +12,7 @@
 
 | 组件 | 选型 |
 |------|------|
-| 框架 | FastAPI ≥0.122.0, Pydantic v2 |
+| 框架 | FastAPI ≥0.122.0, Python ≥3.13, Pydantic ≥2.10 |
 | 数据库 | PostgreSQL, SQLAlchemy 2.0 (async), Alembic |
 | 测试 | pytest, pytest-asyncio, httpx |
 | 工具链 | uv, ruff, ty |
@@ -38,7 +38,7 @@
 
 ### Skill
 
-- `fastapi-development` - 架构设计 + 代码实现最佳实践，含 25 份参考文档
+- `fastapi-development` - 架构设计 + 代码实现最佳实践，含多份参考文档
 
 ## 核心原则
 
