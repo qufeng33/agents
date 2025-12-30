@@ -45,7 +45,7 @@ async def create_user(data: UserCreate) -> User:
     if not re.match(r"...", data.username):
         raise ValidationError("Invalid username")
     # 检查用户名唯一性
-    existing = await repo.get_by_username(data.username)
+    existing = await repo.get_by_username(data.username, include_deleted=True)
     if existing:
         raise ConflictError("Username exists")
     # 创建用户
@@ -65,7 +65,7 @@ async def validate_username(username: str) -> None:
 
 
 async def ensure_username_unique(username: str) -> None:
-    existing = await repo.get_by_username(username)
+    existing = await repo.get_by_username(username, include_deleted=True)
     if existing:
         raise ConflictError("Username exists")
 ```

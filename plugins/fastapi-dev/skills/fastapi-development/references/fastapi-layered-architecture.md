@@ -30,6 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.user.models import User
+from app.core.database import filter_active
 
 
 class UserRepository:
@@ -40,8 +41,13 @@ class UserRepository:
         result = await self.db.execute(select(User).where(User.id == user_id))
         return result.scalar_one_or_none()
 
-    async def get_by_username(self, username: str) -> User | None:
-        result = await self.db.execute(select(User).where(User.username == username))
+    async def get_by_username(
+        self, username: str, *, include_deleted: bool = False
+    ) -> User | None:
+        stmt = select(User).where(User.username == username)
+        if not include_deleted:
+            stmt = filter_active(stmt)
+        result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def create(self, user: User) -> User:
@@ -75,7 +81,7 @@ class UserService:
 
     async def create(self, data: UserCreate) -> UserResponse:
         # 业务逻辑：检查唯一性（全局唯一）
-        if await self.repo.get_by_username(data.username):
+        if await self.repo.get_by_username(data.username, include_deleted=True):
             raise UsernameAlreadyExistsError(data.username)
 
         # 业务逻辑：密码哈希

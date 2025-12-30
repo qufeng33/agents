@@ -437,7 +437,7 @@ class UserService:
         return UserResponse.model_validate(user)
 
     async def create(self, data: UserCreate) -> UserResponse:
-        if await self.repo.get_by_username(data.username):
+        if await self.repo.get_by_username(data.username, include_deleted=True):
             raise UsernameAlreadyExistsError(data.username)
         user = User(
             username=data.username,
