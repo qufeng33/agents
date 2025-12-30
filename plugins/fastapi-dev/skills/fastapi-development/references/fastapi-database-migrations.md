@@ -110,28 +110,40 @@ uv add psycopg  # 仅在需要同步任务时安装
 ```
 
 ```python
+from uuid import UUID
+
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
-
-def sync_operation(session, user_id: UUID):
-    """同步数据库操作"""
-    return session.query(User).filter(User.id == user_id).first()
+from app.core.database import get_sync_session
+from app.models.user import User
 
 
-def get_sync_db() -> Session:
-    from app.core.database import get_sync_engine
-
-    with Session(get_sync_engine()) as session:
-        yield session
+def sync_operation(session: Session, user_id: UUID) -> User | None:
+    """同步数据库操作（2.0 风格）"""
+    return session.get(User, user_id)
 
 
 class UserService:
-    def __init__(self, db: Session):
-        self.db = db
-
     async def get_by_id(self, user_id: UUID) -> User | None:
-        return await run_in_threadpool(sync_operation, self.db, user_id)
+        def _load_user() -> User | None:
+            # 在同步线程中创建/关闭 Session，避免跨线程复用
+            with get_sync_session() as session:
+                return sync_operation(session, user_id)
+
+        return await run_in_threadpool(_load_user)
+```
+
+非主键查询示例（`select` + `execute`，2.0 风格）：
+
+```python
+from sqlalchemy import select
+
+
+def get_user_by_email(session: Session, email: str) -> User | None:
+    stmt = select(User).where(User.email == email)
+    result = session.execute(stmt)
+    return result.scalar_one_or_none()
 ```
 
 或在异步 Session 中运行同步代码：
