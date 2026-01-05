@@ -127,8 +127,9 @@ Repository 封装数据访问逻辑，提供领域友好的查询接口。
 
 | 方法 | 返回值 | 说明 |
 |------|--------|------|
-| `get_by_id(id)` | `Model | None` | 主键查询 |
-| `list(page, page_size)` | `tuple[list[Model], int]` | 分页列表 |
+| `get_one(id, *, include_deleted=False)` | `Model \| None` | 主键查询 |
+| `get_one_by_*(field, *, include_deleted=False)` | `Model \| None` | 字段查询 |
+| `get_list(page, page_size, *, include_deleted=False)` | `tuple[list[Model], int]` | 分页列表 |
 | `create(model)` | `Model` | 创建，使用 `flush()` + `refresh()` |
 | `update(model, data)` | `Model` | 更新，使用 `flush()` + `refresh()` |
 | `delete(model)` | `None` | 删除（默认软删除） |
@@ -138,26 +139,24 @@ Repository 封装数据访问逻辑，提供领域友好的查询接口。
 ```python
 from sqlalchemy import func, select
 
-async def list(
+async def get_list(
     self,
-    page: int,
-    page_size: int,
-    # ... 其他过滤参数
+    page: int = 0,
+    page_size: int = 20,
+    *,
+    include_deleted: bool = False,
 ) -> tuple[list[User], int]:
-    stmt = select(User)
-    
-    # 动态构建过滤条件
-    # if some_filter:
-    #     stmt = stmt.where(User.field == value)
+    # 1. 统计总数
+    count_stmt = select(func.count(User.id))
+    if not include_deleted:
+        count_stmt = count_stmt.where(User.deleted_at.is_(None))
+    total = await self.db.scalar(count_stmt) or 0
 
-    # 1. 计算总数 (复用过滤条件)
-    # 注意：func.count() 应该作用于主键或 *
-    count_stmt = select(func.count()).select_from(stmt.subquery())
-    total = (await self.db.execute(count_stmt)).scalar_one()
+    # 2. 分页查询
+    stmt = select(User).order_by(User.id.desc()).offset(page * page_size).limit(page_size)
+    if not include_deleted:
+        stmt = filter_active(stmt)
 
-    # 2. 分页与排序
-    stmt = stmt.order_by(User.id.desc()).offset(page * page_size).limit(page_size)
-    
     # 3. 执行查询
     result = await self.db.execute(stmt)
     return list(result.scalars().all()), total

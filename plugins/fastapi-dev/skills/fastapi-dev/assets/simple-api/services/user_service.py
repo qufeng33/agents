@@ -25,7 +25,7 @@ class UserService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def list(
+    async def get_list(
         self,
         page: int = 0,
         page_size: int = 20,
@@ -42,7 +42,7 @@ class UserService:
         users = result.scalars().all()
         return [UserResponse.model_validate(u) for u in users], total
 
-    async def get(self, user_id: UUID) -> UserResponse:
+    async def get_one(self, user_id: UUID) -> UserResponse:
         """获取单个用户（排除已删除）"""
         stmt = filter_active(select(User).where(User.id == user_id))
         result = await self.db.execute(stmt)

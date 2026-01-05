@@ -18,7 +18,7 @@ async def list_users(
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> ApiPagedResponse[UserResponse]:
     """获取用户列表"""
-    users, total = await service.list(page=page, page_size=page_size)
+    users, total = await service.get_list(page=page, page_size=page_size)
     return ApiPagedResponse(data=users, total=total, page=page, page_size=page_size)
 
 
@@ -38,7 +38,7 @@ async def get_user(
     service: UserServiceDep,
 ) -> ApiResponse[UserResponse]:
     """获取单个用户"""
-    user = await service.get(user_id)
+    user = await service.get_one(user_id)
     return ApiResponse(data=user)
 
 

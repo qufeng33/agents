@@ -23,16 +23,20 @@ class UserRepository:
         self.db = db
 
     # ============================================================
-    # 查询方法（默认排除已删除）
+    # 查询方法
     # ============================================================
 
-    async def get_by_id(self, user_id: UUID) -> User | None:
-        """根据 ID 获取用户（排除已删除）"""
+    async def get_one(
+        self, user_id: UUID, *, include_deleted: bool = False
+    ) -> User | None:
+        """根据 ID 获取用户"""
+        if include_deleted:
+            return await self.db.get(User, user_id)
         stmt = filter_active(select(User).where(User.id == user_id))
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_username(
+    async def get_one_by_username(
         self, username: str, *, include_deleted: bool = False
     ) -> User | None:
         """根据用户名获取用户"""
@@ -42,45 +46,21 @@ class UserRepository:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list(self, page: int = 0, page_size: int = 20) -> tuple[list[User], int]:
-        """分页查询用户列表（page 从 0 开始，排除已删除）"""
+    async def get_list(
+        self, page: int = 0, page_size: int = 20, *, include_deleted: bool = False
+    ) -> tuple[list[User], int]:
+        """分页查询用户列表（page 从 0 开始）"""
         # 统计总数
-        count_stmt = select(func.count(User.id)).where(User.deleted_at.is_(None))
+        count_stmt = select(func.count(User.id))
+        if not include_deleted:
+            count_stmt = count_stmt.where(User.deleted_at.is_(None))
         total = await self.db.scalar(count_stmt) or 0
 
         # 分页查询
         offset = page * page_size
-        stmt = filter_active(
-            select(User).order_by(User.created_at.desc()).offset(offset).limit(page_size)
-        )
-        result = await self.db.execute(stmt)
-        items = list(result.scalars().all())
-
-        return items, total
-
-    # ============================================================
-    # 包含已删除的查询（仅管理员使用）
-    # ============================================================
-
-    async def get_by_id_including_deleted(self, user_id: UUID) -> User | None:
-        """根据 ID 获取用户（包含已删除）"""
-        return await self.db.get(User, user_id)
-
-    async def list_deleted(
-        self, page: int = 0, page_size: int = 20
-    ) -> tuple[list[User], int]:
-        """查询已删除的用户"""
-        count_stmt = select(func.count(User.id)).where(User.deleted_at.isnot(None))
-        total = await self.db.scalar(count_stmt) or 0
-
-        offset = page * page_size
-        stmt = (
-            select(User)
-            .where(User.deleted_at.isnot(None))
-            .order_by(User.deleted_at.desc())
-            .offset(offset)
-            .limit(page_size)
-        )
+        stmt = select(User).order_by(User.created_at.desc()).offset(offset).limit(page_size)
+        if not include_deleted:
+            stmt = filter_active(stmt)
         result = await self.db.execute(stmt)
         items = list(result.scalars().all())
 
