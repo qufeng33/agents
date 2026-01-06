@@ -71,17 +71,21 @@ Router (HTTP 层) → Service (业务逻辑层) → Repository (数据访问层)
 ### 简单结构
 
 ```
-app/
-├── main.py              # 应用入口
-├── config.py            # 配置管理
-├── dependencies.py      # 共享依赖
-├── routers/             # 路由层
-├── schemas/             # Pydantic 模型
-├── services/            # 业务逻辑层（简化结构可直接操作数据库）
-├── models/              # ORM 模型
-└── core/                # 数据库、安全等基础设施
-    ├── exception_handlers.py  # 异常处理器注册
-    └── exceptions.py          # 异常定义
+{project}/
+├── app/
+│   ├── main.py              # 应用入口
+│   ├── config.py            # 配置管理
+│   ├── dependencies.py      # 共享依赖
+│   ├── routers/             # 路由层
+│   ├── schemas/             # Pydantic 模型
+│   ├── services/            # 业务逻辑层（简化结构可直接操作数据库）
+│   ├── models/              # ORM 模型
+│   └── core/                # 数据库、安全等基础设施
+├── tests/
+│   └── conftest.py          # 测试配置与 Fixtures
+├── pyproject.toml
+├── .env.example
+└── README.md
 ```
 
 > **简化架构**：`Router → Service → Database`（无 Repository 层）。此模式下 Service 兼任 Repository，允许直接注入 `AsyncSession` 操作数据库，适合快速开发。事务仍由 `get_db()` 统一管理。
@@ -89,14 +93,20 @@ app/
 ### 模块化结构
 
 ```
-app/
-├── main.py
-├── config.py
-├── api/v1/              # API 版本管理
-├── modules/             # 功能模块（按领域划分）
-│   ├── user/            # 完全自包含：router/schemas/models/service/repository/exceptions/dependencies
-│   └── item/
-└── core/                # 基础设施 + 全局异常
+{project}/
+├── app/
+│   ├── main.py
+│   ├── config.py
+│   ├── api/v1/              # API 版本管理
+│   ├── modules/             # 功能模块（按领域划分）
+│   │   ├── user/            # 完全自包含：router/schemas/models/service/repository/exceptions/dependencies
+│   │   └── item/
+│   └── core/                # 基础设施 + 全局异常
+├── tests/
+│   └── conftest.py
+├── pyproject.toml
+├── .env.example
+└── README.md
 ```
 
 详见 [项目结构详解](./references/fastapi-project-structure.md) | 代码模板见 `assets/`

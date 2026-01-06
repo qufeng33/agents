@@ -1,64 +1,72 @@
 ---
 name: refactor
-description: 安全地重构 FastAPI 代码，保持测试绿色
-argument-hint: "<target>"
+description: 按照 FastAPI 最佳实践重构代码
 ---
 
-# 代码重构
+# FastAPI 代码重构
 
-你是 FastAPI 重构专家。安全地重构代码，保持功能不变。
+使用 `fastapi-developer` agent 按照公司开发规范重构代码。
 
-## 输入
+## 任务目录结构
+```
+.agent/
+├── tips.md              # 经验文档（全局共享）
+└── tasks/
+    └── {feature}-{seq}/
+        └── spec.md      # 设计文档 + 任务状态
+```
 
-重构目标：$ARGUMENTS
+---
 
-如果为空，向用户提问确认要重构什么代码。
+用户输入：
 
-## 工作流程
+$ARGUMENTS
 
-### Step 1: 前置检查
+---
 
-1. 运行测试确保全部通过：`pytest`
-2. 确保 git 状态干净：`git status`
+## 执行指南
 
-如果测试不通过，先修复测试再重构。
+### 步骤 1：解析输入
 
-### Step 2: 分析代码问题
+判断 `$ARGUMENTS` 的类型：
 
-读取目标代码，识别可重构的问题（代码坏味道）。
+**情况 A：输入为空**
+- 询问用户要重构什么
 
-> 参考 **fastapi-dev** skill 的 `references/fastapi-refactoring.md`
+**情况 B：输入是已存在的任务 ID**
+- 检查 `.agent/tasks/{输入}/` 目录是否存在
+- 如果存在，说明是在该任务上下文中进行重构
 
-### Step 3: 制定重构计划
+**情况 C：输入是重构描述**
+- 不是已存在的任务 ID，视为重构目标描述
 
-将重构分解为小步骤，每步：
-1. 描述要做的改动
-2. 预期的代码变化
-3. 需要验证的测试
+### 步骤 2：根据类型执行
 
-### Step 4: 执行重构
+#### 情况 B：任务上下文中重构
 
-对每个重构步骤：
+调用 `fastapi-developer` agent，传递指令：
+```
+## 文件
+- 设计文档: .agent/tasks/{task-id}/spec.md
+- 经验文档: .agent/tips.md
 
-1. **执行改动**
-2. **运行测试** - `pytest tests/path/to/relevant_tests.py -v`
-3. **确认绿色**
-4. **下一步或回滚**
+## 任务
+在该任务上下文中进行重构。
+完成后更新设计文档相关内容（如需）。
+```
 
-> 参考 **fastapi-dev** skill 的 `references/fastapi-refactoring.md`（常见重构模式）
+#### 情况 A/C：独立重构
 
-### Step 5: 最终验证
+调用 `fastapi-developer` agent，传递指令：
+```
+## 文件
+- 经验文档: .agent/tips.md
 
-运行完整测试和检查：
-- `pytest`
-- `ruff check .`
+## 任务
+重构目标：{$ARGUMENTS 或用户描述}
 
-> 参考 **fastapi-dev** skill 的 `references/fastapi-tooling.md`
+请按描述进行重构。
+完成后询问用户是否将重构关联到某个任务。
+```
 
-## 关键点
-
-- 永远不要在测试红色时重构
-- 每步改动尽可能小
-- 改动后立即验证
-- 保持代码行为不变
-- 如果卡住，回滚并重新思考
+每个 agent 按照其定义的流程执行。

@@ -32,7 +32,7 @@
 FastAPI 测试推荐使用 pytest + pytest-asyncio + httpx 组合。
 
 ```bash
-uv add --dev pytest pytest-asyncio httpx asgi-lifespan
+uv add --dev pytest pytest-asyncio pytest-cov httpx asgi-lifespan aiosqlite
 ```
 
 ---
@@ -87,29 +87,49 @@ async def client() -> AsyncClient:
 
 ## 数据库测试
 
-### 事务回滚模式
+### SQLite 内存数据库配置
 
 ```python
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy import StaticPool
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-# 使用内存数据库进行测试
+# SQLite 内存数据库（测试用）
 test_engine = create_async_engine(
     "sqlite+aiosqlite:///:memory:",
     connect_args={"check_same_thread": False},
+    poolclass=StaticPool,  # 关键：内存数据库需要共享连接
 )
 
-@pytest_asyncio.fixture
-async def db_session():
-    async with test_engine.connect() as conn:
-        trans = await conn.begin()
-        session = AsyncSession(bind=conn)
-        yield session
-        await trans.rollback()
-        await session.close()
+TestSessionLocal = async_sessionmaker(
+    bind=test_engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=False,
+)
 ```
 
-> 测试数据库引擎创建与依赖覆盖可放在 `conftest.py`。
+> **重要**：SQLite 内存数据库必须使用 `StaticPool`，否则每次连接会创建新的数据库实例。
+
+### db_session Fixture
+
+```python
+import pytest_asyncio
+from app.core.database import Base
+
+@pytest_asyncio.fixture
+async def db_session() -> AsyncSession:
+    """创建测试数据库会话，每个测试前创建表，测试后清理"""
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with TestSessionLocal() as session:
+        yield session
+
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+```
+
+> 完整的 `conftest.py` 模板见 `assets/tests/conftest.py.template`。
 
 ---
 

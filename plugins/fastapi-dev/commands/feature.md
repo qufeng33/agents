@@ -1,99 +1,142 @@
 ---
 name: feature
-description: 需求驱动的功能开发，支持 TDD 和快速原型模式
-argument-hint: "<feature_description>"
+description: 完整的 FastAPI 功能开发流程：设计 → 实现 → 审查
 ---
 
-# 功能开发
+# FastAPI 完整功能开发
 
-你是 FastAPI 功能开发专家。根据用户需求实现新功能。
+完整的功能开发流程，支持大功能拆分为多个子任务逐个处理。
 
-## 输入
+## 流程概述
 
-用户提供功能描述：$ARGUMENTS
+### 阶段 1：设计
+调用 `fastapi-designer` agent 产出设计文档，包含任务清单。
 
-如果 $ARGUMENTS 为空，向用户提问确认要实现什么功能。
+### 阶段 2：确认
+展示设计文档给用户，确认后进入实现阶段。
 
-## 工作流程
+### 阶段 3：实现与审查（循环）
+```
+循环执行直到所有任务完成：
 
-### Phase 1: 需求分析
+1. 读取任务目录下的 spec.md 任务清单
+2. 找到第一个「待开始」或「待审核」的任务
+3. 如果是「待开始」：调用 fastapi-developer 实现
+4. 如果是「待审核」：调用 fastapi-reviewer 审查
+   - 通过 → 标记为「已完成」
+   - 不通过 → developer 修复 → 重新审查
+5. 检查是否还有未完成任务
+   - 有 → 继续循环
+   - 无 → 流程结束
+```
 
-1. 理解功能需求
-2. 识别涉及的实体和关系
-3. 规划 API 端点
-4. 识别边界条件和异常情况
-5. 确认兼容性要求（是否已有客户端/是否允许破坏性变更）
+### 任务状态流转
+```
+待开始 → 进行中 → 待审核 → 已完成
+            ↑         │
+            └─────────┘
+           (审核不通过)
+```
 
-输出需求分析摘要：
-- 功能概述
-- 涉及的实体
-- API 端点列表
-- 潜在的边界条件
+### 任务目录结构
+```
+.agent/
+├── tips.md              # 经验文档（全局共享）
+└── tasks/
+    └── {feature}-{seq}/
+        ├── spec.md      # 设计文档 + 任务状态
+        └── review.md    # 审查记录（累积追加）
+```
 
-> 如需完整设计文档，使用 `/design` 命令
+---
 
-> 参考 **fastapi-dev** skill 的 `references/fastapi-project-planning.md`
+用户输入：
 
-### Phase 2: 确认开发模式
+$ARGUMENTS
 
-向用户提问确认用户偏好：
-- **TDD 模式**: 先写测试，再实现功能
-- **快速原型**: 先实现功能，再补充测试
+---
 
-### Phase 3: 设计
+## 执行指南
 
-1. **数据模型设计** - ORM 模型、字段类型、关系
-2. **Schema 设计** - 请求/响应模型分离、验证规则
-3. **API 设计** - 端点路径、HTTP 方法、参数和响应
-4. **分层架构** - 确认使用简单结构还是模块化结构
+### 步骤 1：解析输入
 
-向用户确认设计是否符合预期。
+判断 `$ARGUMENTS` 的类型：
 
-> 参考 **fastapi-dev** skill：
-> - `references/fastapi-models.md` - Pydantic 模型设计
-> - `references/fastapi-api-design.md` - REST API 设计规范
-> - `references/fastapi-layered-architecture.md` - 分层架构模式
+**情况 A：输入为空**
+- 询问用户要开发什么功能
 
-### Phase 4: 实现
+**情况 B：输入是已存在的任务 ID**
+- 检查 `.agent/tasks/{输入}/` 目录是否存在
+- 如果存在，说明是继续执行已有任务
 
-#### TDD 模式
+**情况 C：输入是功能描述**
+- 不是已存在的任务 ID，视为新功能描述
 
-1. **编写测试**（RED）- 先写失败的测试
-2. **实现功能**（GREEN）- 让测试通过
-3. **重构**（REFACTOR）- 优化代码
+### 步骤 2：根据类型执行
 
-#### 快速原型模式
+#### 情况 A/C：新任务
 
-1. **实现功能** - 创建模型、Schema、Service、Router
-2. **补充测试** - 为已实现的功能编写测试
+1. 询问用户功能名称（用于生成 task-id，如 `user-auth`）
+2. 扫描 `.agent/tasks/` 目录，生成 task-id：
+   - 查找匹配 `{功能名}-*` 的目录
+   - 取最大序号 + 1（无则为 001）
+   - 格式：`{功能名}-{seq}`，如 `user-auth-001`
+3. 创建任务目录：`.agent/tasks/{task-id}/`
+4. 调用 `fastapi-designer` agent，传递指令：
+   ```
+   ## 文件
+   - 设计文档: .agent/tasks/{task-id}/spec.md
+   - 经验文档: .agent/tips.md
 
-> 参考 **fastapi-dev** skill：
-> - `references/fastapi-layered-architecture.md` - Service/Repository 实现
-> - `references/fastapi-testing.md` - 测试编写指南
+   ## 任务
+   功能描述：{用户的功能描述}
 
-### Phase 5: 集成
+   请完成设计流程，将设计文档写入指定文件。
+   ```
+5. 用户确认设计后，进入实现循环
 
-1. 注册路由到主应用
-2. 创建数据库迁移（`alembic revision --autogenerate`）
-3. 更新 API 文档
+#### 情况 B：继续已有任务
 
-> 参考 **fastapi-dev** skill：
-> - `references/fastapi-database-migrations.md` - 数据库迁移
+1. 读取任务状态：`.agent/tasks/{task-id}/spec.md`
+2. 进入实现循环
 
-### Phase 6: 验证
+### 步骤 3：实现与审查循环
 
-运行测试和检查：
-- `pytest` / `pytest --cov=app`
-- `ruff check .`
+```
+循环执行：
+1. 读取 .agent/tasks/{task-id}/spec.md 中的任务清单
+2. 找到第一个「待开始」或「待审核」的子任务
+3. 根据状态调用对应 agent：
 
-> 参考 **fastapi-dev** skill：
-> - `references/fastapi-testing.md` - 测试覆盖率
-> - `references/fastapi-tooling.md` - 开发工具配置
+   如果是「待开始」：
+   调用 fastapi-developer，传递指令：
+   ---
+   ## 文件
+   - 设计文档: .agent/tasks/{task-id}/spec.md
+   - 经验文档: .agent/tips.md
 
-## 关键点
+   ## 任务
+   实现设计文档中第一个「待开始」的子任务。
+   完成后更新状态为「待审核」。
+   ---
 
-- 遵循项目现有的代码结构和风格
-- 使用类型提示
-- 处理错误情况
-- 编写有意义的测试
-- 保持代码简洁
+   如果是「待审核」：
+   调用 fastapi-reviewer，传递指令：
+   ---
+   ## 文件
+   - 设计文档: .agent/tasks/{task-id}/spec.md
+   - 审查记录: .agent/tasks/{task-id}/review.md
+   - 经验文档: .agent/tips.md
+
+   ## 任务
+   审查设计文档中「待审核」状态的子任务。
+   - 审查结果追加到审查记录文件
+   - 通过则更新状态为「已完成」，不通过则保持「待审核」
+   ---
+
+4. 检查是否还有未完成的子任务
+   - 有 → 继续循环
+   - 无 → 任务完成，结束流程
+```
+
+每个 agent 按照其定义的流程执行。
