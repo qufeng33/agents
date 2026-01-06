@@ -5,7 +5,7 @@ description: 编写 FastAPI 测试用例
 
 # FastAPI 测试
 
-使用 `fastapi-developer` agent 按照公司测试规范编写测试用例。
+使用 `fastapi-developer` agent 按照测试规范编写测试用例。
 
 ## 任务目录结构
 ```

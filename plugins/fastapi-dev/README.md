@@ -32,9 +32,13 @@
 | `/fastapi-dev:test` | 测试生成 |
 | `/fastapi-dev:refactor` | 代码重构 |
 
-### Agent
+### Agents
 
-- `fastapi-pro` - FastAPI 专家 (Opus)，自动加载 fastapi-dev skill
+| Agent | 用途 | Model |
+|-------|------|-------|
+| `fastapi-designer` | 需求分析、技术决策、API 契约设计 | Opus |
+| `fastapi-developer` | 代码实现、遵循分层架构 | Opus |
+| `fastapi-reviewer` | 代码审查、规范检查 | Opus |
 
 ### Skill
 

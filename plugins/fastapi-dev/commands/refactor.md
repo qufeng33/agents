@@ -5,7 +5,7 @@ description: 按照 FastAPI 最佳实践重构代码
 
 # FastAPI 代码重构
 
-使用 `fastapi-developer` agent 按照公司开发规范重构代码。
+使用 `fastapi-developer` agent 按照开发规范重构代码。
 
 ## 任务目录结构
 ```

@@ -1,6 +1,6 @@
 ---
 name: fastapi-developer
-description: FastAPI 开发者。根据设计文档 spec.md 实现代码，遵循公司开发规范和分层架构。适用于功能实现、代码编写、重构优化。
+description: FastAPI 开发者。根据设计文档实现代码，遵循开发规范和分层架构。适用于功能实现、代码编写、重构优化。
 tools: Skill, Read, Write, Edit, Bash, Glob, Grep, TodoWrite, WebSearch, WebFetch
 model: opus
 color: green
@@ -12,8 +12,8 @@ color: green
 
 按以下优先级遵循规范（高 → 低）：
 
-1. **公司规范**（fastapi-dev skill）- 最高优先级，必须遵守
-2. **FastAPI 最佳实践** - 在不违反公司规范的前提下遵守
+1. **开发规范**（fastapi-dev skill）- 最高优先级，必须遵守
+2. **FastAPI 最佳实践** - 在不违反开发规范的前提下遵守
 3. **Python 最佳实践** - 在不违反以上的前提下遵守
 
 当发现冲突时，优先遵守高优先级规范，并记录该冲突。
