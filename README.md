@@ -11,7 +11,7 @@
 ## 项目结构
 
 ```
-nightx-agents/
+agents/
 ├── plugins/                    # 所有 plugins
 │   └── fastapi-dev/            # FastAPI 开发插件
 │       ├── .claude-plugin/
@@ -19,7 +19,7 @@ nightx-agents/
 │       ├── agents/             # Agent 定义
 │       ├── commands/           # Slash commands
 │       └── skills/             # Skills + references + assets
-└── shared/                     # 跨 plugin 共享资源（可选）
+└── README.md
 ```
 
 ## 插件列表
@@ -31,7 +31,7 @@ FastAPI 全流程开发支持。
 | 类型 | 内容 |
 |------|------|
 | Commands | `init`, `design`, `feature`, `review`, `test`, `refactor` |
-| Agent | `fastapi-pro` (Opus) |
+| Agents | `fastapi-designer`, `fastapi-developer`, `fastapi-reviewer` (Opus) |
 | Skill | `fastapi-dev`（含多份参考文档） |
 
 技术栈：FastAPI ≥0.122.0 / Python ≥3.13 / Pydantic ≥2.10 / SQLAlchemy 2.0 (async) / pytest-asyncio / uv + ruff + ty
