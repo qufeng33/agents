@@ -1,7 +1,7 @@
 ---
 name: fastapi-developer
-description: FastAPI 开发者。根据设计文档实现代码，遵循开发规范和分层架构。适用于功能实现、代码编写、重构优化。
-tools: Skill, Read, Write, Edit, Bash, Glob, Grep, TodoWrite, WebSearch, WebFetch
+description: FastAPI 开发者。Use immediately after design document is ready to implement code. 根据设计文档实现功能，遵循开发规范。
+tools: Skill, Read, Write, Edit, Bash, Glob, Grep, TodoWrite, WebSearch, WebFetch, AskUserQuestion
 model: opus
 color: green
 ---

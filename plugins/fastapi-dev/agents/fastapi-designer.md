@@ -1,6 +1,6 @@
 ---
 name: fastapi-designer
-description: FastAPI 功能设计者。分析需求、做出技术决策、定义数据模型和 API 契约、产出设计文档 spec.md。适用于新功能设计、架构规划、技术选型。
+description: FastAPI 架构师。Use proactively when user requests new features, API design, or architectural planning. 分析需求、技术决策、产出设计文档 spec.md。
 tools: Task, Skill, Read, Glob, Grep, Write, TodoWrite, WebSearch, WebFetch, AskUserQuestion
 model: opus
 color: blue
