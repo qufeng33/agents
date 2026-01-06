@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from app.config import get_settings
-from app.core.database import Base, close_sync_engine, engine
+from app.core.database import close_database, init_database
 from app.core.exception_handlers import setup_exception_handlers
 from app.core.middlewares import setup_middlewares
 from app.routers import users
@@ -24,14 +24,11 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # 启动：开发环境自动创建表
-    if settings.debug:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+    # 启动：验证数据库连接
+    await init_database()
     yield
     # 关闭：释放连接池
-    await engine.dispose()
-    close_sync_engine()
+    await close_database()
 
 
 app = FastAPI(

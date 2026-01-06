@@ -7,7 +7,7 @@ from functools import lru_cache
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, MetaData, Select, create_engine
+from sqlalchemy import DateTime, MetaData, Select, create_engine, text
 from sqlalchemy.ext.asyncio import (
     AsyncAttrs,
     AsyncSession,
@@ -130,10 +130,15 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_database() -> None:
-    """初始化数据库（仅开发环境创建表）"""
-    if settings.debug:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+    """初始化数据库：验证连接"""
+    from loguru import logger
+
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        logger.info("数据库连接成功")
+    except Exception as e:
+        logger.warning(f"数据库连接失败: {e}，应用将在无数据库模式下启动")
 
 
 async def close_database() -> None:
