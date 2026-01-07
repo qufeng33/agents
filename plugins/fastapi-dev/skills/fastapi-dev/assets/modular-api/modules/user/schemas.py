@@ -1,14 +1,14 @@
 """用户模块 - Schema"""
 
-from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from app.schemas.datetime_types import UTCDateTime
 from app.schemas.response import BaseSchema
 
 
-class UserBase(BaseModel):
+class UserBase(BaseSchema):
     username: str = Field(min_length=3, max_length=50)
 
 
@@ -16,7 +16,7 @@ class UserCreate(UserBase):
     password: str = Field(min_length=8)
 
 
-class UserUpdate(BaseModel):
+class UserUpdate(BaseSchema):
     username: str | None = Field(default=None, min_length=3, max_length=50)
 
 
@@ -26,8 +26,8 @@ class UserResponse(BaseSchema):
     id: UUID
     username: str
     is_active: bool
-    created_at: datetime
-    updated_at: datetime
+    created_at: UTCDateTime
+    updated_at: UTCDateTime
 
 
 class UserDetailResponse(UserResponse):
@@ -35,4 +35,4 @@ class UserDetailResponse(UserResponse):
 
     created_by: UUID | None = None
     updated_by: UUID | None = None
-    deleted_at: datetime | None = None
+    deleted_at: UTCDateTime | None = None

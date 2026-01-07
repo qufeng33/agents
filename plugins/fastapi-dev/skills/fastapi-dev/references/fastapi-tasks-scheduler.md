@@ -72,13 +72,15 @@ def close_scheduler():
 ## 触发器类型
 
 ```python
+from datetime import datetime, timedelta, timezone
+
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.date import DateTrigger
 
 IntervalTrigger(hours=1)
 CronTrigger(day_of_week="mon-fri", hour=9)
-DateTrigger(run_time=datetime.utcnow() + timedelta(days=7))
+DateTrigger(run_time=datetime.now(timezone.utc) + timedelta(days=7))
 ```
 
 > 日历间隔触发器适用于 DST 场景。

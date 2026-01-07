@@ -22,7 +22,7 @@
 - `自定义验证器`
 - `严格模式`
 - `嵌套模型`
-- `自定义类型`
+- `自定义类型`（含 UTCDateTime 时间处理）
 - `枚举和字面量`
 - `验证错误处理`
 - `代码模板`
@@ -54,31 +54,32 @@ class BaseSchema(BaseModel):
 ### 请求/响应模型分离
 
 ```python
-from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from app.schemas.datetime_types import UTCDateTime
+from app.schemas.response import BaseSchema
 
 
-# 创建请求
-class UserCreate(BaseModel):
+# 创建请求（继承 BaseSchema 获得 str_strip_whitespace）
+class UserCreate(BaseSchema):
     username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=8)
 
 
 # 更新请求（所有字段可选）
-class UserUpdate(BaseModel):
+class UserUpdate(BaseSchema):
     username: str | None = Field(default=None, min_length=3, max_length=50)
 
 
 # 响应模型（排除敏感字段）
-class UserResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
+class UserResponse(BaseSchema):
     id: UUID
     username: str
     is_active: bool
-    created_at: datetime
+    created_at: UTCDateTime  # 使用 UTCDateTime 统一时间格式
+    updated_at: UTCDateTime
     # 注意：不包含 password、hashed_password
 ```
 
@@ -181,6 +182,48 @@ class Company(BaseModel):
 ---
 
 ## 自定义类型
+
+### UTCDateTime（时间类型）
+
+所有 datetime 字段统一使用 `UTCDateTime` 类型，确保多时区场景下的正确处理：
+
+```python
+# schemas/datetime_types.py
+from datetime import datetime, timezone
+from typing import Annotated
+from zoneinfo import ZoneInfo
+
+from pydantic import AfterValidator, PlainSerializer
+
+DEFAULT_TIMEZONE = ZoneInfo("Asia/Shanghai")  # 默认时区：东8区
+
+
+def ensure_utc_aware(dt: datetime) -> datetime:
+    """naive datetime 假定为东8区，统一转换为 UTC"""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=DEFAULT_TIMEZONE)
+    return dt.astimezone(timezone.utc)
+
+
+def serialize_to_iso8601z(dt: datetime) -> str:
+    """序列化为 ISO8601 UTC 格式（Z 后缀）"""
+    utc_dt = ensure_utc_aware(dt)
+    return utc_dt.isoformat().replace("+00:00", "Z")
+
+
+UTCDateTime = Annotated[
+    datetime,
+    AfterValidator(ensure_utc_aware),
+    PlainSerializer(serialize_to_iso8601z),
+]
+```
+
+**特性**：
+- **输入**：接收任意时区，自动转换为 UTC；naive datetime 按东8区处理
+- **输出**：统一序列化为 ISO8601 UTC 格式（`2024-01-15T10:30:00Z`）
+- **存储**：数据库统一存储 UTC 时间
+
+### 其他自定义类型
 
 ```python
 from typing import Annotated

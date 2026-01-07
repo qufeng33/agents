@@ -31,7 +31,9 @@ class UserService:
         page_size: int = 20,
     ) -> tuple[list[UserResponse], int]:
         """分页查询用户列表（page 从 0 开始，排除已删除）"""
-        count_stmt = select(func.count(User.id)).where(User.deleted_at.is_(None))
+        count_stmt = select(func.count()).select_from(
+            filter_active(select(User)).subquery()
+        )
         total = await self.db.scalar(count_stmt) or 0
 
         offset = page * page_size

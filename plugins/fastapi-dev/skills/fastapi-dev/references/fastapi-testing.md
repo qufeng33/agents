@@ -70,6 +70,8 @@ async def test_health():
 ## Fixtures
 
 ```python
+from collections.abc import AsyncGenerator
+
 import pytest_asyncio
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
@@ -77,7 +79,7 @@ from app.main import app
 
 
 @pytest_asyncio.fixture
-async def client() -> AsyncClient:
+async def client() -> AsyncGenerator[AsyncClient, None]:
     async with LifespanManager(app) as manager:
         async with AsyncClient(transport=ASGITransport(app=manager.app), base_url="http://test") as ac:
             yield ac
@@ -113,11 +115,13 @@ TestSessionLocal = async_sessionmaker(
 ### db_session Fixture
 
 ```python
+from collections.abc import AsyncGenerator
+
 import pytest_asyncio
 from app.core.database import Base
 
 @pytest_asyncio.fixture
-async def db_session() -> AsyncSession:
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
     """创建测试数据库会话，每个测试前创建表，测试后清理"""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

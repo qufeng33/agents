@@ -20,6 +20,7 @@
 - `状态码规范`
 - `分页设计`
 - `过滤与搜索`
+- `时间格式规范`
 - `错误响应格式`
 - `请求/响应模型分离`
 - `API 版本管理`
@@ -134,6 +135,59 @@ class ApiPagedResponse(BaseModel, Generic[T]):
 - `search` 字符串模糊匹配
 
 > 过滤条件在 Repository 层构建 SQL，避免在 Python 侧过滤。
+
+---
+
+## 时间格式规范
+
+所有 API 时间字段统一遵循 **ISO8601** 标准。
+
+### 格式约定
+
+| 场景 | 格式 | 示例 |
+|------|------|------|
+| API 输出 | ISO8601 UTC（Z 后缀） | `2024-01-15T10:30:00Z` |
+| API 输入 | ISO8601（带时区） | `2024-01-15T18:30:00+08:00` |
+| API 输入 | ISO8601（无时区） | `2024-01-15T18:30:00`（按东8区处理） |
+| 数据库存储 | TIMESTAMPTZ (UTC) | `2024-01-15 10:30:00+00` |
+
+### 处理规则
+
+1. **输出统一 UTC**：所有响应中的时间字段输出为 UTC，使用 `Z` 后缀
+2. **输入支持任意时区**：接收带时区的 ISO8601 字符串，自动转换为 UTC
+3. **无时区默认东8区**：naive datetime 按 `Asia/Shanghai` 处理
+4. **存储统一 UTC**：数据库使用 `TIMESTAMP WITH TIME ZONE`，存储 UTC 时间
+
+### 实现方式
+
+使用 `UTCDateTime` 类型统一处理：
+
+```python
+from app.schemas.datetime_types import UTCDateTime
+
+class EventResponse(BaseSchema):
+    created_at: UTCDateTime  # 输出: "2024-01-15T10:30:00Z"
+    start_time: UTCDateTime
+```
+
+> 详见 [数据模型 - UTCDateTime](./fastapi-models.md#utcdatetime时间类型)
+
+### 时间范围查询
+
+```python
+@router.get("/events")
+async def list_events(
+    created_after: UTCDateTime | None = None,   # ISO8601 输入
+    created_before: UTCDateTime | None = None,
+):
+    ...
+```
+
+前端示例：
+```
+GET /events?created_after=2024-01-01T00:00:00Z&created_before=2024-01-31T23:59:59Z
+GET /events?created_after=2024-01-01T08:00:00%2B08:00  # URL 编码的 +08:00
+```
 
 ---
 

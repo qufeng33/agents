@@ -150,7 +150,7 @@ class AuditLog(SimpleBase):
 ```python
 # core/audit.py (续)
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import UUID
@@ -184,11 +184,15 @@ def get_changes(target) -> tuple[dict, dict, list[str]]:
 
 
 def serialize_value(value: Any) -> Any:
-    """序列化值为 JSON 兼容格式"""
+    """序列化值为 JSON 兼容格式（时间统一 ISO8601 UTC）"""
     if value is None:
         return None
     if isinstance(value, datetime):
-        return value.isoformat()
+        # 统一转换为 UTC ISO8601 格式
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=timezone.utc)
+        utc_value = value.astimezone(timezone.utc)
+        return utc_value.isoformat().replace("+00:00", "Z")
     if isinstance(value, UUID):
         return str(value)
     if isinstance(value, Enum):

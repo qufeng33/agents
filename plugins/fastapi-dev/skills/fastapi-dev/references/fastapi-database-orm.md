@@ -150,7 +150,17 @@ def filter_active[T: Base](stmt: Select[tuple[T]]) -> Select[tuple[T]]:
     return stmt.where(entity.deleted_at.is_(None))
 ```
 
-> 聚合查询请显式添加 `where(Model.deleted_at.is_(None))`。
+聚合查询统一使用 `filter_active()` 子查询：
+
+```python
+from sqlalchemy import func, select
+
+# 统计活跃记录数
+count_stmt = select(func.count()).select_from(
+    filter_active(select(User)).subquery()
+)
+total = await db.scalar(count_stmt) or 0
+```
 
 ### Repository 集成
 

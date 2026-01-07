@@ -1,5 +1,7 @@
 """测试配置与 Fixtures"""
 
+from collections.abc import AsyncGenerator
+
 import pytest_asyncio
 from asgi_lifespan import LifespanManager
 from httpx import ASGITransport, AsyncClient
@@ -27,7 +29,7 @@ TestSessionLocal = async_sessionmaker(
 
 
 @pytest_asyncio.fixture
-async def db_session() -> AsyncSession:
+async def db_session() -> AsyncGenerator[AsyncSession, None]:
     """创建测试数据库会话，每个测试前创建表，测试后清理"""
     # 创建所有表
     async with test_engine.begin() as conn:
@@ -42,7 +44,7 @@ async def db_session() -> AsyncSession:
 
 
 @pytest_asyncio.fixture
-async def client(db_session: AsyncSession) -> AsyncClient:
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """HTTP 测试客户端，自动覆盖数据库依赖"""
 
     async def override_get_db():
