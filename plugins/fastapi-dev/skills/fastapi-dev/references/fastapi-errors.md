@@ -367,7 +367,22 @@ def setup_exception_handlers(app: FastAPI) -> None:
 
 ---
 
+## 异常组织方式
+
+根据项目规模选择合适的异常组织方式：
+
+| 模板 | 异常位置 | 适用场景 |
+|------|----------|----------|
+| **simple-api** | 全部在 `core/exceptions.py` | 小项目，异常数量少 |
+| **modular-api** | 通用异常在 `core/exceptions.py`，模块异常在 `modules/xxx/exceptions.py` | 中大型项目，按领域拆分 |
+
+> **设计原则**：simple-api 保持简单，异常集中管理；modular-api 按领域组织，模块异常继承 core 基类。如果 simple-api 的异常增多到需要拆分，建议迁移到 modular-api 结构。
+
+---
+
 ## 模块级异常
+
+> 适用于 modular-api 模板，按领域组织异常。
 
 ```python
 # app/modules/user/exceptions.py
@@ -380,7 +395,7 @@ class UserNotFoundError(NotFoundError):
 
     def __init__(self, user_id: UUID):
         super().__init__(
-            code=ErrorCode.RESOURCE_NOT_FOUND,
+            code=ErrorCode.USER_NOT_FOUND,
             message="用户不存在",
             detail={"user_id": str(user_id)},
         )

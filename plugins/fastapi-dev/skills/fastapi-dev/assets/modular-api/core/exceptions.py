@@ -44,6 +44,18 @@ class ValidationError(ApiError):
         super().__init__(code, message, status_code=400, detail=detail)
 
 
+class ConflictError(ApiError):
+    """资源冲突"""
+
+    def __init__(
+        self,
+        code: ErrorCode = ErrorCode.DUPLICATE_ENTRY,
+        message: str = "Resource conflict",
+        detail: dict | None = None,
+    ) -> None:
+        super().__init__(code, message, status_code=409, detail=detail)
+
+
 class UnauthorizedError(ApiError):
     """认证失败"""
 
@@ -77,18 +89,6 @@ class ForbiddenError(ApiError):
         detail: dict | None = None,
     ) -> None:
         super().__init__(code, message, status_code=403, detail=detail)
-
-
-class ConflictError(ApiError):
-    """资源冲突"""
-
-    def __init__(
-        self,
-        code: ErrorCode = ErrorCode.DUPLICATE_ENTRY,
-        message: str = "Resource conflict",
-        detail: dict | None = None,
-    ) -> None:
-        super().__init__(code, message, status_code=409, detail=detail)
 
 
 class ServiceUnavailableError(ApiError):

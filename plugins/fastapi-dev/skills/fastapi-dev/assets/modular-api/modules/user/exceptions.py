@@ -2,8 +2,8 @@
 
 from uuid import UUID
 
-from app.core.exceptions import NotFoundError, ConflictError, ForbiddenError
 from app.core.error_codes import ErrorCode
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError
 
 
 class UserNotFoundError(NotFoundError):
