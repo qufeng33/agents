@@ -1,5 +1,5 @@
 ---
-name: refactor
+name: fastapi-refactor
 description: 按照 FastAPI 最佳实践重构代码
 ---
 

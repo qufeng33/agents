@@ -1,5 +1,5 @@
 ---
-name: test
+name: fastapi-test
 description: 编写 FastAPI 测试用例（pytest-asyncio）
 ---
 

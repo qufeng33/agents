@@ -1,5 +1,5 @@
 ---
-name: feature
+name: fastapi-feature
 description: 完整的 FastAPI 功能开发流程：设计 → 实现 → 审查
 ---
 

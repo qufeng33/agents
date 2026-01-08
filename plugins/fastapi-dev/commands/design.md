@@ -1,5 +1,5 @@
 ---
-name: design
+name: fastapi-design
 description: 启动 FastAPI 功能设计流程，产出设计文档 spec.md
 ---
 

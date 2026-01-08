@@ -1,5 +1,5 @@
 ---
-name: init
+name: fastapi-init
 description: 初始化 FastAPI 项目结构
 ---
 

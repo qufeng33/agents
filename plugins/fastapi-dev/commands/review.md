@@ -1,5 +1,5 @@
 ---
-name: review
+name: fastapi-review
 description: 按照 FastAPI 规范审查代码
 ---
 
