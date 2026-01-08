@@ -38,7 +38,10 @@ class UserService:
 
         offset = page * page_size
         stmt = filter_active(
-            select(User).order_by(User.created_at.desc()).offset(offset).limit(page_size)
+            select(User)
+            .order_by(User.created_at.desc())
+            .offset(offset)
+            .limit(page_size)
         )
         result = await self.db.execute(stmt)
         users = result.scalars().all()
@@ -94,26 +97,3 @@ class UserService:
 
         user.soft_delete()
         await self.db.flush()
-
-    async def restore(self, user_id: UUID) -> UserResponse:
-        """恢复软删除的用户"""
-        user = await self.db.get(User, user_id)
-
-        if not user:
-            raise NotFoundError(
-                code=ErrorCode.USER_NOT_FOUND,
-                message="用户不存在",
-                detail={"user_id": str(user_id)},
-            )
-
-        if not user.is_deleted:
-            raise ConflictError(
-                code=ErrorCode.USER_NOT_DELETED,
-                message="用户未被删除",
-                detail={"user_id": str(user_id)},
-            )
-
-        user.restore()
-        await self.db.flush()
-        await self.db.refresh(user)
-        return UserResponse.model_validate(user)

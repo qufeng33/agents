@@ -33,20 +33,6 @@ class DatabaseConfig(BaseModel):
         return f"postgresql+psycopg://{user}:{password}@{self.host}:{self.port}/{self.name}"
 
 
-class RedisConfig(BaseModel):
-    """Redis 配置"""
-
-    host: str = "localhost"
-    port: int = Field(default=6379, ge=1, le=65535)
-    db: int = Field(default=0, ge=0, le=15)
-
-    @computed_field
-    @property
-    def url(self) -> str:
-        """构建 Redis 连接 URL"""
-        return f"redis://{self.host}:{self.port}/{self.db}"
-
-
 class Settings(BaseSettings):
     """应用配置"""
 
@@ -69,9 +55,6 @@ class Settings(BaseSettings):
 
     # 数据库（嵌套配置）
     db: DatabaseConfig
-
-    # Redis（可选）
-    redis: RedisConfig = Field(default_factory=RedisConfig)
 
     # CORS（空列表=不启用）
     cors_origins: list[str] = Field(default_factory=list)

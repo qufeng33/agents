@@ -12,14 +12,19 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+
 from app.config import get_settings
 from app.core.database import close_database, init_database
 from app.core.exception_handlers import setup_exception_handlers
+from app.core.logging import setup_logging
 from app.core.middlewares import setup_middlewares
 from app.routers import users
 from app.schemas.response import ApiResponse
 
 settings = get_settings()
+
+# 初始化日志（在 settings 加载后）
+setup_logging(settings.log_level)
 
 
 @asynccontextmanager

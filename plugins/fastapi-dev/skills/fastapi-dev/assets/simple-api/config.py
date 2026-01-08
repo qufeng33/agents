@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     # 应用配置
     app_name: str = "My API"
     debug: bool = False
+    log_level: str = "INFO"
     access_token_expire_minutes: int = Field(default=30, ge=1)
 
     # 数据库（嵌套配置）
@@ -63,6 +64,16 @@ class Settings(BaseSettings):
     def database_url(self) -> str:
         """数据库连接 URL（供 SQLAlchemy 使用）"""
         return self.db.url
+
+    @field_validator("log_level")
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
+        allowed = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+        upper = v.upper()
+        if upper not in allowed:
+            msg = f"log_level 必须是 {allowed} 之一"
+            raise ValueError(msg)
+        return upper
 
     @field_validator("cors_origins", mode="before")
     @classmethod

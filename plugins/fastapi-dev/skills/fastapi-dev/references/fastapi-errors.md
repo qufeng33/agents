@@ -136,6 +136,7 @@ class ErrorCode(IntEnum):
     # 40000-49999: 客户端请求错误
     INVALID_REQUEST = 40000
     INVALID_PARAMETER = 40001
+    MISSING_PARAMETER = 40002
     UNAUTHORIZED = 40100
     TOKEN_EXPIRED = 40101
     TOKEN_INVALID = 40102
@@ -299,7 +300,7 @@ async def validation_error_handler(
     return JSONResponse(
         status_code=422,
         content={
-            "code": ErrorCode.INVALID_REQUEST,
+            "code": ErrorCode.INVALID_PARAMETER,
             "message": "Validation failed",
             "data": None,
             "detail": {"errors": errors},

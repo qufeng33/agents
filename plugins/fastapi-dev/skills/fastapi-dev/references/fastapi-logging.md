@@ -63,6 +63,23 @@ from loguru import logger
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
 
+class InterceptHandler(logging.Handler):
+    """拦截标准库日志并转发到 Loguru"""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            level = logger.level(record.levelname).name
+        except ValueError:
+            level = record.levelno
+
+        frame, depth = logging.currentframe(), 2
+        while frame and frame.f_code.co_filename == logging.__file__:
+            frame = frame.f_back
+            depth += 1
+
+        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+
+
 def setup_bootstrap_logging() -> None:
     logger.remove()
     logger.add(
@@ -93,7 +110,7 @@ def setup_logging(
         logging.getLogger(name).setLevel(logging.WARNING)
 ```
 
-> `InterceptHandler` 用于拦截标准库日志并转发到 Loguru，可按需实现。
+> `InterceptHandler` 拦截标准库日志（uvicorn、httpx 等）并统一转发到 Loguru。
 
 ---
 

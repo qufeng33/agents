@@ -92,11 +92,6 @@ class UserRepository:
         """删除用户（默认软删除）"""
         await self.soft_delete(user)
 
-    async def restore(self, user: User) -> None:
-        """恢复软删除的用户"""
-        user.restore()
-        await self.db.flush()
-
     async def hard_delete(self, user: User) -> None:
         """物理删除用户（谨慎使用）"""
         await self.db.delete(user)

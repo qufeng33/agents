@@ -22,7 +22,9 @@ async def list_users(
     return ApiPagedResponse(data=users, total=total, page=page, page_size=page_size)
 
 
-@router.post("/", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=ApiResponse[UserResponse], status_code=status.HTTP_201_CREATED
+)
 async def create_user(
     user_in: UserCreate,
     service: UserServiceDep,
@@ -42,7 +44,9 @@ async def get_user(
     return ApiResponse(data=user)
 
 
-@router.delete("/{user_id}", response_model=ApiResponse[None], status_code=status.HTTP_200_OK)
+@router.delete(
+    "/{user_id}", response_model=ApiResponse[None], status_code=status.HTTP_200_OK
+)
 async def delete_user(
     user_id: UUID,
     service: UserServiceDep,
