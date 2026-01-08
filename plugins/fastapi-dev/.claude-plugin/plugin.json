@@ -5,6 +5,7 @@
   "author": {
     "name": "nightx"
   },
+  "homepage": "https://github.com/qufeng33/agents/tree/main/plugins/fastapi-dev",
   "repository": "https://github.com/qufeng33/agents",
   "license": "MIT",
   "keywords": [

@@ -22,6 +22,8 @@ description: |
   - 性能优化、缓存、连接池
 
   关键词：设计、架构、需求、技术选型、实现端点、创建 API、CRUD 操作、Pydantic schema、SQLAlchemy 模型、异步数据库、错误处理、编写测试、FastAPI 中间件、JWT 认证、部署配置、lifespan、依赖注入、后台任务、定时任务、任务队列、软删除、审计日志、UUIDv7、基类、Mixin
+
+  不适用：Django、Flask、Tornado 等其他 Python Web 框架
 ---
 
 # FastAPI 最佳实践
@@ -51,7 +53,7 @@ Router (HTTP 层) → Service (业务逻辑层) → Repository (数据访问层)
 | **Service** | 业务逻辑、事务编排、跨模块协调 | 直接操作数据库（简化结构例外） |
 | **Repository** | 数据访问、SQL 查询、ORM 操作 | 处理 HTTP、业务规则、**调用 commit** |
 
-> ⚠️ **事务约定**：一个请求 = 一个事务。`get_db()` 依赖统一管理 commit/rollback，Repository 只用 `flush()`。
+> **注意 - 事务约定**：一个请求 = 一个事务。`get_db()` 依赖统一管理 commit/rollback，Repository 只用 `flush()`。
 
 **好处**：可测试（mock Repository）、可替换（切换数据库）、职责清晰、代码复用
 
