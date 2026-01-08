@@ -191,9 +191,9 @@ class NotFoundError(ApiError):
     def __init__(
         self,
         code: ErrorCode = ErrorCode.RESOURCE_NOT_FOUND,
-        message: str = "Resource not found",
+        message: str = "资源不存在",
         detail: dict | None = None,
-    ):
+    ) -> None:
         super().__init__(code, message, status_code=404, detail=detail)
 
 
@@ -203,17 +203,21 @@ class UnauthorizedError(ApiError):
     def __init__(
         self,
         code: ErrorCode = ErrorCode.UNAUTHORIZED,
-        message: str = "Unauthorized",
+        message: str = "认证失败",
         detail: dict | None = None,
-    ):
+    ) -> None:
         super().__init__(code, message, status_code=401, detail=detail)
 
 
 class InvalidCredentialsError(UnauthorizedError):
-    """凭证无效（登录失败）"""
+    """凭证无效"""
 
-    def __init__(self, message: str = "Invalid credentials"):
-        super().__init__(ErrorCode.UNAUTHORIZED, message)
+    def __init__(
+        self,
+        message: str = "凭证无效",
+        detail: dict | None = None,
+    ) -> None:
+        super().__init__(ErrorCode.UNAUTHORIZED, message, detail)
 
 
 class ForbiddenError(ApiError):
@@ -222,9 +226,9 @@ class ForbiddenError(ApiError):
     def __init__(
         self,
         code: ErrorCode = ErrorCode.FORBIDDEN,
-        message: str = "Forbidden",
+        message: str = "权限不足",
         detail: dict | None = None,
-    ):
+    ) -> None:
         super().__init__(code, message, status_code=403, detail=detail)
 
 
@@ -234,9 +238,9 @@ class ConflictError(ApiError):
     def __init__(
         self,
         code: ErrorCode = ErrorCode.DUPLICATE_ENTRY,
-        message: str = "Resource conflict",
+        message: str = "资源冲突",
         detail: dict | None = None,
-    ):
+    ) -> None:
         super().__init__(code, message, status_code=409, detail=detail)
 ```
 
@@ -263,7 +267,7 @@ from app.core.error_codes import ErrorCode
 async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
     """业务异常处理"""
     logger.warning(
-        "Business error: {} | code={} path={}",
+        "业务异常: {} | code={} path={}",
         exc.message,
         exc.code,
         request.url.path,
@@ -301,7 +305,7 @@ async def validation_error_handler(
         status_code=422,
         content={
             "code": ErrorCode.INVALID_PARAMETER,
-            "message": "Validation failed",
+            "message": "请求参数验证失败",
             "data": None,
             "detail": {"errors": errors},
         },
@@ -336,12 +340,12 @@ async def http_error_handler(
 
 async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """未捕获异常处理"""
-    logger.exception("Unexpected error | path={}", request.url.path)
+    logger.exception("未捕获异常 {method} {path}", method=request.method, path=request.url.path)
     return JSONResponse(
         status_code=500,
         content={
             "code": ErrorCode.SYSTEM_ERROR,
-            "message": "Internal server error",
+            "message": "服务器内部错误",
             "data": None,
             "detail": None,
         },

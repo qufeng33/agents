@@ -3,6 +3,7 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from loguru import logger
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.error_codes import ErrorCode
@@ -31,17 +32,21 @@ async def validation_error_handler(
     """请求验证异常处理"""
     errors = []
     for error in exc.errors():
-        errors.append({
-            "field": ".".join(str(loc) for loc in error["loc"][1:]),
-            "message": error["msg"],
-            "type": error["type"],
-        })
+        loc = error["loc"]
+        field = ".".join(str(x) for x in loc[1:]) if len(loc) > 1 else str(loc[0])
+        errors.append(
+            {
+                "field": field,
+                "message": error["msg"],
+                "type": error["type"],
+            }
+        )
 
     return JSONResponse(
         status_code=422,
         content={
             "code": ErrorCode.INVALID_PARAMETER,
-            "message": "Validation failed",
+            "message": "请求参数验证失败",
             "data": None,
             "detail": {"errors": errors},
         },
@@ -81,11 +86,14 @@ async def http_error_handler(
 
 async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """未捕获异常处理"""
+    logger.exception(
+        "未捕获异常 {method} {path}", method=request.method, path=request.url.path
+    )
     return JSONResponse(
         status_code=500,
         content={
             "code": ErrorCode.SYSTEM_ERROR,
-            "message": "Internal server error",
+            "message": "服务器内部错误",
             "data": None,
             "detail": None,
         },

@@ -26,7 +26,7 @@ class NotFoundError(ApiError):
     def __init__(
         self,
         code: ErrorCode = ErrorCode.RESOURCE_NOT_FOUND,
-        message: str = "Resource not found",
+        message: str = "资源不存在",
         detail: dict | None = None,
     ) -> None:
         super().__init__(code, message, status_code=404, detail=detail)
@@ -38,7 +38,7 @@ class ValidationError(ApiError):
     def __init__(
         self,
         code: ErrorCode = ErrorCode.INVALID_PARAMETER,
-        message: str = "Validation failed",
+        message: str = "验证失败",
         detail: dict | None = None,
     ) -> None:
         super().__init__(code, message, status_code=400, detail=detail)
@@ -50,7 +50,7 @@ class ConflictError(ApiError):
     def __init__(
         self,
         code: ErrorCode = ErrorCode.DUPLICATE_ENTRY,
-        message: str = "Resource conflict",
+        message: str = "资源冲突",
         detail: dict | None = None,
     ) -> None:
         super().__init__(code, message, status_code=409, detail=detail)
@@ -62,7 +62,7 @@ class UnauthorizedError(ApiError):
     def __init__(
         self,
         code: ErrorCode = ErrorCode.UNAUTHORIZED,
-        message: str = "Unauthorized",
+        message: str = "认证失败",
         detail: dict | None = None,
     ) -> None:
         super().__init__(code, message, status_code=401, detail=detail)
@@ -73,7 +73,7 @@ class InvalidCredentialsError(UnauthorizedError):
 
     def __init__(
         self,
-        message: str = "Invalid credentials",
+        message: str = "凭证无效",
         detail: dict | None = None,
     ) -> None:
         super().__init__(ErrorCode.UNAUTHORIZED, message, detail)
@@ -85,7 +85,7 @@ class ForbiddenError(ApiError):
     def __init__(
         self,
         code: ErrorCode = ErrorCode.FORBIDDEN,
-        message: str = "Forbidden",
+        message: str = "权限不足",
         detail: dict | None = None,
     ) -> None:
         super().__init__(code, message, status_code=403, detail=detail)
@@ -97,7 +97,7 @@ class ServiceUnavailableError(ApiError):
     def __init__(
         self,
         code: ErrorCode = ErrorCode.SERVICE_UNAVAILABLE,
-        message: str = "Service unavailable",
+        message: str = "服务不可用",
         detail: dict | None = None,
     ) -> None:
         super().__init__(code, message, status_code=503, detail=detail)
