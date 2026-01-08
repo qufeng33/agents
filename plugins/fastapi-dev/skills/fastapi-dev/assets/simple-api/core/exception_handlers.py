@@ -12,6 +12,12 @@ from app.core.exceptions import ApiError
 
 async def api_error_handler(request: Request, exc: ApiError) -> JSONResponse:
     """业务异常处理"""
+    logger.warning(
+        "业务异常: {} | code={} path={}",
+        exc.message,
+        exc.code,
+        request.url.path,
+    )
     headers = {"WWW-Authenticate": "Bearer"} if exc.status_code == 401 else None
     return JSONResponse(
         status_code=exc.status_code,
