@@ -6,7 +6,7 @@
 
 ```bash
 # 添加 marketplace
-/plugin marketplace add github:qufeng33/agents
+/plugin marketplace add qufeng33/agents
 
 # 安装插件
 /plugin install fastapi-dev
