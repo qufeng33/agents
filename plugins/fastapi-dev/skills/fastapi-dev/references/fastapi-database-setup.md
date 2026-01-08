@@ -56,6 +56,7 @@ AsyncSessionLocal = async_sessionmaker(
 
 class Base(DeclarativeBase):
     pass
+```
 
 ### 同步兼容（可选）
 
@@ -75,7 +76,6 @@ SyncSessionLocal = sessionmaker(bind=sync_engine)
 def get_sync_session() -> Generator[Session, None, None]:
     with SyncSessionLocal() as session:
         yield session
-```
 ```
 
 > 驱动示例：`postgresql+asyncpg://`、`mysql+aiomysql://`、`sqlite+aiosqlite://`。
