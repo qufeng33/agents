@@ -45,14 +45,14 @@ app = FastAPI(
     openapi_url="/openapi.json" if settings.debug else None,
 )
 
-# 异常处理
-setup_exception_handlers(app)
-
 # 中间件
 setup_middlewares(app)
 
 # 路由（直接注册）
 app.include_router(users.router, prefix="/users", tags=["users"])
+
+# 异常处理
+setup_exception_handlers(app)
 
 
 @app.get("/health", response_model=ApiResponse[dict[str, str]])
