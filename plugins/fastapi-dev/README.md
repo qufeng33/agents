@@ -38,11 +38,22 @@
 |-------|------|-------|
 | `fastapi-designer` | 需求分析、技术决策、API 契约设计 | Opus |
 | `fastapi-developer` | 代码实现、遵循分层架构 | Opus |
-| `fastapi-reviewer` | 代码审查、规范检查 | Opus |
+| `fastapi-tester` | 测试用例编写、pytest-asyncio | Opus |
+| `fastapi-reviewer` | 代码审查（支持多维度：正确性/架构/安全） | Opus |
 
 ### Skill
 
 - `fastapi-dev` - 架构设计 + 代码实现最佳实践，含多份参考文档
+
+### Hooks
+
+- **PostToolUse** - Write/Edit 后自动执行 `ruff format` 和 `ruff check --fix`
+
+### 特性
+
+- **置信度过滤** - 审查只报告置信度 ≥80% 的问题，避免误报
+- **并行审查** - 同一 reviewer 支持 3 个维度（正确性/架构/安全），可并行执行
+- **经验沉淀** - commands 可传递经验文档路径，agent 自动追加
 
 ## 核心原则
 

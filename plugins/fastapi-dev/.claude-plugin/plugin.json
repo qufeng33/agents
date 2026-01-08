@@ -5,7 +5,7 @@
   "author": {
     "name": "nightx"
   },
-  "repository": "https://github.com/nightx/agents",
+  "repository": "https://github.com/qufeng33/agents",
   "license": "MIT",
   "keywords": [
     "fastapi",

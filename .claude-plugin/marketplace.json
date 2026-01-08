@@ -1,0 +1,15 @@
+{
+  "name": "nightx-agents",
+  "description": "个人 Claude Code 插件集合，包含 FastAPI 开发工作流等",
+  "author": {
+    "name": "nightx"
+  },
+  "repository": "https://github.com/qufeng33/agents",
+  "plugins": [
+    {
+      "name": "fastapi-dev",
+      "path": "plugins/fastapi-dev",
+      "description": "FastAPI 开发全流程支持：设计 → 实现 → 审查"
+    }
+  ]
+}

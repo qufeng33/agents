@@ -1,11 +1,11 @@
 ---
 name: test
-description: 编写 FastAPI 测试用例
+description: 编写 FastAPI 测试用例（pytest-asyncio）
 ---
 
 # FastAPI 测试
 
-使用 `fastapi-developer` agent 按照测试规范编写测试用例。
+使用 `fastapi-tester` agent 按照测试规范编写测试用例。
 
 ## 任务目录结构
 ```
@@ -44,7 +44,7 @@ $ARGUMENTS
 
 #### 情况 B：为任务编写测试
 
-调用 `fastapi-developer` agent，传递指令：
+调用 `fastapi-tester` agent，传递指令：
 ```
 ## 文件
 - 设计文档: .agent/tasks/{task-id}/spec.md
@@ -57,7 +57,7 @@ $ARGUMENTS
 
 #### 情况 A/C：独立测试
 
-调用 `fastapi-developer` agent，传递指令：
+调用 `fastapi-tester` agent，传递指令：
 ```
 ## 文件
 - 经验文档: .agent/tips.md

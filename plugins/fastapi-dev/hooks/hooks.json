@@ -1,0 +1,16 @@
+{
+  "description": "自动格式化和检查 Python 文件",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/format-python.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
