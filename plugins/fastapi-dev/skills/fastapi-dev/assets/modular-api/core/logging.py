@@ -2,6 +2,7 @@
 
 import logging
 import sys
+from pathlib import Path
 from typing import Literal
 
 from loguru import logger
@@ -28,16 +29,50 @@ class InterceptHandler(logging.Handler):
         )
 
 
-def setup_logging(level: LogLevel = "INFO", *, json_format: bool = False) -> None:
+def setup_bootstrap_logging() -> None:
     """
-    配置日志
+    Bootstrap 阶段日志配置
+
+    在加载 Settings 之前使用，确保配置加载失败时也能输出日志。
+    """
+    logger.remove()
+    logger.add(
+        sys.stderr,
+        level="DEBUG",
+        format="<dim>{time:HH:mm:ss}</dim> | <level>{level: <8}</level> | {message}",
+        colorize=True,
+    )
+
+
+def setup_logging(
+    *,
+    level: LogLevel = "INFO",
+    json_format: bool = False,
+    to_file: bool = False,
+    log_dir: str | Path = "logs",
+) -> None:
+    """
+    配置日志（正式阶段）
 
     Args:
         level: 日志级别
         json_format: 是否使用 JSON 格式（生产环境建议开启）
+        to_file: 是否输出到文件
+        log_dir: 日志文件目录
     """
     logger.remove()
     logger.add(sys.stderr, level=level, serialize=json_format, enqueue=True)
+
+    if to_file:
+        Path(log_dir).mkdir(parents=True, exist_ok=True)
+        logger.add(
+            Path(log_dir) / "app.log",
+            level=level,
+            serialize=json_format,
+            enqueue=True,
+            rotation="10 MB",
+            retention="7 days",
+        )
 
     # 拦截标准库日志
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)

@@ -1,6 +1,7 @@
 """配置管理"""
 
 from functools import lru_cache
+from pathlib import Path
 from urllib.parse import quote
 
 from pydantic import BaseModel, Field, SecretStr, computed_field, field_validator
@@ -50,8 +51,13 @@ class Settings(BaseSettings):
     # 应用配置
     app_name: str = "My API"
     debug: bool = False
-    log_level: str = "INFO"
     access_token_expire_minutes: int = Field(default=30, ge=1)
+
+    # 日志配置
+    log_level: str = "INFO"
+    log_json: bool = False
+    log_to_file: bool = False
+    log_dir: Path = Path("logs")
 
     # 数据库（嵌套配置）
     db: DatabaseConfig

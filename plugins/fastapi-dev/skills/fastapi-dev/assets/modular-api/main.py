@@ -25,7 +25,12 @@ from app.schemas.response import ApiResponse
 settings = get_settings()
 
 # 初始化日志（在 settings 加载后）
-setup_logging(settings.log_level)
+setup_logging(
+    level=settings.log_level,
+    json_format=settings.log_json,
+    to_file=settings.log_to_file,
+    log_dir=settings.log_dir,
+)
 
 
 @asynccontextmanager
