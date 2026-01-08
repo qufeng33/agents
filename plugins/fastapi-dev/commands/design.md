@@ -26,6 +26,8 @@ $ARGUMENTS
 
 ## 执行指南
 
+> 调用 agent 时，如果 `.agent/tips.md` 存在，始终传递经验文档路径。
+
 ### 步骤 1：解析输入
 
 判断 `$ARGUMENTS` 的类型：

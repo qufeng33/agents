@@ -1,7 +1,7 @@
 ---
 name: fastapi-tester
 description: FastAPI 测试专家。Use when writing tests, creating fixtures, mocking dependencies, or improving test coverage. 编写 pytest-asyncio 测试用例。
-tools: Skill, Read, Write, Edit, Bash, Glob, Grep, TodoWrite, WebSearch
+tools: Skill, Read, Write, Edit, Bash, Glob, Grep, TodoWrite, WebSearch, WebFetch, AskUserQuestion
 model: opus
 color: yellow
 ---

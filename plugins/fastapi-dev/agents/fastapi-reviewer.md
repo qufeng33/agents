@@ -1,7 +1,7 @@
 ---
 name: fastapi-reviewer
 description: FastAPI 代码审查者。Use proactively after code implementation to review changes. 支持多维度审查（正确性/架构/安全），使用置信度过滤只报告高优先级问题。
-tools: Task, Skill, Read, Glob, Grep, TodoWrite, Write, WebSearch, WebFetch
+tools: Task, Skill, Read, Glob, Grep, Bash, TodoWrite, Write, WebSearch, WebFetch, AskUserQuestion
 model: opus
 color: red
 ---

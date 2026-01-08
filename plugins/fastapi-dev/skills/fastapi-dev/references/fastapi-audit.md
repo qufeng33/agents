@@ -206,6 +206,8 @@ def serialize_value(value: Any) -> Any:
 
 ### SQLAlchemy 事件监听
 
+> 虽然项目使用 `AsyncSession`，但事件监听器注册在同步 `Session` 上。这是因为 `AsyncSession` 内部包装了同步 `Session`，事件会正常触发。
+
 ```python
 from sqlalchemy import event
 from sqlalchemy.orm import Session

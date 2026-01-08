@@ -12,7 +12,7 @@
 
 | 组件 | 选型 |
 |------|------|
-| 框架 | FastAPI ≥0.122.0 | Python ≥3.13 | Pydantic ≥2.10 |
+| 框架 | FastAPI ≥0.122.0 / Python ≥3.13 / Pydantic ≥2.10 |
 | 数据库 | PostgreSQL, SQLAlchemy 2.0 (async), Alembic |
 | 测试 | pytest, pytest-asyncio, httpx |
 | 工具链 | uv, ruff, ty |

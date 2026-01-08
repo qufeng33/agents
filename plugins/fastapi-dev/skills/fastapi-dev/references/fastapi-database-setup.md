@@ -63,6 +63,8 @@ class Base(DeclarativeBase):
 用于 BackgroundTasks、Celery 或迁移脚本等同步场景。
 
 ```python
+from collections.abc import Generator
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 

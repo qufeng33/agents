@@ -13,8 +13,8 @@ try:
     # PostToolUse 的输入格式
     tool_input = data.get('tool_input', {})
     print(tool_input.get('file_path', ''))
-except:
-    pass
+except Exception:
+    print('')
 " 2>/dev/null)
 
 # 检查是否为 Python 文件
