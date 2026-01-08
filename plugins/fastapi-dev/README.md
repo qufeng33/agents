@@ -25,12 +25,12 @@
 
 | 命令 | 用途 |
 |------|------|
-| `/fastapi-dev:init` | 项目初始化 |
-| `/fastapi-dev:design` | 架构设计 |
-| `/fastapi-dev:feature` | 功能开发 |
-| `/fastapi-dev:review` | 代码审查 |
-| `/fastapi-dev:test` | 测试生成 |
-| `/fastapi-dev:refactor` | 代码重构 |
+| `/fastapi-init` | 项目初始化 |
+| `/fastapi-design` | 架构设计 |
+| `/fastapi-feature` | 功能开发 |
+| `/fastapi-review` | 代码审查 |
+| `/fastapi-test` | 测试生成 |
+| `/fastapi-refactor` | 代码重构 |
 
 ### Agents
 
