@@ -111,7 +111,9 @@ Router (HTTP 层) → Service (业务逻辑层) → Repository (数据访问层)
 └── README.md
 ```
 
-详见 [项目结构详解](./references/fastapi-project-structure.md) | 代码模板见 `assets/`
+详见 [项目结构详解](./references/fastapi-project-structure.md)
+
+**代码模板**：`assets/simple-api/` 和 `assets/modular-api/`，模板内 `app/` 目录即应用代码，复制后直接得到正确的项目结构。
 
 ---
 
@@ -222,7 +224,7 @@ Router (HTTP 层) → Service (业务逻辑层) → Repository (数据访问层)
 | | API 设计 | [fastapi-api-design.md](./references/fastapi-api-design.md) | REST 规范、分页 |
 | | HTTP 客户端 | [fastapi-httpx.md](./references/fastapi-httpx.md) | httpx AsyncClient |
 
-代码模板见 `assets/simple-api/` 和 `assets/modular-api/`
+代码模板见 `assets/simple-api/app/` 和 `assets/modular-api/app/`
 
 ---
 

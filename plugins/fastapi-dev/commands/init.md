@@ -29,18 +29,33 @@ $ARGUMENTS
 
 ### 步骤 2：初始化
 
-1. 加载 `fastapi-dev` skill 获取模板路径（`assets/simple-api/` 或 `assets/modular-api/`）
+1. 加载 `fastapi-dev` skill
 2. 确认项目类型（简单/模块化）
 3. 确认项目路径
 4. 创建项目目录结构：
+   ```bash
+   # 创建项目目录
+   mkdir -p {project}
+
+   # 复制代码模板（模板内已包含 app/ 目录）
+   cp -r assets/{simple|modular}-api/* {project}/
+
+   # 复制共享文件
+   cp -r assets/tests {project}/
+   cp assets/.env.example {project}/
+   cp assets/pyproject.toml.template {project}/pyproject.toml
+   cp assets/README.md.template {project}/README.md
+   cp assets/.gitignore.template {project}/.gitignore
+   ```
+   最终结构：
    ```
    {project}/
-   ├── app/           # 从 assets/{simple|modular}-api/ 复制
-   ├── tests/         # 从 assets/tests/ 复制
-   ├── pyproject.toml # 从 assets/pyproject.toml.template 生成
-   ├── README.md      # 从 assets/README.md.template 生成
-   ├── .env.example   # 从 assets/.env.example 生成
-   └── .gitignore     # 从 assets/.gitignore.template 生成
+   ├── app/           # 应用代码
+   ├── tests/         # 测试代码
+   ├── pyproject.toml
+   ├── README.md
+   ├── .env.example
+   └── .gitignore
    ```
 5. 处理模板文件：
    - 替换 `{{PROJECT_NAME}}` 为实际项目名

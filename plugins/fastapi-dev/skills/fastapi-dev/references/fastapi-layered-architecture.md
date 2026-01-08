@@ -127,8 +127,8 @@ async def get_user(user_id: UUID, service: UserServiceDep) -> ApiResponse[UserRe
 
 完整可运行示例见 `assets/` 目录：
 
-- `assets/simple-api/services/` - Service 直接操作 AsyncSession
-- `assets/modular-api/modules/user/` - 完整三层架构（含 Repository）
+- `assets/simple-api/app/services/` - Service 直接操作 AsyncSession
+- `assets/modular-api/app/modules/user/` - 完整三层架构（含 Repository）
 
 ---
 

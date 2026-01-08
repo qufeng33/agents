@@ -275,5 +275,5 @@ FastAPI 自动返回 422 响应，可在统一异常处理中转换格式。
 
 完整可运行示例见 `assets/` 目录：
 
-- `assets/simple-api/models/` / `assets/simple-api/schemas/`
-- `assets/modular-api/modules/user/models.py` / `assets/modular-api/modules/user/schemas.py`
+- `assets/simple-api/app/models/` / `assets/simple-api/app/schemas/`
+- `assets/modular-api/app/modules/user/models.py` / `assets/modular-api/app/modules/user/schemas.py`

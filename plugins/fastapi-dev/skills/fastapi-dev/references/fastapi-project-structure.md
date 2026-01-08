@@ -98,7 +98,7 @@ app/
 - Service 负责业务规则，Router 负责 HTTP 语义
 - 结构扩张后可平滑迁移到模块化结构
 
-> 完整示例见 `assets/simple-api/`，此处省略细节以突出结构要点。
+> 完整示例见 `assets/simple-api/app/`，此处省略细节以突出结构要点。
 
 ---
 
@@ -178,7 +178,7 @@ api_router = APIRouter()
 api_router.include_router(user_router, prefix="/users", tags=["users"])
 ```
 
-> 完整示例见 `assets/modular-api/`，此处省略依赖与路由细节。
+> 完整示例见 `assets/modular-api/app/`，此处省略依赖与路由细节。
 
 ---
 
@@ -243,5 +243,5 @@ HTTP处理  业务逻辑    数据访问
 
 完整模板代码位于 `assets/` 目录：
 
-- `assets/simple-api/` - 简单结构模板
-- `assets/modular-api/` - 模块化结构模板
+- `assets/simple-api/app/` - 简单结构模板
+- `assets/modular-api/app/` - 模块化结构模板

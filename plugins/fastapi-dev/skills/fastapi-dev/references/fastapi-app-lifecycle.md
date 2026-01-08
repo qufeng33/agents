@@ -1,6 +1,6 @@
 # FastAPI 应用生命周期
 
-> 完整可运行模板见 `assets/simple-api/` 和 `assets/modular-api/`
+> 完整可运行模板见 `assets/simple-api/app/` 和 `assets/modular-api/app/`
 
 ## 设计原则
 - 资源初始化与清理必须成对出现
