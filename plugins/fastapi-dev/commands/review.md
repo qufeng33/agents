@@ -1,11 +1,26 @@
 ---
 name: fastapi-review
 description: 按照 FastAPI 规范审查代码
+argument-hint: [审查范围] | <task-id>
 ---
 
 # FastAPI 代码审查
 
 使用 `fastapi-reviewer` agent 进行代码审查，产出审查报告。
+
+---
+
+## 调用方式
+
+使用 **Task 工具** 调用 `fastapi-reviewer` agent：
+
+```
+Task 工具参数：
+- subagent_type: "fastapi-reviewer"
+- prompt: "..."
+```
+
+---
 
 ## 任务目录结构
 ```
@@ -46,35 +61,41 @@ $ARGUMENTS
 
 #### 情况 B：审查任务相关代码
 
-调用 `fastapi-reviewer` agent，传递指令：
+**使用 Task 工具调用 `fastapi-reviewer` agent**：
 ```
-## 文件
-- 设计文档: .agent/tasks/{task-id}/spec.md
-- 审查记录: .agent/tasks/{task-id}/review.md
-- 经验文档: .agent/tips.md
+Task 工具参数：
+- subagent_type: "fastapi-reviewer"
+- prompt: |
+    ## 文件
+    - 设计文档: .agent/tasks/{task-id}/spec.md
+    - 审查记录: .agent/tasks/{task-id}/review.md
+    - 经验文档: .agent/tips.md
 
-## 任务
-审查设计文档中「待审核」状态的子任务相关代码。
-- 审查结果追加到审查记录文件
-- 通过则更新状态为「已完成」，不通过则保持「待审核」
+    ## 任务
+    审查设计文档中「待审核」状态的子任务相关代码。
+    - 审查结果追加到审查记录文件
+    - 通过则更新状态为「已完成」，不通过则保持「待审核」
 ```
 
 #### 情况 A/C：独立审查
 
-调用 `fastapi-reviewer` agent，传递指令：
+**使用 Task 工具调用 `fastapi-reviewer` agent**：
 ```
-## 文件
-- 经验文档: .agent/tips.md
+Task 工具参数：
+- subagent_type: "fastapi-reviewer"
+- prompt: |
+    ## 文件
+    - 经验文档: .agent/tips.md
 
-## 任务
-审查范围：{$ARGUMENTS 或 "git diff 未提交变更"}
+    ## 任务
+    审查范围：{$ARGUMENTS 或 "git diff 未提交变更"}
 
-请审查指定范围的代码。
-- 如果输入为空，审查 git diff 的未提交变更
-- 如果是文件/目录路径，审查对应的代码
-- 如果是 commit 范围，审查对应的变更
+    请审查指定范围的代码。
+    - 如果输入为空，审查 git diff 的未提交变更
+    - 如果是文件/目录路径，审查对应的代码
+    - 如果是 commit 范围，审查对应的变更
 
-完成后询问用户是否将审查报告保存到任务目录。
+    完成后询问用户是否将审查报告保存到任务目录。
 ```
 
 每个 agent 按照其定义的流程执行。

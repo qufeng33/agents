@@ -1,11 +1,26 @@
 ---
 name: fastapi-refactor
 description: 按照 FastAPI 最佳实践重构代码
+argument-hint: <重构目标> | <task-id>
 ---
 
 # FastAPI 代码重构
 
 使用 `fastapi-developer` agent 按照开发规范重构代码。
+
+---
+
+## 调用方式
+
+使用 **Task 工具** 调用 `fastapi-developer` agent：
+
+```
+Task 工具参数：
+- subagent_type: "fastapi-developer"
+- prompt: "..."
+```
+
+---
 
 ## 任务目录结构
 ```
@@ -44,29 +59,35 @@ $ARGUMENTS
 
 #### 情况 B：任务上下文中重构
 
-调用 `fastapi-developer` agent，传递指令：
+**使用 Task 工具调用 `fastapi-developer` agent**：
 ```
-## 文件
-- 设计文档: .agent/tasks/{task-id}/spec.md
-- 经验文档: .agent/tips.md
+Task 工具参数：
+- subagent_type: "fastapi-developer"
+- prompt: |
+    ## 文件
+    - 设计文档: .agent/tasks/{task-id}/spec.md
+    - 经验文档: .agent/tips.md
 
-## 任务
-在该任务上下文中进行重构。
-完成后更新设计文档相关内容（如需）。
+    ## 任务
+    在该任务上下文中进行重构。
+    完成后更新设计文档相关内容（如需）。
 ```
 
 #### 情况 A/C：独立重构
 
-调用 `fastapi-developer` agent，传递指令：
+**使用 Task 工具调用 `fastapi-developer` agent**：
 ```
-## 文件
-- 经验文档: .agent/tips.md
+Task 工具参数：
+- subagent_type: "fastapi-developer"
+- prompt: |
+    ## 文件
+    - 经验文档: .agent/tips.md
 
-## 任务
-重构目标：{$ARGUMENTS 或用户描述}
+    ## 任务
+    重构目标：{$ARGUMENTS 或用户描述}
 
-请按描述进行重构。
-完成后询问用户是否将重构关联到某个任务。
+    请按描述进行重构。
+    完成后询问用户是否将重构关联到某个任务。
 ```
 
 每个 agent 按照其定义的流程执行。

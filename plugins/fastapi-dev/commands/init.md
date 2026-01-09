@@ -1,6 +1,8 @@
 ---
 name: fastapi-init
 description: 初始化 FastAPI 项目结构
+argument-hint: <项目名>
+disable-model-invocation: true
 ---
 
 # 初始化 FastAPI 项目

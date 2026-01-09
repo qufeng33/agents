@@ -1,11 +1,26 @@
 ---
 name: fastapi-test
 description: 编写 FastAPI 测试用例（pytest-asyncio）
+argument-hint: <测试目标> | <task-id>
 ---
 
 # FastAPI 测试
 
 使用 `fastapi-tester` agent 按照测试规范编写测试用例。
+
+---
+
+## 调用方式
+
+使用 **Task 工具** 调用 `fastapi-tester` agent：
+
+```
+Task 工具参数：
+- subagent_type: "fastapi-tester"
+- prompt: "..."
+```
+
+---
 
 ## 任务目录结构
 ```
@@ -44,29 +59,35 @@ $ARGUMENTS
 
 #### 情况 B：为任务编写测试
 
-调用 `fastapi-tester` agent，传递指令：
+**使用 Task 工具调用 `fastapi-tester` agent**：
 ```
-## 文件
-- 设计文档: .agent/tasks/{task-id}/spec.md
-- 经验文档: .agent/tips.md
+Task 工具参数：
+- subagent_type: "fastapi-tester"
+- prompt: |
+    ## 文件
+    - 设计文档: .agent/tasks/{task-id}/spec.md
+    - 经验文档: .agent/tips.md
 
-## 任务
-为该任务的功能编写测试用例。
-完成后更新设计文档（如有测试相关章节）。
+    ## 任务
+    为该任务的功能编写测试用例。
+    完成后更新设计文档（如有测试相关章节）。
 ```
 
 #### 情况 A/C：独立测试
 
-调用 `fastapi-tester` agent，传递指令：
+**使用 Task 工具调用 `fastapi-tester` agent**：
 ```
-## 文件
-- 经验文档: .agent/tips.md
+Task 工具参数：
+- subagent_type: "fastapi-tester"
+- prompt: |
+    ## 文件
+    - 经验文档: .agent/tips.md
 
-## 任务
-测试目标：{$ARGUMENTS 或用户描述}
+    ## 任务
+    测试目标：{$ARGUMENTS 或用户描述}
 
-请按描述编写测试用例。
-完成后询问用户是否将测试关联到某个任务。
+    请按描述编写测试用例。
+    完成后询问用户是否将测试关联到某个任务。
 ```
 
 每个 agent 按照其定义的流程执行。

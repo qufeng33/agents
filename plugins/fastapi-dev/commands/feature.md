@@ -1,16 +1,41 @@
 ---
 name: fastapi-feature
 description: 完整的 FastAPI 功能开发流程：设计 → 实现 → 审查
+argument-hint: <功能描述> | <task-id>
 ---
 
 # FastAPI 完整功能开发
 
 完整的功能开发流程，支持大功能拆分为多个子任务逐个处理。
 
+---
+
+## 本插件的自定义 Agent
+
+本命令使用 `fastapi-dev` 插件定义的自定义 agent：
+
+| Agent 名称 | 用途 |
+|-----------|------|
+| `fastapi-designer` | 需求分析、API 设计、产出 spec.md |
+| `fastapi-developer` | 代码实现、遵循分层架构 |
+| `fastapi-reviewer` | 代码审查（支持 focus 参数） |
+
+### 调用方式
+
+使用 **Task 工具** 调用，格式如下：
+
+```
+Task 工具参数：
+- subagent_type: "fastapi-designer"  ← 指定 agent 名称
+- prompt: "..."                       ← 传递给 agent 的指令
+```
+
+---
+
 ## 流程概述
 
 ### 阶段 1：设计
-调用 `fastapi-designer` agent 产出设计文档，包含任务清单。
+使用 Task 工具调用 `fastapi-designer` agent 产出设计文档。
 
 ### 阶段 2：确认
 展示设计文档给用户，确认后进入实现阶段。
@@ -21,12 +46,12 @@ description: 完整的 FastAPI 功能开发流程：设计 → 实现 → 审查
 
 1. 读取任务目录下的 spec.md 任务清单
 2. 找到第一个「待开始」或「待审核」的任务
-3. 如果是「待开始」：调用 fastapi-developer 实现
+3. 如果是「待开始」：用 Task 工具调用 fastapi-developer 实现
 4. 如果是「待审核」：启动并行审查
-   - 同时调用 3 个审查 agent（正确性/架构/安全）
+   - 同时用 Task 工具调用 3 个 fastapi-reviewer（正确性/架构/安全）
    - 合并审查结果
    - 全部通过 → 标记为「已完成」
-   - 有问题 → developer 修复 → 重新审查
+   - 有问题 → fastapi-developer 修复 → 重新审查
 5. 检查是否还有未完成任务
    - 有 → 继续循环
    - 无 → 流程结束
@@ -84,16 +109,19 @@ $ARGUMENTS
    - 取最大序号 + 1（无则为 001）
    - 格式：`{功能名}-{seq}`，如 `user-auth-001`
 3. 创建任务目录：`.agent/tasks/{task-id}/`
-4. 调用 `fastapi-designer` agent，传递指令：
+4. **使用 Task 工具调用 `fastapi-designer` agent**：
    ```
-   ## 文件
-   - 设计文档: .agent/tasks/{task-id}/spec.md
-   - 经验文档: .agent/tips.md
+   Task 工具参数：
+   - subagent_type: "fastapi-designer"
+   - prompt: |
+       ## 文件
+       - 设计文档: .agent/tasks/{task-id}/spec.md
+       - 经验文档: .agent/tips.md
 
-   ## 任务
-   功能描述：{用户的功能描述}
+       ## 任务
+       功能描述：{用户的功能描述}
 
-   请完成设计流程，将设计文档写入指定文件。
+       请完成设计流程，将设计文档写入指定文件。
    ```
 5. 用户确认设计后，进入实现循环
 
@@ -111,15 +139,18 @@ $ARGUMENTS
 3. 根据状态调用对应 agent：
 
    如果是「待开始」：
-   调用 fastapi-developer，传递指令：
+   **使用 Task 工具调用 `fastapi-developer` agent**：
    ---
-   ## 文件
-   - 设计文档: .agent/tasks/{task-id}/spec.md
-   - 经验文档: .agent/tips.md
+   Task 工具参数：
+   - subagent_type: "fastapi-developer"
+   - prompt: |
+       ## 文件
+       - 设计文档: .agent/tasks/{task-id}/spec.md
+       - 经验文档: .agent/tips.md
 
-   ## 任务
-   实现设计文档中第一个「待开始」的子任务。
-   完成后更新状态为「待审核」。
+       ## 任务
+       实现设计文档中第一个「待开始」的子任务。
+       完成后更新状态为「待审核」。
    ---
 
    如果是「待审核」：
@@ -132,28 +163,26 @@ $ARGUMENTS
 
 ### 并行审查流程
 
-当子任务状态为「待审核」时，**同时**启动 3 个 fastapi-reviewer（不同 focus）：
+当子任务状态为「待审核」时，**在同一条消息中发起 3 个 Task 工具调用**：
 
 ```
-使用 Task 工具并行调用（在同一个消息中发起多个 Task 调用）：
+Task 工具调用 1：
+- subagent_type: "fastapi-reviewer"
+- prompt: |
+    审查范围：{变更的文件列表}
+    focus: 正确性
 
-Task 1: fastapi-reviewer (focus=正确性)
----
-审查范围：{变更的文件列表}
-focus: 正确性
----
+Task 工具调用 2：
+- subagent_type: "fastapi-reviewer"
+- prompt: |
+    审查范围：{变更的文件列表}
+    focus: 架构
 
-Task 2: fastapi-reviewer (focus=架构)
----
-审查范围：{变更的文件列表}
-focus: 架构
----
-
-Task 3: fastapi-reviewer (focus=安全)
----
-审查范围：{变更的文件列表}
-focus: 安全
----
+Task 工具调用 3：
+- subagent_type: "fastapi-reviewer"
+- prompt: |
+    审查范围：{变更的文件列表}
+    focus: 安全
 ```
 
 ### 合并审查结果
@@ -174,7 +203,7 @@ focus: 安全
 
 ## 结论
 - 全部通过 → 更新状态为「已完成」
-- 有问题 → 列出待修复项，调用 developer 修复后重新审查（最多重试 3 次，超过后询问用户如何处理）
+- 有问题 → 列出待修复项，调用 fastapi-developer 修复后重新审查（最多重试 3 次，超过后询问用户如何处理）
 ```
 
 每个 agent 按照其定义的流程执行。
